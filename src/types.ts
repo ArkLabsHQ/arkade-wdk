@@ -9,26 +9,7 @@
 import type { WalletConfig as WDKWalletConfig } from '@tetherto/wdk-wallet';
 import type { WalletConfig as ArkadeSDKWalletConfig } from '@arkade-os/sdk';
 
-// Re-export official WDK types for convenience
-export type { IWalletAccount, WalletConfig as WDKWalletConfig } from '@tetherto/wdk-wallet';
+export interface ArkadeWalletConfig extends WDKWalletConfig, Omit<ArkadeSDKWalletConfig, 'identity'> {
 
-// ============================================================================
-// Arkade-Specific Extensions
-// ============================================================================
-
-/**
- * Arkade-specific transfer query options
- */
-export interface TransferQueryOptions {
-  limit?: number;
-  offset?: number;
-}
-
-// ============================================================================
-// Configuration Interfaces
-// ============================================================================
-
-export interface ArkadeWalletConfig extends Omit<WDKWalletConfig, 'network'>, Partial<Omit<ArkadeSDKWalletConfig, 'network'>> {
-  // Arkade-specific configuration
-  serverUrl?: string;
+  swapProviderUrl?: string;
 }

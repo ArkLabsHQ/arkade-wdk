@@ -5,8 +5,8 @@
  * with the official WDK Manager.
  */
 import WdkManager from '@tetherto/wdk';
-import { WalletManagerArkade } from '../wallets/bitcoin-arkade';
-import type { ArkadeWalletConfig } from '../types';
+import type { ArkadeWalletConfig } from '../types.js';
+import WalletManagerArkade from '../wallet-manager-arkade.js';
 
 describe('WDK Integration', () => {
   const validSeedPhrase = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -23,7 +23,7 @@ describe('WDK Integration', () => {
   it('should register WalletManagerArkade', () => {
     const wdk = new WdkManager(validSeedPhrase);
     const config: ArkadeWalletConfig = {
-      serverUrl: 'https://test.example.com',
+      arkServerUrl: 'https://test.example.com',
     };
 
     // Note: Using 'as any' because our WalletConfig type differs from official WDK
@@ -35,7 +35,7 @@ describe('WDK Integration', () => {
   it('should support method chaining', () => {
     const wdk = new WdkManager(validSeedPhrase);
     const config: ArkadeWalletConfig = {
-      serverUrl: 'https://test.example.com',
+      arkServerUrl: 'https://test.example.com',
     };
 
     const result = wdk.registerWallet('bitcoin', WalletManagerArkade as any, config as any);
@@ -45,7 +45,7 @@ describe('WDK Integration', () => {
   it('should dispose without errors', () => {
     const wdk = new WdkManager(validSeedPhrase);
     const config: ArkadeWalletConfig = {
-      serverUrl: 'https://test.example.com',
+      arkServerUrl: 'https://test.example.com',
     };
 
     wdk.registerWallet('bitcoin', WalletManagerArkade as any, config as any);

@@ -1,0 +1,221 @@
+import { ArkInfo, IWallet, Wallet, } from '@arkade-os/sdk';
+import * as btc from '@scure/btc-signer';
+import { hex } from '@scure/base';
+// Official WDK types
+import type { IWalletAccountReadOnly, KeyPair } from '@tetherto/wdk-wallet';
+
+import type {
+  Transaction,
+  TransactionResult,
+  TransferResult,
+  IWalletAccount,
+} from '@tetherto/wdk-wallet';
+import { Signer, Verifier } from 'bip322-js';
+import type { IndexerProvider } from '@arkade-os/sdk';
+import { ArkadeLightning } from '@arkade-os/boltz-swap';
+import { quoteSend, send } from './lib/send.js';
+
+/**
+ * Read-only Bitcoin wallet account with Arkade Ark protocol support
+ * Cannot sign or send transactions - only query balances and verify signatures
+ */
+export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
+  public readonly index: number;
+
+  constructor(
+    public readonly path: string,
+    protected readonly wallet: IWallet,
+    public readonly keyPair: { publicKey: Uint8Array },
+    protected readonly indexerProvider: IndexerProvider,
+    protected readonly arkInfo: Promise<ArkInfo>
+  ) {
+    this.index = parseInt(path.split('/').pop() || '0', 10);
+  }
+
+  /**
+   * Get Ark protocol address (off-chain)
+   */
+  async getAddress(): Promise<string> {
+    return await this.wallet.getAddress();
+  }
+
+  /**
+   * Get simple balance (total spendable amount)
+   */
+  async getBalance(): Promise<bigint> {
+    const balance = await this.wallet.getBalance();
+    return BigInt(balance.total);
+  }
+
+  /**
+   * Verify a message signature
+   */
+  async verify(_message: string, _signature: string): Promise<boolean> {
+    return Verifier.verifySignature(
+      btc.p2tr(await this.wallet.identity.xOnlyPublicKey()).address,
+      _message,
+      _signature,
+      false
+    );
+  }
+
+  /**
+   * Get transaction receipt
+   */
+  async getTransactionReceipt(_hash: string): Promise<unknown> {
+    const res = await this.indexerProvider.getVirtualTxs([_hash]);
+    return res.txs.length > 0 ? res.txs[0] : null;
+  }
+
+  /**
+   * Get token balance - not applicable to Bitcoin
+   */
+  getTokenBalance(_tokenAddress: string): Promise<bigint> {
+    return Promise.resolve(0n);
+  }
+
+  /**
+   * Quote transaction fee without sending (read-only can still estimate)
+   */
+  async quoteSendTransaction(tx: Transaction): Promise<Omit<TransactionResult, 'hash'>> {
+    const estimate = await quoteSend({
+      to: tx.to,
+      amount: BigInt(tx.value),
+      wallet: this.wallet,
+      arkInfo: this.arkInfo,
+      lightning: null,
+    });
+    return { fee: estimate.fee };
+  }
+
+  /**
+   * Quote transfer costs - not applicable to Bitcoin
+   */
+  quoteTransfer(_options: {
+    token: string;
+    recipient: string;
+    amount: number | bigint;
+  }): Promise<Omit<TransferResult, 'hash'>> {
+    throw new Error('quoteTransfer not applicable to Bitcoin wallets');
+  }
+}
+
+/**
+ * Bitcoin wallet account with Arkade Ark protocol support
+ * Extends standard WalletAccount with Arkade-specific features like VTXOs and boarding addresses
+ */
+export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements IWalletAccount {
+  public override readonly keyPair: KeyPair;
+
+  constructor(
+    path: string,
+    wallet: IWallet,
+    keyPair: KeyPair,
+    indexerProvider: IndexerProvider,
+    arkInfo: Promise<ArkInfo>,
+    public readonly arkadeLightning: ArkadeLightning | null = null
+  ) {
+    super(path, wallet, keyPair, indexerProvider, arkInfo);
+    this.keyPair = keyPair;
+  }
+
+  /**
+   * Initialize the wallet with Arkade SDK
+   */
+  async initialize(): Promise<void> {}
+
+  /**
+   * Send Bitcoin transaction (official WDK signature)
+   */
+  async sendTransaction(tx: Transaction): Promise<TransactionResult> {
+    const result = await send({
+      to: tx.to,
+      amount: BigInt(tx.value),
+      wallet: this.wallet,
+      arkInfo: this.arkInfo,
+      lightning: this.arkadeLightning,
+    });
+
+    return {
+      hash: result.txid,
+      fee: result.fee,
+    };
+  }
+
+  /**
+   * Quote transaction fee without sending (official WDK signature)
+   */
+  override async quoteSendTransaction(tx: Transaction): Promise<Omit<TransactionResult, 'hash'>> {
+    const estimate = await quoteSend({
+      to: tx.to,
+      amount: BigInt(tx.value),
+      wallet: this.wallet,
+      arkInfo: this.arkInfo,
+      lightning: this.arkadeLightning,
+    });
+
+    return {
+      fee: estimate.fee,
+    };
+  }
+
+  /**
+   * Transfer tokens (ERC-20 specific - not applicable to Bitcoin)
+   * Required by official WDK IWalletAccount interface
+   */
+  transfer(_options: {
+    token: string;
+    recipient: string;
+    amount: number | bigint;
+  }): Promise<TransferResult> {
+    // Bitcoin doesn't have token transfers like EVM chains
+    throw new Error('transfer not applicable to Bitcoin wallets - use sendTransaction instead');
+  }
+
+  /**
+   * Sign a message with the account's private key
+   * Note: Arkade SDK Identity is designed for Bitcoin transaction signing, not arbitrary messages.
+   * This is a simplified implementation for WDK compatibility.
+   */
+  async sign(message: string): Promise<string> {
+    return Signer.sign(
+      hex.encode(this.keyPair.privateKey!),
+      btc.p2tr(await this.wallet.identity.xOnlyPublicKey()).address,
+      message
+    );
+  }
+
+  /**
+   * Create a read-only version of this account
+   */
+  toReadOnlyAccount(): Promise<IWalletAccountReadOnly> {
+    return Promise.resolve(new WalletAccountArkadeReadOnly(
+      this.path,
+      this.wallet,
+      { publicKey: this.keyPair.publicKey },
+      this.indexerProvider,
+      this.arkInfo
+    ));
+  }
+
+  /**
+   * Create a read-only version of this account (sync)
+   */
+  toReadOnlyAccountSync(): IWalletAccountReadOnly {
+    return new WalletAccountArkadeReadOnly(
+      this.path,
+      this.wallet,
+      { publicKey: this.keyPair.publicKey },
+      this.indexerProvider,
+      this.arkInfo
+    );
+  }
+
+  /**
+   * Securely dispose of sensitive data
+   */
+  dispose(): void {
+    this.keyPair.privateKey?.fill(0);
+    (this as unknown as { wallet: Wallet | null }).wallet = null;
+  }
+}
