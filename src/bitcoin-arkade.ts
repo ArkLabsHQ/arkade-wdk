@@ -12,7 +12,10 @@ import type {
 } from '@tetherto/wdk-wallet';
 import { Signer, Verifier } from 'bip322-js';
 import type { IndexerProvider } from '@arkade-os/sdk';
-import { ArkadeLightning } from '@arkade-os/boltz-swap';
+import type {
+  ArkadeLightning,
+  CreateLightningInvoiceResponse,
+} from '@arkade-os/boltz-swap';
 import { quoteSend, send } from './lib/send.js';
 
 /**
@@ -109,7 +112,7 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
 
   constructor(
     path: string,
-    wallet: IWallet,
+    public readonly wallet: IWallet,
     keyPair: KeyPair,
     indexerProvider: IndexerProvider,
     arkInfo: Promise<ArkInfo>,
@@ -199,23 +202,35 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
   }
 
   /**
-   * Create a read-only version of this account (sync)
-   */
-  toReadOnlyAccountSync(): IWalletAccountReadOnly {
-    return new WalletAccountArkadeReadOnly(
-      this.path,
-      this.wallet,
-      { publicKey: this.keyPair.publicKey },
-      this.indexerProvider,
-      this.arkInfo
-    );
-  }
-
-  /**
    * Securely dispose of sensitive data
    */
   dispose(): void {
     this.keyPair.privateKey?.fill(0);
     (this as unknown as { wallet: Wallet | null }).wallet = null;
+    this.arkadeLightning?.dispose();
   }
+
+  // ==========================================
+  // Lightning Receive Methods
+  // ==========================================
+
+  /**
+   * Create a Lightning invoice to receive payment
+   * Requires Lightning support to be configured (swapProviderUrl)
+   * @param amount Amount in satoshis to receive
+   * @param description Optional description for the invoice
+   */
+  async createLightningInvoice(amount: number, description?: string): Promise<string> {
+    if (!this.arkadeLightning) {
+      throw new Error('Lightning support not configured. Provide swapProviderUrl in wallet config.');
+    }
+
+    const response: CreateLightningInvoiceResponse = await this.arkadeLightning.createLightningInvoice({
+      amount,
+      description,
+    });
+
+    return response.invoice;
+  }
+
 }

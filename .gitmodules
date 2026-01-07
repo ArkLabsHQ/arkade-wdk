@@ -1,0 +1,9 @@
+[submodule "examples/wdk-starter-react-native"]
+	path = examples/wdk-starter-react-native
+	url = https://github.com/tetherto/wdk-starter-react-native.git
+[submodule "packages/wdk-react-native-provider"]
+	path = packages/wdk-react-native-provider
+	url = https://github.com/tetherto/wdk-react-native-provider.git
+[submodule "packages/pear-wrk-wdk"]
+	path = packages/pear-wrk-wdk
+	url = https://github.com/tetherto/pear-wrk-wdk

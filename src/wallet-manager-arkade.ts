@@ -9,8 +9,6 @@ import {
   Wallet,
   WalletConfig,
 } from '@arkade-os/sdk';
-import { generateMnemonic, mnemonicToSeedSync, validateMnemonic } from '@scure/bip39';
-import { wordlist } from '@scure/bip39/wordlists/english.js';
 import { HDKey } from '@scure/bip32';
 import { ArkadeLightning, BoltzSwapProvider } from '@arkade-os/boltz-swap';
 import { FeeRates } from '@tetherto/wdk';
@@ -27,18 +25,8 @@ class WalletManagerArkade extends WalletManager {
   private arkProvider: ArkProvider;
   private info: Promise<ArkInfo>;
 
-  /**
-   * Static methods required by official WDK WalletManager interface
-   */
-  static getRandomSeedPhrase(): string {
-    return generateMnemonic(wordlist);
-  }
-
   constructor(seed: string | Uint8Array, config?: ArkadeWalletConfig) {
-    if (typeof seed === 'string' && !validateMnemonic(seed, wordlist)) {
-      throw new Error('Invalid seed phrase');
-    }
-    super(typeof seed === 'string' ? mnemonicToSeedSync(seed) : seed, config);
+    super(seed);
 
     this.config = config ?? {};
     this.arkProvider = (this.config.arkProvider ?? new RestArkProvider(this.config.arkServerUrl!)) as ArkProvider;
