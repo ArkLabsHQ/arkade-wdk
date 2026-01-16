@@ -51,8 +51,8 @@ const wdk = new WdkManager(seedPhrase);
 
 // Register Arkade wallet for Bitcoin
 wdk.registerWallet('bitcoin', WalletManagerArkade, {
-  serverUrl: 'https://arkade.computer',
   network: 'bitcoin',
+  arkServerUrl: 'https://arkade.computer',
   swapProviderUrl: 'https://api.ark.boltz.exchange', // Optional: for Lightning
 });
 
@@ -64,7 +64,7 @@ const balance = await account.getBalance(); // bigint in satoshis
 console.log('Balance:', balance);
 
 // Get addresses
-const arkAddress = await account.getAddress();        // Off-chain Ark address
+const arkAddress = await account.getAddress(); // Off-chain Ark address
 const boardingAddress = await account.getBoardingAddress(); // On-chain funding address
 ```
 
@@ -118,11 +118,11 @@ if (isLightningAddress('user@wallet.com')) {
 ```typescript
 const detailed = await account.getBalanceDetailed();
 console.log({
-  total: detailed.total,           // All funds
-  settled: detailed.settled,       // Confirmed in Ark rounds
+  total: detailed.total, // All funds
+  settled: detailed.settled, // Confirmed in Ark rounds
   preconfirmed: detailed.preconfirmed, // Pending confirmation
-  pending: detailed.pending,       // In batches
-  recoverable: detailed.recoverable,   // Can be recovered
+  pending: detailed.pending, // In batches
+  recoverable: detailed.recoverable, // Can be recovered
 });
 ```
 
@@ -144,6 +144,7 @@ cp .env.example .env
 ```
 
 Edit `.env`:
+
 ```
 EXPO_PUBLIC_WDK_INDEXER_BASE_URL=https://wdk-api.tether.io
 EXPO_PUBLIC_WDK_INDEXER_API_KEY=your_api_key
@@ -202,7 +203,7 @@ class WalletAccountArkade implements IWalletAccount {
   verify(message: string, signature: string): Promise<boolean>;
 
   // Arkade-specific methods
-  arkadeWallet: IWallet;                    // Direct SDK access
+  arkadeWallet: IWallet; // Direct SDK access
   getBoardingAddress(): Promise<string>;
   getBalanceDetailed(): Promise<DetailedBalance>;
   getTransfers(options?): Promise<unknown[]>;
@@ -286,9 +287,9 @@ npm run prepare
 
 ```typescript
 interface ArkadeWalletConfig {
-  serverUrl: string;           // Ark server URL
+  serverUrl: string; // Ark server URL
   network: 'bitcoin' | 'testnet' | 'signet' | 'mutinynet' | 'regtest';
-  swapProviderUrl?: string;    // Boltz API URL for Lightning
+  swapProviderUrl?: string; // Boltz API URL for Lightning
 }
 ```
 

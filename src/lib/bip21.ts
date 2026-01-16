@@ -1,15 +1,15 @@
 // https://github.com/bitcoin/bips/blob/master/bip-0021.mediawiki
 // bitcoin:<address>[?amount=<amount>][?label=<label>][?message=<message>]
 
-import { fromSatoshis, prettyNumber, toSatoshis } from './format.js'
-import { isArkAddress } from './address.js'
+import { fromSatoshis, prettyNumber, toSatoshis } from './format.js';
+import { isArkAddress } from './address.js';
 
 export interface Bip21Decoded {
-  address?: string
-  arkAddress?: string
-  satoshis?: number
-  invoice?: string
-  lnurl?: string
+  address?: string;
+  arkAddress?: string;
+  satoshis?: number;
+  invoice?: string;
+  lnurl?: string;
 }
 
 /** decode a bip21 uri */
@@ -19,48 +19,48 @@ export const decodeBip21 = (uri: string): Bip21Decoded => {
     satoshis: undefined,
     invoice: undefined,
     lnurl: undefined,
-  }
+  };
 
   // use lowercase for consistency
-  const bip21Url = uri.trim()
+  const bip21Url = uri.trim();
 
   if (!bip21Url.toLowerCase().startsWith('bitcoin:')) {
-    throw new Error('Invalid BIP21 URI')
+    throw new Error('Invalid BIP21 URI');
   }
 
   // remove 'bitcoin:' prefix
-  const urlWithoutPrefix = bip21Url.slice(8)
+  const urlWithoutPrefix = bip21Url.slice(8);
 
   // split address and query parameters
-  const [address, queryString] = urlWithoutPrefix.split('?')
+  const [address, queryString] = urlWithoutPrefix.split('?');
 
-  result.address = address
+  result.address = address;
 
   if (queryString) {
-    const params = new URLSearchParams(queryString)
+    const params = new URLSearchParams(queryString);
 
     if (params.has('ark')) {
-      const arkAddress = params.get('ark') ?? ''
-      if (isArkAddress(arkAddress)) result.arkAddress = arkAddress
+      const arkAddress = params.get('ark') ?? '';
+      if (isArkAddress(arkAddress)) result.arkAddress = arkAddress;
     }
 
     if (params.has('amount')) {
-      const amount = parseFloat(params.get('amount')!)
-      if (isNaN(amount) || amount < 0 || !isFinite(amount)) throw new Error('Invalid amount')
-      result.satoshis = toSatoshis(amount)
+      const amount = parseFloat(params.get('amount')!);
+      if (isNaN(amount) || amount < 0 || !isFinite(amount)) throw new Error('Invalid amount');
+      result.satoshis = toSatoshis(amount);
     }
 
     if (params.has('lightning')) {
       if (params.get('lightning')?.startsWith('lnurl')) {
-        result.lnurl = params.get('lightning')!
+        result.lnurl = params.get('lightning')!;
       } else if (params.get('lightning')?.startsWith('ln')) {
-        result.invoice = params.get('lightning')!
+        result.invoice = params.get('lightning')!;
       }
     }
   }
 
-  return result
-}
+  return result;
+};
 
 export const encodeBip21 = (address: string, arkAddress: string, invoice: string, sats: number) => {
   return (
@@ -68,14 +68,14 @@ export const encodeBip21 = (address: string, arkAddress: string, invoice: string
     `?ark=${arkAddress}` +
     (invoice ? `&lightning=${invoice}` : '') +
     `&amount=${prettyNumber(fromSatoshis(sats))}`
-  )
-}
+  );
+};
 
 export const isBip21 = (data: string): boolean => {
   try {
-    decodeBip21(data)
-    return true
+    decodeBip21(data);
+    return true;
   } catch {
-    return false
+    return false;
   }
-}
+};

@@ -73,20 +73,19 @@ export async function calculateLightningFee(
   if (!lightning) {
     throw new Error('Lightning support not configured');
   }
-    // Get actual fees from the swap provider
-    const fees = await lightning.getFees();
+  // Get actual fees from the swap provider
+  const fees = await lightning.getFees();
 
-    // For submarine swaps (paying Lightning invoices):
-    // Fee = (amount * percentage) + minerFees
-    const percentageFee = (amount * BigInt(Math.floor(fees.submarine.percentage * 100))) / 10000n;
-    const minerFee = BigInt(fees.submarine.minerFees);
-    const fee = percentageFee + minerFee;
+  // For submarine swaps (paying Lightning invoices):
+  // Fee = (amount * percentage) + minerFees
+  const percentageFee = (amount * BigInt(Math.floor(fees.submarine.percentage * 100))) / 10000n;
+  const minerFee = BigInt(fees.submarine.minerFees);
+  const fee = percentageFee + minerFee;
 
-    return {
-      fee,
-      total: amount + fee,
-    };
-
+  return {
+    fee,
+    total: amount + fee,
+  };
 }
 
 /**

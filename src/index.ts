@@ -8,15 +8,10 @@
 export { default } from './wallet-manager-arkade.js';
 
 // Wallet account classes
-export {
-  WalletAccountArkade,
-  WalletAccountArkadeReadOnly
-} from './bitcoin-arkade.js';
+export { WalletAccountArkade, WalletAccountArkadeReadOnly } from './bitcoin-arkade.js';
 
 // Configuration types
-export type {
-  ArkadeWalletConfig,
-} from './types.js';
+export type { ArkadeWalletConfig } from './types.js';
 
 // Transaction utilities
 export {
@@ -29,27 +24,13 @@ export {
 } from './lib/send.js';
 
 // Address utilities
-export {
-  isArkAddress,
-  isBTCAddress,
-  isLightningInvoice,
-  decodeArkAddress,
-} from './lib/address.js';
+export { isArkAddress, isBTCAddress, isLightningInvoice, decodeArkAddress } from './lib/address.js';
 
 // BIP21 URI utilities
-export {
-  isBip21,
-  decodeBip21,
-  encodeBip21,
-  type Bip21Decoded,
-} from './lib/bip21.js';
+export { isBip21, decodeBip21, encodeBip21, type Bip21Decoded } from './lib/bip21.js';
 
 // BOLT11 invoice utilities
-export {
-  decodeInvoice,
-  isValidInvoice,
-  type DecodedInvoice,
-} from './lib/bolt11.js';
+export { decodeInvoice, isValidInvoice, type DecodedInvoice } from './lib/bolt11.js';
 
 // LNURL and Lightning Address utilities
 export {

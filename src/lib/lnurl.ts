@@ -113,7 +113,7 @@ const checkLnUrlResponse = (amountMsat: number, data: LnUrlResponse): LnUrlRespo
   if (amountMsat < data.minSendable || amountMsat > data.maxSendable) {
     throw new Error(
       `Amount ${amountMsat / 1000} sats is outside LNURL range: ` +
-      `${data.minSendable / 1000} - ${data.maxSendable / 1000} sats`
+        `${data.minSendable / 1000} - ${data.maxSendable / 1000} sats`
     );
   }
   return data;

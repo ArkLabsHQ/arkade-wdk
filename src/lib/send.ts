@@ -2,16 +2,17 @@
  * Transaction sending utilities with automatic routing based on destination type
  */
 
-import type { IWallet, ArkInfo } from '@arkade-os/sdk';
+import { type IWallet, type ArkInfo, Ramps } from '@arkade-os/sdk';
 import type { ArkadeLightning } from '@arkade-os/boltz-swap';
-import {
-  isArkAddress,
-  isBTCAddress,
-  isLightningInvoice,
-} from './address.js';
+import { isArkAddress, isBTCAddress, isLightningInvoice } from './address.js';
 import { isBip21, decodeBip21 } from './bip21.js';
 import { decodeInvoice } from './bolt11.js';
-import { calculateOffchainFee, calculateOnchainFee, calculateLightningFee, type FeeEstimate } from './fees.js';
+import {
+  calculateOffchainFee,
+  calculateOnchainFee,
+  calculateLightningFee,
+  type FeeEstimate,
+} from './fees.js';
 
 export enum TransactionType {
   ARK_OFFCHAIN = 'ark_offchain',
@@ -135,10 +136,9 @@ export async function send(options: SendOptions): Promise<SendResult> {
 
     case TransactionType.BITCOIN_ONCHAIN: {
       // On-chain Bitcoin transaction
-      const txid = await wallet.sendBitcoin({
-        address: to,
-        amount: Number(amount),
-      });
+      const info = await arkInfo;
+
+      const txid = await new Ramps(wallet).offboard(to, info.fees, amount);
 
       const feeEstimate = await calculateOnchainFee(arkInfo);
 

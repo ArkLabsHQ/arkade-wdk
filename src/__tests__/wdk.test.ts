@@ -9,7 +9,8 @@ import type { ArkadeWalletConfig } from '../types.js';
 import WalletManagerArkade from '../wallet-manager-arkade.js';
 
 describe('WDK Integration', () => {
-  const validSeedPhrase = 'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
+  const validSeedPhrase =
+    'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
   it('should create WdkManager instance with valid seed phrase', () => {
     expect(() => new WdkManager(validSeedPhrase)).not.toThrow();

@@ -42,6 +42,7 @@
     "light-bolt11-decoder": "^3.2.0"
   },
   "devDependencies": {
+    "@scure/bip39": "^2.0.1",
     "@tetherto/wdk": "^1.0.0-beta.4",
     "@tetherto/wdk-wallet": "^1.0.0-beta.5",
     "@types/jest": "^29.5.12",
