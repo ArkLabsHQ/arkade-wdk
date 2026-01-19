@@ -12,6 +12,10 @@ describe('WDK Integration', () => {
   const validSeedPhrase =
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
+  const config: ArkadeWalletConfig = {
+    arkServerUrl: 'https://arkade.computer',
+  };
+
   it('should create WdkManager instance with valid seed phrase', () => {
     expect(() => new WdkManager(validSeedPhrase)).not.toThrow();
   });
@@ -23,9 +27,6 @@ describe('WDK Integration', () => {
 
   it('should register WalletManagerArkade', () => {
     const wdk = new WdkManager(validSeedPhrase);
-    const config: ArkadeWalletConfig = {
-      arkServerUrl: 'https://test.example.com',
-    };
 
     // Note: Using 'as any' because our WalletConfig type differs from official WDK
     expect(() => {
@@ -35,9 +36,6 @@ describe('WDK Integration', () => {
 
   it('should support method chaining', () => {
     const wdk = new WdkManager(validSeedPhrase);
-    const config: ArkadeWalletConfig = {
-      arkServerUrl: 'https://test.example.com',
-    };
 
     const result = wdk.registerWallet('bitcoin', WalletManagerArkade as any, config as any);
     expect(result).toBe(wdk);
@@ -45,9 +43,6 @@ describe('WDK Integration', () => {
 
   it('should dispose without errors', () => {
     const wdk = new WdkManager(validSeedPhrase);
-    const config: ArkadeWalletConfig = {
-      arkServerUrl: 'https://test.example.com',
-    };
 
     wdk.registerWallet('bitcoin', WalletManagerArkade as any, config as any);
     expect(() => wdk.dispose()).not.toThrow();

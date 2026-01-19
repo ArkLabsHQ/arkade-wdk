@@ -32,7 +32,6 @@ class WalletManagerArkade extends WalletManager {
     this.arkProvider = (this.config.arkProvider ??
       new RestArkProvider(this.config.arkServerUrl!)) as ArkProvider;
     this.info = this.arkProvider.getInfo().catch((reason: unknown) => {
-      this.info = this.arkProvider.getInfo();
       throw new Error(`Failed to fetch Arkade network info: ${String(reason)}`);
     });
   }

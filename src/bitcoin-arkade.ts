@@ -1,4 +1,4 @@
-import { ArkInfo, IWallet, Wallet, ExtendedCoin, TxType } from '@arkade-os/sdk';
+import { ArkInfo, ArkTransaction, Wallet, ExtendedCoin, TxType } from '@arkade-os/sdk';
 import * as secp from '@noble/secp256k1';
 import { hex } from '@scure/base';
 // Official WDK types
@@ -10,7 +10,7 @@ import type {
   TransferResult,
   IWalletAccount,
 } from '@tetherto/wdk-wallet';
-import type { ExplorerTransaction, IndexerProvider } from '@arkade-os/sdk';
+import type { IndexerProvider } from '@arkade-os/sdk';
 import {
   decodeInvoice,
   type ArkadeLightning,
@@ -19,7 +19,6 @@ import {
 import { quoteSend, send } from './lib/send.js';
 import { calculateLightningReceiveFee } from './lib/fees.js';
 import { isValidInvoice } from './lib/bolt11.js';
-import { ArkTransaction } from '@arklabs/wallet-sdk';
 
 /**
  * Read-only Bitcoin wallet account with Arkade Ark protocol support
@@ -30,7 +29,7 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
 
   constructor(
     public readonly path: string,
-    protected readonly wallet: IWallet,
+    protected readonly wallet: Wallet,
     public readonly keyPair: { publicKey: Uint8Array },
     protected readonly indexerProvider: IndexerProvider,
     protected readonly arkInfo: Promise<ArkInfo>
@@ -66,7 +65,7 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
     const utxos: ExtendedCoin[] = await this.wallet.getBoardingUtxos();
     if (utxos.length === 0) return null;
 
-    return utxos.sort((a, b) => b.createdAt - a.createdAt)[0].txid;
+    return utxos[0].txid;
   }
 
   /**
@@ -91,15 +90,16 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
     hash: string
   ): Promise<{ hash: string; blockNumber: number; status: string; gasUsed: number } | null> {
     const address = await this.wallet.getBoardingAddress();
-    const txs: ExplorerTransaction[] = await this.wallet.onchainProvider.getTransactions(address);
-    if (txs.length === 0) return null;
+    const { boardingTxs }: { boardingTxs: ArkTransaction[] } =
+      await this.wallet.getBoardingTxs(address);
+    if (boardingTxs.length === 0) return null;
 
-    const tx = txs.find((t) => t.txid === hash);
+    const tx = boardingTxs.find((t) => t.txid === hash);
     if (!tx) return null;
 
     return {
       hash: tx.txid,
-      blockNumber: tx.status.block_number,
+      blockNumber: tx.status.block_time, // Using block_time as a proxy for block number
       status: tx.status.confirmed ? 'confirmed' : 'pending',
       gasUsed: 0, // Not applicable to Bitcoin
     };
@@ -109,7 +109,7 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
    * Returns the account's transaction history
    * @returns
    */
-  async getTransfers(options: { direction?: string; limit?: number; skip?: number }): Promise<
+  async getTransfers(options?: { direction?: string; limit?: number; skip?: number }): Promise<
     Array<{
       hash: string;
       from: string;
@@ -133,12 +133,12 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
 
     let filtered = transfers.filter((t) => t.hash !== '');
 
-    if (options.direction === 'incoming' || options.direction === 'outgoing') {
+    if (options?.direction === 'incoming' || options?.direction === 'outgoing') {
       filtered = filtered.filter((t) => t.direction === options.direction);
     }
 
-    const start = options.skip || 0;
-    const end = options.limit ? start + options.limit : undefined;
+    const start = options?.skip || 0;
+    const end = options?.limit ? start + options.limit : undefined;
 
     return filtered.slice(start, end);
   }
@@ -215,7 +215,7 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
 
   constructor(
     path: string,
-    public readonly wallet: IWallet,
+    public readonly wallet: Wallet,
     keyPair: KeyPair,
     indexerProvider: IndexerProvider,
     arkInfo: Promise<ArkInfo>,
@@ -238,7 +238,14 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     const utxo = utxos.find((utxo) => utxo.txid === txid);
     if (!utxo) return undefined;
 
-    await this.wallet.settle({ inputs: [utxo] });
+    const outputs = [
+      {
+        address: await this.wallet.getAddress(),
+        amount: BigInt(utxo.value),
+      },
+    ];
+
+    await this.wallet.settle({ inputs: [utxo], outputs });
 
     return [{ id: utxo.txid, value: BigInt(utxo.value), address }];
   }
