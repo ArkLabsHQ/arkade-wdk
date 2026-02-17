@@ -1,0 +1,180 @@
+diff --git a/.env.example b/.env.example
+index fe78808..525c205 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,4 +1,9 @@
+ EXPO_PUBLIC_WDK_INDEXER_BASE_URL=https://wdk-api.tether.io
+ EXPO_PUBLIC_WDK_INDEXER_API_KEY=PUT_WDK_API_KEY_HERE
+ EXPO_PUBLIC_TRON_API_KEY=PUT_HERE
+-EXPO_PUBLIC_TRON_API_SECRET=PUT_HERE
+\ No newline at end of file
++EXPO_PUBLIC_TRON_API_SECRET=PUT_HERE
++
++# Arkade (Bitcoin + Ark protocol) configuration
++EXPO_PUBLIC_ARKADE_SERVER_URL=https://arkade.computer
++EXPO_PUBLIC_ARKADE_NETWORK=bitcoin
++EXPO_PUBLIC_ARKADE_SWAP_URL=https://api.ark.boltz.exchange
+\ No newline at end of file
+diff --git a/metro.config.js b/metro.config.js
+index 0946b00..77f1083 100644
+--- a/metro.config.js
++++ b/metro.config.js
+@@ -15,6 +15,10 @@ module.exports = (() => {
+     ...resolver,
+     assetExts: resolver.assetExts.filter((ext) => ext !== 'svg'),
+     sourceExts: [...resolver.sourceExts, 'svg'],
++    // Prefer react-native field for packages that provide source files
++    resolverMainFields: ['react-native', 'browser', 'main'],
++    // Handle package.json exports field with react-native condition
++    unstable_conditionNames: ['react-native', 'browser', 'require', 'import'],
+   };
+ 
+   return config;
+diff --git a/src/config/get-chains-config.ts b/src/config/get-chains-config.ts
+index f20207b..ff6fe35 100644
+--- a/src/config/get-chains-config.ts
++++ b/src/config/get-chains-config.ts
+@@ -1,6 +1,7 @@
+ import { NetworkMode } from '@/services/network-mode-service';
+ 
+ export type SparkNetworkMode = 'MAINNET' | 'TESTNET' | 'REGTEST';
++export type ArkadeNetworkMode = 'bitcoin' | 'testnet' | 'signet' | 'mutinynet' | 'regtest';
+ 
+ type ChainConfig = {
+   chainId: number;
+@@ -14,10 +15,14 @@ type ChainConfig = {
+   paymasterToken?: { address: string };
+   transferMaxFee?: number;
+   network?: SparkNetworkMode;
++  // Arkade-specific config
++  arkadeNetwork?: ArkadeNetworkMode;
++  arkadeServerUrl?: string;
++  arkadeSwapUrl?: string;
+ };
+ 
+-const MAINNET_CHAINS: string[] = ['ethereum', 'polygon', 'arbitrum', 'spark', 'plasma'];
+-const TESTNET_CHAINS: string[] = ['sepolia', 'spark'];
++const MAINNET_CHAINS: string[] = ['ethereum', 'polygon', 'arbitrum', 'spark', 'plasma', 'arkade'];
++const TESTNET_CHAINS: string[] = ['sepolia', 'spark', 'arkade'];
+ 
+ const getChainsConfig = (sparkNetwork: SparkNetworkMode = 'MAINNET', networkMode?: NetworkMode): Record<string, ChainConfig> => {
+   const allChains: Record<string, ChainConfig> = {
+@@ -93,6 +98,13 @@ const getChainsConfig = (sparkNetwork: SparkNetworkMode = 'MAINNET', networkMode
+       },
+       transferMaxFee: 100000,
+     },
++    arkade: {
++      chainId: 888888, // Placeholder - Arkade uses Bitcoin/Ark network, not EVM
++      blockchain: 'arkade',
++      arkadeNetwork: (process.env.EXPO_PUBLIC_ARKADE_NETWORK as ArkadeNetworkMode) || 'bitcoin',
++      arkadeServerUrl: process.env.EXPO_PUBLIC_ARKADE_SERVER_URL || 'https://arkade.computer',
++      arkadeSwapUrl: process.env.EXPO_PUBLIC_ARKADE_SWAP_URL || 'https://api.ark.boltz.exchange',
++    },
+   };
+ 
+   if (!networkMode) {
+diff --git a/src/config/networks.ts b/src/config/networks.ts
+index ca649bb..a38f6cd 100644
+--- a/src/config/networks.ts
++++ b/src/config/networks.ts
+@@ -1,10 +1,11 @@
+ import {
+   validateEvmAddress,
+   validateSparkAddress,
++  validateArkadeAddress,
+   AddressValidator,
+ } from '@/utils/address-validators';
+ 
+-export type NetworkType = 'ethereum' | 'polygon' | 'arbitrum' | 'spark' | 'plasma' | 'sepolia';
++export type NetworkType = 'ethereum' | 'polygon' | 'arbitrum' | 'spark' | 'plasma' | 'sepolia' | 'arkade';
+ export type AccountType = 'Safe' | 'Native';
+ 
+ export interface Network {
+@@ -91,4 +92,15 @@ export const networkConfigs: Record<NetworkType, Network> = {
+     explorerUrl: 'https://sepolia.etherscan.io/tx/',
+     userOpExplorerUrl: 'https://jiffyscan.xyz/userOpHash/',
+   },
++  arkade: {
++    id: 'arkade',
++    name: 'Arkade',
++    gasLevel: 'Low',
++    gasColor: '#34C759',
++    icon: require('../../assets/images/chains/bitcoin-btc-logo.png'),
++    color: '#F7931A',
++    accountType: 'Native',
++    addressValidator: validateArkadeAddress,
++    explorerUrl: 'https://mempool.space/tx/',
++  },
+ };
+diff --git a/src/utils/address-validators.ts b/src/utils/address-validators.ts
+index 3f97d8d..564de7d 100644
+--- a/src/utils/address-validators.ts
++++ b/src/utils/address-validators.ts
+@@ -61,6 +61,49 @@ export function validateSparkAddress(address: string): AddressValidationResult {
+   return { valid: true };
+ }
+ 
++// Arkade supports Bitcoin addresses (on-chain), Ark addresses (VTXOs), and Lightning invoices
++const ARK_ADDRESS_PREFIXES = ['ark1', 'tark1']; // mainnet and testnet Ark addresses
++
++export function validateArkadeAddress(address: string): AddressValidationResult {
++  const trimmed = address.trim();
++
++  // Check for Lightning invoice (BOLT11)
++  if (trimmed.toLowerCase().startsWith('lnbc') || trimmed.toLowerCase().startsWith('lntb') || trimmed.toLowerCase().startsWith('lnbcrt')) {
++    // Basic Lightning invoice validation - must be longer than prefix
++    if (trimmed.length > 10) {
++      return { valid: true };
++    }
++    return {
++      valid: false,
++      error: 'Invalid Lightning invoice format.',
++    };
++  }
++
++  // Check for Ark address (VTXO)
++  const hasArkPrefix = ARK_ADDRESS_PREFIXES.some(prefix => trimmed.toLowerCase().startsWith(prefix));
++  if (hasArkPrefix) {
++    // Basic bech32m validation for Ark addresses
++    if (trimmed.length >= 40 && trimmed.length <= 100) {
++      return { valid: true };
++    }
++    return {
++      valid: false,
++      error: 'Invalid Ark address length.',
++    };
++  }
++
++  // Check for Bitcoin address (on-chain boarding/withdrawal)
++  const isValidBtc = WAValidator.validate(trimmed, 'btc');
++  if (isValidBtc) {
++    return { valid: true };
++  }
++
++  return {
++    valid: false,
++    error: 'Invalid Arkade address. Accepts Bitcoin addresses, Ark addresses (ark1...), or Lightning invoices (lnbc...).',
++  };
++}
++
+ export function validateAddressByNetwork(
+   networkId: string,
+   address: string,
+@@ -71,7 +114,16 @@ export function validateAddressByNetwork(
+     return { valid: false, error: 'Recipient address is required' };
+   }
+ 
+-  const effectiveValidator = validator || (networkId === 'spark' ? validateSparkAddress : validateEvmAddress);
++  let effectiveValidator: AddressValidator;
++  if (validator) {
++    effectiveValidator = validator;
++  } else if (networkId === 'spark') {
++    effectiveValidator = validateSparkAddress;
++  } else if (networkId === 'arkade') {
++    effectiveValidator = validateArkadeAddress;
++  } else {
++    effectiveValidator = validateEvmAddress;
++  }
+ 
+   return effectiveValidator(trimmed);
+ }

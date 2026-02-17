@@ -20,8 +20,11 @@
     "lint": "eslint src --ext .ts",
     "lint:fix": "eslint src --ext .ts --fix",
     "format": "prettier --write \"src/**/*.ts\"",
-    "clean": "rimraf dist",
-    "setup:dev": "node scripts/setup-dev.js"
+    "clean": "rimraf dist && rimraf packages/wdk-react-native-provider/lib && rimraf packages/pear-wrk-wdk/dist && rimraf examples/wdk-starter-react-native/.expo",
+    "clean:all": "npm run clean  && rimraf packages/wdk-react-native-provider/node_modules && rimraf packages/pear-wrk-wdk/node_modules && rimraf examples/wdk-starter-react-native/node_modules && rimraf node_modules",
+    "setup:dev": "node scripts/setup-dev.js",
+    "setup:dev:v2": "node scripts/setup-dev-v2.js",
+    "save-patches": "node scripts/save-patches.js"
   },
   "keywords": [
     "bitcoin",
@@ -52,7 +55,7 @@
     "eslint": "^8.56.0",
     "jest": "^29.7.0",
     "prettier": "^3.2.4",
-    "rimraf": "^5.0.5",
+    "rimraf": "^5.0.10",
     "ts-jest": "^29.1.2",
     "typescript": "^5.3.3"
   },

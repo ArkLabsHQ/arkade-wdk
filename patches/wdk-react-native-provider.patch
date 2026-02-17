@@ -1,0 +1,114 @@
+diff --git a/package.json b/package.json
+index fd6fc94..a92086d 100644
+--- a/package.json
++++ b/package.json
+@@ -39,7 +39,8 @@
+     "typecheck": "tsc",
+     "lint": "eslint \"**/*.{js,ts,tsx}\"",
+     "clean": "del-cli lib",
+-    "prepare": "bob build && npm run gen:secret-manager-bundle && npm run gen:worker-bundle",
++    "prepare": "bob build",
++    "prepare:full": "bob build && npm run gen:secret-manager-bundle && npm run gen:worker-bundle",
+     "gen:worker-bundle": "npx bare-pack --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --imports node_modules/@tetherto/pear-wrk-wdk/pack.imports.json --out lib/module/services/wdk-service/wdk-worklet.mobile.bundle.js node_modules/@tetherto/pear-wrk-wdk/src/wdk-worklet.js",
+     "gen:secret-manager-bundle": "npx bare-pack --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --out lib/module/services/wdk-service/wdk-secret-manager-worklet.bundle.js src/worklet/wdk-secret-manager-worklet.js"
+   },
+diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
+index 5ae8528..fb0df89 100644
+--- a/src/services/wdk-service/index.ts
++++ b/src/services/wdk-service/index.ts
+@@ -53,6 +53,8 @@ const toNetwork = (n: NetworkType): string => {
+       return 'solana';
+     case NetworkType.TRON:
+       return 'tron';
++    case NetworkType.ARKADE:
++      return 'arkade';
+     default:
+       return 'bitcoin';
+   }
+@@ -354,7 +356,7 @@ class WDKService {
+       throw new Error('WDK Manager not initialized');
+     }
+ 
+-    if (network === NetworkType.SEGWIT) {
++    if (network === NetworkType.SEGWIT || network === NetworkType.ARKADE) {
+       return await this.wdkManager.getAddress({
+         network: toNetwork(network),
+         accountIndex: index,
+@@ -419,12 +421,12 @@ class WDKService {
+     asset: AssetTicker
+   ) {
+     try {
+-      if (network === NetworkType.SEGWIT) {
++      if (network === NetworkType.SEGWIT || network === NetworkType.ARKADE) {
+         const value = new Decimal(amount)
+           .mul(this.getDenominationValue(AssetTicker.BTC))
+           .toNumber();
+         const quote = await this.wdkManager.quoteSendTransaction({
+-          network: 'bitcoin',
++          network: toNetwork(network),
+           accountIndex: index,
+           options: {
+             to: recipientAddress,
+@@ -504,7 +506,7 @@ class WDKService {
+       );
+     }
+ 
+-    if (network === NetworkType.SEGWIT) {
++    if (network === NetworkType.SEGWIT || network === NetworkType.ARKADE) {
+       const sendParams = {
+         to: recipientAddress,
+         value: new Decimal(amount)
+@@ -514,7 +516,7 @@ class WDKService {
+       };
+ 
+       const response = await this.wdkManager.sendTransaction({
+-        network: network,
++        network: toNetwork(network),
+         accountIndex: index,
+         options: sendParams,
+       });
+diff --git a/src/services/wdk-service/types.ts b/src/services/wdk-service/types.ts
+index 6663b0e..1ca63b7 100644
+--- a/src/services/wdk-service/types.ts
++++ b/src/services/wdk-service/types.ts
+@@ -13,11 +13,13 @@ export enum NetworkType {
+   TON = 'ton',
+   POLYGON = 'polygon',
+   ARBITRUM = 'arbitrum',
++  ARKADE = 'arkade',
+ }
+ 
+ export const AssetAddressMap = {
+   [AssetTicker.BTC]: {
+     [NetworkType.SEGWIT]: 'bitcoin',
++    [NetworkType.ARKADE]: 'arkade',
+   },
+   [AssetTicker.USDT]: {
+     [NetworkType.ETHEREUM]: 'ethereum',
+@@ -33,6 +35,7 @@ export const AssetAddressMap = {
+ export const AssetBalanceMap = {
+   [AssetTicker.BTC]: {
+     [NetworkType.SEGWIT]: 'bitcoin',
++    [NetworkType.ARKADE]: 'arkade',
+   },
+   [AssetTicker.USDT]: {
+     [NetworkType.ETHEREUM]: 'ethereum',
+@@ -127,6 +130,12 @@ export interface TronChainConfig {
+   paymasterToken: PaymasterToken;
+ }
+ 
++export interface ArkadeChainConfig {
++  arkServerUrl: string;
++  network?: 'bitcoin' | 'testnet' | 'signet' | 'mutinynet' | 'regtest';
++  swapProviderUrl?: string;
++}
++
+ export interface ChainsConfig {
+   ethereum?: EVMChainConfig;
+   arbitrum?: EVMChainConfig;
+@@ -134,4 +143,5 @@ export interface ChainsConfig {
+   ton?: TONChainConfig;
+   bitcoin?: BitcoinChainConfig;
+   tron?: TronChainConfig;
++  arkade?: ArkadeChainConfig;
+ }

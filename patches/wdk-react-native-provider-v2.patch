@@ -1,0 +1,52 @@
+diff --git a/wdk-rn-worklet/package.json b/wdk-rn-worklet/package.json
+index 9cf38aa..c670c26 100644
+--- a/wdk-rn-worklet/package.json
++++ b/wdk-rn-worklet/package.json
+@@ -28,7 +28,7 @@
+     "zustand": "^5.0.9",
+     "react-native-bare-kit": "^0.11.0",
+     "react-native-mmkv": "^4.1.0",
+-    "pear-wrk-wdk": "https://github.com/itsdeka/pear-wrk-wdk"
++    "@tetherto/pear-wrk-wdk": "*"
+   },
+   "peerDependencies": {
+     "react": ">=18.0.0",
+diff --git a/wdk-rn-worklet/src/services/workletService.ts b/wdk-rn-worklet/src/services/workletService.ts
+index c6075a5..6e5e1ab 100644
+--- a/wdk-rn-worklet/src/services/workletService.ts
++++ b/wdk-rn-worklet/src/services/workletService.ts
+@@ -7,7 +7,7 @@
+ 
+ // External packages
+ import { Worklet } from 'react-native-bare-kit'
+-import { HRPC } from 'pear-wrk-wdk'
++import { HRPC } from '@tetherto/pear-wrk-wdk'
+ 
+ // Local imports
+ import type { NetworkConfigs } from '../types'
+@@ -51,8 +51,8 @@ export class WorkletService {
+ 
+       const worklet = new Worklet()
+ 
+-      // @ts-ignore - pear-wrk-wdk may not have complete type definitions
+-      const { bundle } = await import('pear-wrk-wdk')
++      // @ts-ignore - @tetherto/pear-wrk-wdk may not have complete type definitions
++      const { bundle } = await import('@tetherto/pear-wrk-wdk')
+ 
+       // @ts-ignore - Bundle file (mobile bundle for React Native) - worklet.start expects bundle parameter
+       worklet.start('/wdk-worklet.bundle', bundle)
+diff --git a/wdk-rn-worklet/src/store/workletStore.ts b/wdk-rn-worklet/src/store/workletStore.ts
+index 40f0e5e..c1a49eb 100644
+--- a/wdk-rn-worklet/src/store/workletStore.ts
++++ b/wdk-rn-worklet/src/store/workletStore.ts
+@@ -17,8 +17,8 @@
+ import { create } from 'zustand'
+ import { persist, createJSONStorage } from 'zustand/middleware'
+ import { Worklet } from 'react-native-bare-kit'
+-import { HRPC } from 'pear-wrk-wdk'
+-import type { WorkletStartResponse } from 'pear-wrk-wdk/types/rpc'
++import { HRPC } from '@tetherto/pear-wrk-wdk'
++import type { WorkletStartResponse } from '@tetherto/pear-wrk-wdk/types/rpc'
+ 
+ // Local imports
+ import type {

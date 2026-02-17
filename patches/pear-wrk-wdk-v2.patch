@@ -1,0 +1,51 @@
+diff --git a/pack.imports.json b/pack.imports.json
+index 6061ba2..8846d9c 100644
+--- a/pack.imports.json
++++ b/pack.imports.json
+@@ -1,3 +1,4 @@
+ {
+-    "node:crypto": "bare-crypto"
++    "node:crypto": "bare-crypto",
++    "@arkade-os/wdk": "@arkade-os/wdk"
+ }
+\ No newline at end of file
+diff --git a/package.json b/package.json
+index 4b73e67..7863c29 100644
+--- a/package.json
++++ b/package.json
+@@ -1,5 +1,5 @@
+ {
+-  "name": "@wdk/bare",
++  "name": "@tetherto/pear-wrk-wdk",
+   "version": "0.1.1",
+   "main": "index.js",
+   "scripts": {
+@@ -11,8 +11,7 @@
+     "gen:wallet-modules": "node scripts/generate-wallet-modules.js",
+     "gen:hrpc": "node scripts/generate-hrpc.js",
+     "gen:macos-bundle": "npm run gen:wallet-modules && npm run gen:hrpc && bare-pack --host darwin-arm64 --linked --out generated/bundle/wdk-worklet.bundle.js src/wdk-worklet.js",
+-    "gen:mobile-bundle": "npm run gen:wallet-modules && npm run gen:hrpc && bare-pack --host ios-arm64 --host ios-arm64-simulator --host ios-x64-simulator --host android-arm --host android-arm64 --host android-ia32 --host android-x64 --linked --imports ./pack.imports.json --out generated/bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js",
+-    "postinstall": "npm run gen:mobile-bundle"
++    "gen:mobile-bundle": "npm run gen:wallet-modules && npm run gen:hrpc && bare-pack --host ios-arm64 --host ios-arm64-simulator --host ios-x64-simulator --host android-arm --host android-arm64 --host android-ia32 --host android-x64 --linked --imports ./pack.imports.json --out generated/bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js"
+   },
+   "dependencies": {
+     "@scure/bip39": "^1.6.0",
+diff --git a/schema.json b/schema.json
+index 6a093ae..c1e1f0f 100644
+--- a/schema.json
++++ b/schema.json
+@@ -9,9 +9,13 @@
+       "spark": {
+         "modulePath": "@tetherto/wdk-wallet-spark",
+         "networks": ["spark"]
++      },
++      "arkade": {
++        "modulePath": "@arkade-os/wdk",
++        "networks": ["arkade"]
+       }
+     },
+-    "requiredNetworks": ["ethereum", "polygon", "arbitrum", "plasma", "sepolia","spark"],
++    "requiredNetworks": ["ethereum", "polygon", "arbitrum", "plasma", "sepolia", "spark", "arkade"],
+     "preloadModules": ["@buildonspark/spark-frost-bare-addon"]
+   },
+   "schema": [
