@@ -39,14 +39,14 @@ run('npm run build');
 console.log('\n4. Creating npm link for @arkade-os/wdk...');
 run('npm link');
 
-// Setup pear-wrk-wdk submodule (@wdk/bare)
-console.log('\n5. Setting up pear-wrk-wdk (@wdk/bare)...');
+// Setup pear-wrk-wdk submodule
+console.log('\n5. Setting up pear-wrk-wdk...');
 const pearWrkDir = join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk');
 // Install dependencies (postinstall generates mobile bundle)
 run('npm install', pearWrkDir);
 // Link @arkade-os/wdk for Arkade blockchain support
 run('npm link @arkade-os/wdk', pearWrkDir);
-// Create global link for @wdk/bare
+// Create global link for @tetherto/pear-wrk-wdk
 run('npm link', pearWrkDir);
 
 // Setup wdk-react-native-provider submodule
@@ -54,8 +54,8 @@ console.log('\n6. Setting up wdk-react-native-provider...');
 const providerDir = join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider');
 // Install without running scripts (prepare would fail without @arkade-os/wdk linked)
 run('npm install --ignore-scripts', providerDir);
-// Link @arkade-os/wdk and @wdk/bare BEFORE building
-run('npm link @arkade-os/wdk @wdk/bare', providerDir);
+// Link @arkade-os/wdk and @tetherto/pear-wrk-wdk BEFORE building
+run('npm link @arkade-os/wdk @tetherto/pear-wrk-wdk', providerDir);
 // Now build (prepare script)
 run('npm run prepare', providerDir);
 // Create global link for the provider
@@ -67,7 +67,7 @@ const exampleDir = join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native');
 // Install without scripts to avoid issues with missing linked packages
 run('npm install --ignore-scripts --legacy-peer-deps', exampleDir);
 // Link all packages
-run('npm link @arkade-os/wdk @wdk/bare @tetherto/wdk-react-native-provider', exampleDir);
+run('npm link @arkade-os/wdk @tetherto/pear-wrk-wdk @tetherto/wdk-react-native-provider', exampleDir);
 
 // Install expo-crypto for Arkade support (if not already installed)
 console.log('\n8. Ensuring expo-crypto is installed...');
@@ -76,7 +76,7 @@ run('npx expo install expo-crypto', exampleDir);
 console.log('\n=== Setup Complete ===\n');
 console.log('The following packages are now linked:');
 console.log('  - @arkade-os/wdk (from root)');
-console.log('  - @wdk/bare (from packages/pear-wrk-wdk)');
+console.log('  - @tetherto/pear-wrk-wdk (from packages/pear-wrk-wdk)');
 console.log('  - @tetherto/wdk-react-native-provider (from packages/)');
 console.log('');
 console.log('To run the example app:');
