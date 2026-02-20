@@ -13,7 +13,7 @@ Guidance for coding agents working in this repository.
 
 - Root adapter:
   - `src/wallet-manager-arkade.ts`
-  - `src/bitcoin-arkade.ts`
+  - `src/wallet-account-arkade.ts`
   - `src/lib/*`
   - `src/index.ts`
 - Build output:

@@ -1,5 +1,4 @@
-// Local runtime-safe base class (avoids runtime import of @tetherto/wdk-wallet in worklet bundles).
-import WalletManager, { type KeyPair } from './wdk-wallet-manager.js';
+import WalletManager, { type KeyPair } from '@tetherto/wdk-wallet';
 import type { ArkadeWalletConfig } from './types.js';
 import {
   ArkInfo,
@@ -13,7 +12,7 @@ import {
 import { HDKey } from '@scure/bip32';
 import { ArkadeLightning, BoltzSwapProvider } from '@arkade-os/boltz-swap';
 import type { FeeRates } from '@tetherto/wdk';
-import { WalletAccountArkade } from './bitcoin-arkade.js';
+import { WalletAccountArkade } from './wallet-account-arkade.js';
 
 /**
  * Bitcoin wallet manager using Arkade SDK with Ark protocol support

@@ -28,7 +28,7 @@ arkade-wdk/
 ├── src/
 │   ├── lib/                      # address, bip21, bolt11, lnurl, fees, formatting, send routing
 │   ├── wallet-manager-arkade.ts  # WDK wallet manager implementation
-│   ├── bitcoin-arkade.ts         # WDK account + read-only account implementations
+│   ├── wallet-account-arkade.ts         # WDK account + read-only account implementations
 │   └── index.ts                  # package exports
 ├── packages/                     # git submodules (provider/bare packages)
 ├── examples/                     # git submodules (starter apps)

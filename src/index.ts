@@ -11,7 +11,7 @@ export { default } from './wallet-manager-arkade.js';
 export {
   WalletAccountArkade,
   WalletAccountArkadeReadOnly
-} from './bitcoin-arkade.js';
+} from './wallet-account-arkade.js';
 
 // Configuration types
 export type {
