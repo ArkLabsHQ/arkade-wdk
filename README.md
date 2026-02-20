@@ -19,8 +19,7 @@ Implemented:
 `TODO` (known gaps in current implementation):
 - `getFeeRates()` currently returns placeholder values (`normal: 0n`, `fast: 0n`)
 - `WalletAccountArkade.initialize()` is currently a no-op
-- Account convenience wrappers documented previously are not implemented yet:
-  `getBoardingAddress`, `getBalanceDetailed`, `getTransfers`, `hasLightningSupport`,
+- Lightning swap lifecycle helpers are not implemented yet (needs evaluation whether these are needed):
   `waitForLightningPayment`, `getPendingLightningReceives`, `getPendingLightningSends`,
   `getSwapHistory`, `getLightningLimits`, `getLightningFees`
 - Transaction routing enum includes `EMAIL`, but email payments are not implemented
