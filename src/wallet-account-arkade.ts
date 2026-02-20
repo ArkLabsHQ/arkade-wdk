@@ -1,5 +1,4 @@
-import { ArkInfo, IWallet, Wallet, } from '@arkade-os/sdk';
-import type { ArkTransaction } from '@arkade-os/sdk';
+import { ArkInfo, IWallet, Wallet } from '@arkade-os/sdk';
 import * as btc from '@scure/btc-signer';
 import { hex } from '@scure/base';
 // Official WDK types
