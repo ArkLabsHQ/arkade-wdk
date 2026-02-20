@@ -142,11 +142,6 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
   }
 
   /**
-   * Initialize the wallet with Arkade SDK
-   */
-  async initialize(): Promise<void> {}
-
-  /**
    * Send Bitcoin transaction (official WDK signature)
    */
   async sendTransaction(tx: Transaction): Promise<TransactionResult> {

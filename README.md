@@ -18,7 +18,6 @@ Implemented:
 
 `TODO` (known gaps in current implementation):
 - `getFeeRates()` currently returns placeholder values (`normal: 0n`, `fast: 0n`)
-- `WalletAccountArkade.initialize()` is currently a no-op
 - Lightning swap lifecycle helpers are not implemented yet (needs evaluation whether these are needed):
   `waitForLightningPayment`, `getPendingLightningReceives`, `getPendingLightningSends`,
   `getSwapHistory`, `getLightningLimits`, `getLightningFees`
@@ -107,8 +106,8 @@ console.log({ balance, quoteFee: quote.fee, txid: tx.hash })
 Create Lightning invoice (enabled only when `swapProviderUrl` is configured):
 
 ```typescript
-const invoice = await account.createLightningInvoice(50_000, 'Payment for coffee')
-console.log(invoice) // BOLT11 string
+const { invoice, paymentHash } = await account.createLightningInvoice(50_000, 'Payment for coffee')
+console.log(invoice) // BOLT11 invoice string
 ```
 
 Pay to Lightning address / LNURL:
@@ -122,19 +121,14 @@ if (isLightningAddress('user@wallet.com')) {
 }
 ```
 
-`TODO`: Convenience wrappers for waiting on/inspecting Lightning swap status are not implemented yet on `WalletAccountArkade`.
-
 ## Accessing Arkade SDK Directly
 
-`WalletAccountArkade` exposes the underlying SDK wallet as `account.wallet`.
+`WalletAccountArkade` exposes the underlying SDK wallet as `account.wallet` for operations not covered by the WDK interface:
 
 ```typescript
-const boardingAddress = await account.wallet.getBoardingAddress()
-const detailedBalance = await account.wallet.getBalance()
-const history = await account.getTransactionHistory() // also available via account.wallet.getTransactionHistory()
+const detailedBalance = await account.wallet.getBalance() // { total, offchain, onchain }
+const history = await account.getTransactionHistory()
 ```
-
-`TODO`: Add first-class wrapper methods for these SDK calls on `WalletAccountArkade`.
 
 ## API Reference (Current)
 
@@ -181,7 +175,6 @@ class WalletAccountArkade extends WalletAccountArkadeReadOnly {
   readonly wallet: IWallet
   readonly arkadeLightning: ArkadeLightning | null
 
-  initialize(): Promise<void> // TODO: currently no-op
   sendTransaction(tx: Transaction): Promise<{ hash: string; fee: bigint }>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
   transfer(options: TransferOptions): Promise<TransferResult> // throws (not applicable)
@@ -325,8 +318,6 @@ Testing:
 ```bash
 npm test
 ```
-
-`TODO`: Jest is configured with `setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts']`, but that file is not currently present in this repository.
 
 ## License
 

@@ -163,7 +163,7 @@ class WalletManagerArkade extends WalletManager {
       lightning,
       addressType,
     );
-    await account.initialize();
+
 
     this.accounts.set(cacheKey, account);
     return account;
@@ -196,7 +196,7 @@ class WalletManagerArkade extends WalletManager {
       lightning,
       addressType,
     );
-    await account.initialize();
+
 
     this.accounts.set(path, account);
     return account;

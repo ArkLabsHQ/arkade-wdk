@@ -84,9 +84,3 @@ export {
   prettyNumber,
 } from './lib/format.js';
 
-// Re-export useful types from dependencies for convenience
-export type {
-  PendingReverseSwap,
-  PendingSubmarineSwap,
-  BoltzSwapStatus,
-} from '@arkade-os/boltz-swap';
