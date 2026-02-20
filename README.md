@@ -10,6 +10,11 @@ Implemented:
 - Destination auto-detection for Ark address, BTC address, and BOLT11 invoices
 - LNURL/Lightning-address helpers (`fetchInvoice`, limits, callback resolution)
 - Utility exports for address detection, BIP21 parsing/encoding, fees, and formatting
+- Three account types via index: boarding (0), offchain (1), lightning (2)
+- Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
+- Lightning send via auto-detection of BOLT11 invoices in `sendTransaction()`
+- Transaction history for arkade networks via `getTransactionHistory()` (HRPC → SDK)
+- Arkade balance fetching via direct REST calls to Ark indexer and Esplora
 
 `TODO` (known gaps in current implementation):
 - `getFeeRates()` currently returns placeholder values (`normal: 0n`, `fast: 0n`)

@@ -1,4 +1,4 @@
-import { ArkInfo, IWallet, Wallet } from '@arkade-os/sdk';
+import { ArkInfo, ArkTransaction, IWallet, Wallet } from '@arkade-os/sdk';
 import * as btc from '@scure/btc-signer';
 import { hex } from '@scure/base';
 // Official WDK types
@@ -79,6 +79,13 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   async getTransactionReceipt(_hash: string): Promise<unknown> {
     const res = await this.indexerProvider.getVirtualTxs([_hash]);
     return res.txs.length > 0 ? res.txs[0] : null;
+  }
+
+  /**
+   * Get transaction history from the Ark SDK
+   */
+  async getTransactionHistory(): Promise<ArkTransaction[]> {
+    return await this.wallet.getTransactionHistory();
   }
 
   /**
