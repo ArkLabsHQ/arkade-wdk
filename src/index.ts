@@ -10,8 +10,9 @@ export { default } from './wallet-manager-arkade.js';
 // Wallet account classes
 export {
   WalletAccountArkade,
-  WalletAccountArkadeReadOnly
-} from './bitcoin-arkade.js';
+  WalletAccountArkadeReadOnly,
+  type AddressType,
+} from './wallet-account-arkade.js';
 
 // Configuration types
 export type {
@@ -83,9 +84,3 @@ export {
   prettyNumber,
 } from './lib/format.js';
 
-// Re-export useful types from dependencies for convenience
-export type {
-  PendingReverseSwap,
-  PendingSubmarineSwap,
-  BoltzSwapStatus,
-} from '@arkade-os/boltz-swap';
