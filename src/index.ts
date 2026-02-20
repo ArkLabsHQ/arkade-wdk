@@ -10,7 +10,8 @@ export { default } from './wallet-manager-arkade.js';
 // Wallet account classes
 export {
   WalletAccountArkade,
-  WalletAccountArkadeReadOnly
+  WalletAccountArkadeReadOnly,
+  type AddressType,
 } from './wallet-account-arkade.js';
 
 // Configuration types

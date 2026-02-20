@@ -13,10 +13,18 @@ import { HDKey } from '@scure/bip32';
 import { ArkadeLightning, BoltzSwapProvider } from '@arkade-os/boltz-swap';
 import type { FeeRates } from '@tetherto/wdk';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
+import type { AddressType } from './wallet-account-arkade.js';
+
+const WALLET_CREATE_TIMEOUT_MS = 30_000;
 
 /**
  * Bitcoin wallet manager using Arkade SDK with Ark protocol support
  * Implements WDK-compatible interface with Arkade's dual-layer transaction capabilities
+ *
+ * Account index convention:
+ * - index 0 → boarding address (on-chain Bitcoin deposit address)
+ * - index 1 → offchain Ark address (VTXO-to-VTXO transfers)
+ * Both share the same underlying Ark wallet instance.
  */
 class WalletManagerArkade extends WalletManager {
   private config: ArkadeWalletConfig;
@@ -24,6 +32,12 @@ class WalletManagerArkade extends WalletManager {
   private disposed: boolean = false;
   private arkProvider: ArkProvider;
   private info: Promise<ArkInfo>;
+  /** Cached wallet instance shared across account indices */
+  private walletPromise: Promise<{
+    wallet: Wallet;
+    keyPair: KeyPair;
+    lightning: ArkadeLightning | null;
+  }> | null = null;
 
   constructor(seed: string | Uint8Array, config?: ArkadeWalletConfig) {
     super(seed);
@@ -43,20 +57,119 @@ class WalletManagerArkade extends WalletManager {
   }
 
   /**
-   * Get or create account at specified index
-   * Uses BIP-86 derivation path pattern: m/86'/0'/0'/0/index
+   * Create or return the shared Ark wallet instance.
+   * The wallet key always derives from BIP-86 index 0 path.
+   */
+  private getOrCreateWallet(): Promise<{
+    wallet: Wallet;
+    keyPair: KeyPair;
+    lightning: ArkadeLightning | null;
+  }> {
+    if (this.walletPromise) {
+      return this.walletPromise;
+    }
+
+    this.walletPromise = (async () => {
+      const info = await this.info;
+      const network = ['bitcoin', 'mainnet'].includes(String(info.network)) ? '0' : '1';
+      const path = `m/86'/${network}/0'/0/0`;
+
+      const hdKey = HDKey.fromMasterSeed(this.seed).derive(path);
+      if (!hdKey.privateKey || !hdKey.publicKey) {
+        throw new Error(`Failed to derive private key at path ${path}`);
+      }
+
+      const walletConfig: WalletConfig = {
+        ...this.config,
+        identity: SingleKey.fromPrivateKey(hdKey.privateKey),
+      };
+
+      // Wrap Wallet.create() with a timeout so an unreachable Ark server
+      // doesn't hang the worklet indefinitely.
+      const wallet = await Promise.race([
+        Wallet.create(walletConfig),
+        new Promise<never>((_resolve, reject) => {
+          setTimeout(
+            () => reject(new Error(
+              `Ark wallet creation timed out after ${WALLET_CREATE_TIMEOUT_MS}ms — ` +
+              `is the Ark server at ${this.config.arkServerUrl} reachable?`
+            )),
+            WALLET_CREATE_TIMEOUT_MS
+          );
+        }),
+      ]);
+
+      const keyPair: KeyPair = {
+        privateKey: hdKey.privateKey,
+        publicKey: hdKey.publicKey,
+      };
+
+      let lightning: ArkadeLightning | null = null;
+      if (this.config.swapProviderUrl) {
+        const swapProvider = new BoltzSwapProvider({
+          apiUrl: this.config.swapProviderUrl,
+          network: info.network as NetworkName,
+        });
+        lightning = new ArkadeLightning({
+          wallet,
+          swapProvider,
+          swapManager: { autoStart: true },
+        });
+      }
+
+      return { wallet, keyPair, lightning };
+    })();
+
+    // If creation fails, clear the promise so the next call retries
+    this.walletPromise.catch(() => {
+      this.walletPromise = null;
+    });
+
+    return this.walletPromise;
+  }
+
+  /**
+   * Get or create account at specified index.
+   *
+   * - index 0: returns account exposing the **boarding** (on-chain) address
+   * - index 1: returns account exposing the **offchain** Ark address
+   * - Both share the same Wallet instance, same balance, same sendTransaction()
    */
   async getAccount(index: number = 0): Promise<WalletAccountArkade> {
     this.disposeCheck();
 
+    const addressType: AddressType = index === 0 ? 'boarding' : 'offchain';
+    const cacheKey = `account:${index}`;
+
+    const existing = this.accounts.get(cacheKey);
+    if (existing) {
+      return existing;
+    }
+
+    const { wallet, keyPair, lightning } = await this.getOrCreateWallet();
+
     const info = await this.info;
     const network = ['bitcoin', 'mainnet'].includes(String(info.network)) ? '0' : '1';
     const path = `m/86'/${network}/0'/0/${index}`;
-    return this.getAccountByPath(path);
+
+    const account = new WalletAccountArkade(
+      path,
+      wallet,
+      keyPair,
+      wallet.indexerProvider,
+      this.info,
+      lightning,
+      addressType,
+    );
+    await account.initialize();
+
+    this.accounts.set(cacheKey, account);
+    return account;
   }
 
   /**
-   * Get or create account at specific derivation path
+   * Get or create account at specific derivation path.
+   * For the two-account model, prefer getAccount(0) or getAccount(1).
    */
   async getAccountByPath(path: string): Promise<WalletAccountArkade> {
     this.disposeCheck();
@@ -66,36 +179,11 @@ class WalletManagerArkade extends WalletManager {
       return existing;
     }
 
-    const hdKey = HDKey.fromMasterSeed(this.seed).derive(path);
-    if (!hdKey.privateKey || !hdKey.publicKey) {
-      throw new Error(`Failed to derive private key at path ${path}`);
-    }
+    // Extract index from path to determine address type
+    const index = parseInt(path.split('/').pop() || '0', 10);
+    const addressType: AddressType = index === 0 ? 'boarding' : 'offchain';
 
-    const config: WalletConfig = {
-      ...this.config,
-      identity: SingleKey.fromPrivateKey(hdKey.privateKey),
-    };
-
-    const wallet = await Wallet.create(config);
-    const keyPair: KeyPair = {
-      privateKey: hdKey.privateKey,
-      publicKey: hdKey.publicKey,
-    };
-
-    let al: ArkadeLightning | null = null;
-    if (this.config.swapProviderUrl) {
-      const swapProvider = new BoltzSwapProvider({
-        apiUrl: this.config.swapProviderUrl,
-        network: (await this.info).network as NetworkName,
-      });
-      al = new ArkadeLightning({
-        wallet,
-        swapProvider,
-        swapManager: {
-          autoStart: true
-        }
-      });
-    }
+    const { wallet, keyPair, lightning } = await this.getOrCreateWallet();
 
     const account = new WalletAccountArkade(
       path,
@@ -103,7 +191,8 @@ class WalletManagerArkade extends WalletManager {
       keyPair,
       wallet.indexerProvider,
       this.info,
-      al
+      lightning,
+      addressType,
     );
     await account.initialize();
 
@@ -133,6 +222,7 @@ class WalletManagerArkade extends WalletManager {
       account.dispose();
     }
     this.accounts.clear();
+    this.walletPromise = null;
 
     this.seed.set(new Uint8Array(this.seed.length));
     this.disposed = true;

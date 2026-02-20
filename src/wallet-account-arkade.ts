@@ -1,4 +1,5 @@
 import { ArkInfo, IWallet, Wallet, } from '@arkade-os/sdk';
+import type { ArkTransaction } from '@arkade-os/sdk';
 import * as btc from '@scure/btc-signer';
 import { hex } from '@scure/base';
 // Official WDK types
@@ -18,27 +19,37 @@ import type {
 } from '@arkade-os/boltz-swap';
 import { quoteSend, send } from './lib/send.js';
 
+export type AddressType = 'boarding' | 'offchain';
+
 /**
  * Read-only Bitcoin wallet account with Arkade Ark protocol support
  * Cannot sign or send transactions - only query balances and verify signatures
  */
 export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   public readonly index: number;
+  public readonly addressType: AddressType;
 
   constructor(
     public readonly path: string,
     protected readonly wallet: IWallet,
     public readonly keyPair: { publicKey: Uint8Array },
     protected readonly indexerProvider: IndexerProvider,
-    protected readonly arkInfo: Promise<ArkInfo>
+    protected readonly arkInfo: Promise<ArkInfo>,
+    addressType: AddressType = 'offchain'
   ) {
     this.index = parseInt(path.split('/').pop() || '0', 10);
+    this.addressType = addressType;
   }
 
   /**
-   * Get Ark protocol address (off-chain)
+   * Get address based on addressType:
+   * - 'boarding': on-chain Bitcoin address for initial deposits
+   * - 'offchain': Ark protocol address for VTXO-to-VTXO transfers
    */
   async getAddress(): Promise<string> {
+    if (this.addressType === 'boarding') {
+      return await this.wallet.getBoardingAddress();
+    }
     return await this.wallet.getAddress();
   }
 
@@ -116,9 +127,10 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     keyPair: KeyPair,
     indexerProvider: IndexerProvider,
     arkInfo: Promise<ArkInfo>,
-    public readonly arkadeLightning: ArkadeLightning | null = null
+    public readonly arkadeLightning: ArkadeLightning | null = null,
+    addressType: AddressType = 'offchain'
   ) {
-    super(path, wallet, keyPair, indexerProvider, arkInfo);
+    super(path, wallet, keyPair, indexerProvider, arkInfo, addressType);
     this.keyPair = keyPair;
   }
 
@@ -197,7 +209,8 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
       this.wallet,
       { publicKey: this.keyPair.publicKey },
       this.indexerProvider,
-      this.arkInfo
+      this.arkInfo,
+      this.addressType
     ));
   }
 
@@ -208,6 +221,13 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     this.keyPair.privateKey?.fill(0);
     (this as unknown as { wallet: Wallet | null }).wallet = null;
     this.arkadeLightning?.dispose();
+  }
+
+  /**
+   * Get transaction history from the Ark wallet
+   */
+  async getTransactionHistory(): Promise<ArkTransaction[]> {
+    return this.wallet.getTransactionHistory();
   }
 
   // ==========================================
