@@ -26,6 +26,18 @@ Implemented:
 - Transaction routing enum includes `EMAIL`, but email payments are not implemented
 - BIP21 helpers are implemented, but `sendTransaction`/`quoteSendTransaction` currently expect direct destination values (Ark/BTC/BOLT11), not a BIP21 URI
 
+## Account Model
+
+The wallet manager exposes three account indices, all sharing the same underlying `@arkade-os/sdk` wallet instance:
+
+| Index | AddressType | Purpose |
+|-------|-------------|---------|
+| 0 | `boarding` | On-chain BTC deposit address (funds enter the Ark) |
+| 1 | `offchain` | Ark protocol address (VTXO-to-VTXO transfers) |
+| 2 | `lightning` | Lightning via Boltz swaps (no static address; uses invoice generation) |
+
+`getAddress()` returns an empty string for Lightning (index 2). The UI should detect this and present an amount-input + invoice-generation flow instead of a static QR code.
+
 ## Repository Structure
 
 ```text
@@ -33,10 +45,13 @@ arkade-wdk/
 ├── src/
 │   ├── lib/                      # address, bip21, bolt11, lnurl, fees, formatting, send routing
 │   ├── wallet-manager-arkade.ts  # WDK wallet manager implementation
-│   ├── wallet-account-arkade.ts         # WDK account + read-only account implementations
+│   ├── wallet-account-arkade.ts  # WDK account + read-only account implementations
 │   └── index.ts                  # package exports
-├── packages/                     # git submodules (provider/bare packages)
-├── examples/                     # git submodules (starter apps)
+├── packages/
+│   ├── pear-wrk-wdk/             # submodule: bare-kit worklet runtime (HRPC schema + handlers)
+│   └── wdk-react-native-provider/# submodule: React Native provider (WDK service, contexts, UI wiring)
+├── examples/
+│   └── wdk-starter-react-native/ # submodule: Expo example app
 └── scripts/setup-dev.js          # local dev setup helper
 ```
 
@@ -117,7 +132,7 @@ if (isLightningAddress('user@wallet.com')) {
 ```typescript
 const boardingAddress = await account.wallet.getBoardingAddress()
 const detailedBalance = await account.wallet.getBalance()
-const history = await account.wallet.getTransactionHistory()
+const history = await account.getTransactionHistory() // also available via account.wallet.getTransactionHistory()
 ```
 
 `TODO`: Add first-class wrapper methods for these SDK calls on `WalletAccountArkade`.
@@ -148,8 +163,9 @@ class WalletAccountArkadeReadOnly {
   readonly path: string
   readonly keyPair: { publicKey: Uint8Array }
 
-  getAddress(): Promise<string>
+  getAddress(): Promise<string> // returns '' for lightning accounts
   getBalance(): Promise<bigint>
+  getTransactionHistory(): Promise<ArkTransaction[]>
   verify(message: string, signature: string): Promise<boolean>
   getTransactionReceipt(hash: string): Promise<unknown | null>
   getTokenBalance(tokenAddress: string): Promise<bigint> // always 0n for Bitcoin
@@ -173,7 +189,7 @@ class WalletAccountArkade extends WalletAccountArkadeReadOnly {
   sign(message: string): Promise<string>
   toReadOnlyAccount(): Promise<WalletAccountArkadeReadOnly>
   dispose(): void
-  createLightningInvoice(amount: number, description?: string): Promise<string>
+  createLightningInvoice(amount: number, description?: string): Promise<{ invoice: string; paymentHash: string }>
 }
 ```
 
@@ -235,6 +251,66 @@ const config: ArkadeWalletConfig = {
 `ArkadeWalletConfig` includes `@arkade-os/sdk` wallet config fields (except `identity`) plus `swapProviderUrl`.
 Minimum Arkade configuration is `arkServerUrl` or `arkProvider`.
 
+## Temporary Workarounds
+
+### Arkade balance fetching bypasses the worklet
+
+The normal WDK path for balances is: RN provider -> HRPC `getAddressBalance` -> worklet -> SDK `wallet.getBalance()`. For arkade networks, the SDK's internal Esplora URL defaults to `http://localhost:3000` (regtest), which is unreachable from an Android device. Non-arkade chains (BTC, EVM, TON, etc.) don't hit this problem because their balances are fetched via the WDK indexer at `wdk-api.tether.io` directly from RN's `fetch`, never through the worklet.
+
+The current workaround in `wdk-react-native-provider` calls the Ark indexer and Esplora REST APIs directly from the RN side:
+- **Offchain/Lightning balance**: `GET ${arkServerUrl}/v1/indexer/vtxos?scripts=${pkScript}&spendableOnly=true`
+- **Boarding balance**: `GET ${esploraUrl}/address/${addr}/utxo`
+
+This involves an inline bech32m decoder (`arkAddressToPkScript`) to extract the pkScript from the Ark address without adding a dependency. Once the SDK's Esplora URL is configurable or auto-detected correctly, these workarounds can be removed and the standard HRPC `getAddressBalance` path can be used for arkade too.
+
+### Transaction history uses HRPC (not a workaround)
+
+Unlike balances, transaction history goes through the full HRPC path: RN provider -> HRPC `getTransactionHistory` -> worklet -> SDK `wallet.getTransactionHistory()`. The SDK returns `ArkTransaction[]` which is serialized as JSON through HRPC and mapped to the provider's `Transaction` interface on the RN side.
+
+## Git Submodules
+
+The `packages/` and `examples/` directories are git submodules, each with their own repository. Changes flow **inside-out**: commit within the submodule first, then commit the updated submodule reference in the parent.
+
+### Workflow
+
+```bash
+# 1. Make changes inside a submodule
+cd packages/wdk-react-native-provider
+# ... edit files ...
+git add -A && git commit -m "your change"
+git push
+
+# 2. Back in the parent repo, commit the updated submodule pointer
+cd ../..
+git add packages/wdk-react-native-provider
+git commit -m "Update wdk-react-native-provider submodule"
+```
+
+Repeat for each submodule that changed (`packages/pear-wrk-wdk`, `examples/wdk-starter-react-native`).
+
+### After cloning
+
+```bash
+git submodule update --init --recursive
+```
+
+Or use the setup script which also builds and links:
+
+```bash
+npm run setup:dev
+```
+
+### Provider build
+
+After editing provider source, regenerate bundles and type definitions before committing:
+
+```bash
+cd packages/wdk-react-native-provider
+npm run prepare   # runs gen:secret-manager-bundle + gen:worker-bundle + bob build
+```
+
+This re-bundles the worklet (picking up any HRPC schema changes from `pear-wrk-wdk`) and type-checks with the stricter `bob build` settings.
+
 ## Development
 
 ```bash
@@ -252,14 +328,6 @@ npm test
 ```
 
 `TODO`: Jest is configured with `setupFilesAfterEnv: ['<rootDir>/src/__tests__/setup.ts']`, but that file is not currently present in this repository.
-
-## React Native / Expo Local Setup
-
-```bash
-npm run setup:dev
-```
-
-This script initializes submodules, builds this package, and creates local npm links used by the example/provider submodules.
 
 ## License
 
