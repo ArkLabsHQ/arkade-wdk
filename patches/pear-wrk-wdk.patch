@@ -1,0 +1,873 @@
+diff --git a/package-lock.json b/package-lock.json
+index 1ba00ef..0e324e2 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1,12 +1,12 @@
+ {
+   "name": "@tetherto/pear-wrk-wdk",
+-  "version": "1.0.0-beta.4",
++  "version": "1.0.0-beta.5",
+   "lockfileVersion": 3,
+   "requires": true,
+   "packages": {
+     "": {
+       "name": "@tetherto/pear-wrk-wdk",
+-      "version": "1.0.0-beta.4",
++      "version": "1.0.0-beta.5",
+       "hasInstallScript": true,
+       "license": "Apache-2.0",
+       "dependencies": {
+@@ -1873,7 +1873,7 @@
+     },
+     "node_modules/@wdk/wallet": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet.git#ee0f6046b6128d0a096f18cc6ca7845ca4cedb12",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet.git#ee0f6046b6128d0a096f18cc6ca7845ca4cedb12",
+       "integrity": "sha512-PfCaoBWFS0c+FuJRexdQWOtcB+x2z0pK0QtLAEaB82H74bBzmQZpsE6wV+mNqgggtNfz5Pp3b35Cu5lQ8l0wdw==",
+       "dependencies": {
+         "bare-wdk-runtime": "2.0.0",
+@@ -1882,7 +1882,7 @@
+     },
+     "node_modules/@wdk/wallet-btc": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-btc.git#ed35de0b49344bb07736fc296a28b8465a8e8a6e",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-btc.git#ed35de0b49344bb07736fc296a28b8465a8e8a6e",
+       "integrity": "sha512-LUb5jzm98AgOEWtR5pNMottf9i2M9b3YU+9474i2kFMhhVybCspnMXugdf4cTeOb9BUYkdkaDH17bw47zZYqcQ==",
+       "dependencies": {
+         "@bitcoinerlab/secp256k1": "1.2.0",
+@@ -1897,7 +1897,7 @@
+     },
+     "node_modules/@wdk/wallet-evm": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-evm.git#74e281ea63f7df6e2590580bba988daeda021df6",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-evm.git#74e281ea63f7df6e2590580bba988daeda021df6",
+       "integrity": "sha512-vrbfYPcmloFjEFY0AK9hN9EyCEF8g6w/N4WPkpr12klEGjXUjb7+Q+VWI/HJTWFxmHhJKlYT85GVZKgAD5kY7g==",
+       "dependencies": {
+         "@noble/curves": "1.9.2",
+@@ -1911,7 +1911,7 @@
+     },
+     "node_modules/@wdk/wallet-evm-erc-4337": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-evm-erc-4337.git#cc4431332b86d9c0609eaf833daa7295c13d8f86",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-evm-erc-4337.git#cc4431332b86d9c0609eaf833daa7295c13d8f86",
+       "integrity": "sha512-DzoyeTK2ul6P8W0TxC7313F0QRw0va6NhvoQ0CKZekwgQtK7YbG00TEj+RpDtIA/14LgaoBo+oyPVwYdoMMp4g==",
+       "dependencies": {
+         "@wdk-safe-global/relay-kit": "4.1.0",
+@@ -2017,7 +2017,7 @@
+     },
+     "node_modules/@wdk/wallet-solana": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-solana.git#e132dc8247cd7b9e84aeaad6c20667a92830e212",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-solana.git#e132dc8247cd7b9e84aeaad6c20667a92830e212",
+       "integrity": "sha512-1TOAIZ9FYylUudJSyC1DBtlbnRrJO0omMChHXO9VYYRSbw8q1URST0e1r/ImWjcixo+e7lyBVNtPqBAJfaRcKQ==",
+       "dependencies": {
+         "@solana-program/system": "0.7.0",
+@@ -2034,7 +2034,7 @@
+     },
+     "node_modules/@wdk/wallet-ton": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-ton.git#e2fc2c913fc003a0ad895822dc452db263faa259",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-ton.git#e2fc2c913fc003a0ad895822dc452db263faa259",
+       "integrity": "sha512-jvUTUT9KM2lz2LX37OLhI1B9aASo4O82p0jcHxFUQ/ninmX1IH4LiGzzG1gFmYeZ+VaDWBcOQP4sn1kpIY6LOQ==",
+       "dependencies": {
+         "@ton/crypto": "3.3.0",
+@@ -2050,7 +2050,7 @@
+     },
+     "node_modules/@wdk/wallet-ton-gasless": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-ton-gasless.git#4b62e81488647158b2492e06c6cde176b69dd17d",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-ton-gasless.git#4b62e81488647158b2492e06c6cde176b69dd17d",
+       "integrity": "sha512-pdKpA8zbenSKeD1LrpqTMdFXHwBXAZZavIulQx/gl6k8PqP50Y9WNtnN4IDpzO4TpoIRZqrfnkbrni4d5ZRU1g==",
+       "dependencies": {
+         "@ton-api/client": "0.4.0",
+@@ -2090,7 +2090,7 @@
+     },
+     "node_modules/@wdk/wallet-tron": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-tron.git#ec076473a5b8340599e005ab5ece8c8d246b3965",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-tron.git#ec076473a5b8340599e005ab5ece8c8d246b3965",
+       "integrity": "sha512-kVuF+TLKq9XG4oPA14dTS4LYs/Qs95rXnyXWJHte3ypew5mN4Yr5aPZQCsOmecmdrknU5tueNGAQxI/Ng7aVfw==",
+       "dependencies": {
+         "@noble/curves": "1.9.2",
+@@ -2106,7 +2106,7 @@
+     },
+     "node_modules/@wdk/wallet-tron-gasfree": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-tron-gasfree.git#fd57ed375801ae281e98c6882ea0f2ad4c2b30f5",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-tron-gasfree.git#fd57ed375801ae281e98c6882ea0f2ad4c2b30f5",
+       "integrity": "sha512-pJUGHNn26Dyv/pbeN9HTcnp+SH6DuENN6WWTCOHr2GxojrrrwGxBaJnmgq1DrgXoh8xxR3KEbX029kpp1IvQTA==",
+       "dependencies": {
+         "@noble/curves": "1.9.2",
+diff --git a/package.json b/package.json
+index a00f6b6..33e6d8a 100644
+--- a/package.json
++++ b/package.json
+@@ -6,8 +6,8 @@
+     "build:types": "rimraf *.d.ts **/*.d.ts; tsc",
+     "lint": "standard",
+     "lint:fix": "standard --fix",
+-    "gen:macos-bundle": "npx bare-pack --target darwin-arm64 --linked --out bundle/wdk-worklet.bundle.js src/wdk-worklet.js",
+-    "gen:mobile-bundle": "npx bare-pack --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --imports ./pack.imports.json --out bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js",
++    "gen:macos-bundle": "npx bare-pack --host darwin-arm64 --out bundle/wdk-worklet.bundle.js src/wdk-worklet.js",
++    "gen:mobile-bundle": "npx bare-pack --host ios-arm64 --host ios-arm64-simulator --host ios-x64-simulator --host android-arm --host android-arm64 --host android-ia32 --host android-x64 --imports ./pack.imports.json --out bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js",
+     "gen:schema": "node src/schema/schema.js",
+     "postinstall": "npm run gen:mobile-bundle"
+   },
+diff --git a/spec/hrpc/hrpc.json b/spec/hrpc/hrpc.json
+index 23079ea..079b880 100644
+--- a/spec/hrpc/hrpc.json
++++ b/spec/hrpc/hrpc.json
+@@ -1,5 +1,5 @@
+ {
+-  "version": 1,
++  "version": 3,
+   "schema": [
+     {
+       "id": 0,
+@@ -187,6 +187,32 @@
+         "send": true
+       },
+       "version": 1
++    },
++    {
++      "id": 14,
++      "name": "@wdk-core/createLightningInvoice",
++      "request": {
++        "name": "@wdk-core/createLightningInvoice-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/createLightningInvoice-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 15,
++      "name": "@wdk-core/getTransactionHistory",
++      "request": {
++        "name": "@wdk-core/getTransactionHistory-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/getTransactionHistory-response",
++        "stream": false
++      },
++      "version": 3
+     }
+   ]
+ }
+\ No newline at end of file
+diff --git a/spec/hrpc/index.js b/spec/hrpc/index.js
+index e7371d5..1f1dfc2 100644
+--- a/spec/hrpc/index.js
++++ b/spec/hrpc/index.js
+@@ -34,7 +34,11 @@ const methods = new Map([
+   ['@wdk-core/getTransactionReceipt', 13],
+   [13, '@wdk-core/getTransactionReceipt'],
+   ['@wdk-core/dispose', 14],
+-  [14, '@wdk-core/dispose']
++  [14, '@wdk-core/dispose'],
++  ['@wdk-core/createLightningInvoice', 15],
++  [15, '@wdk-core/createLightningInvoice'],
++  ['@wdk-core/getTransactionHistory', 16],
++  [16, '@wdk-core/getTransactionHistory']
+ ])
+ 
+ class HRPC {
+@@ -56,7 +60,9 @@ class HRPC {
+       ['@wdk-core/abstractedSendTransaction', getEncoding('@wdk-core/abstractedSendTransaction-request')],
+       ['@wdk-core/abstractedAccountQuoteTransfer', getEncoding('@wdk-core/abstractedAccountQuoteTransfer-request')],
+       ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-request')],
+-      ['@wdk-core/dispose', getEncoding('@wdk-core/dispose-request')]
++      ['@wdk-core/dispose', getEncoding('@wdk-core/dispose-request')],
++      ['@wdk-core/createLightningInvoice', getEncoding('@wdk-core/createLightningInvoice-request')],
++      ['@wdk-core/getTransactionHistory', getEncoding('@wdk-core/getTransactionHistory-request')]
+     ])
+     this._responseEncodings = new Map([
+       ['@wdk-core/workletStart', getEncoding('@wdk-core/workletStart-response')],
+@@ -71,7 +77,9 @@ class HRPC {
+       ['@wdk-core/getApproveTransaction', getEncoding('@wdk-core/getApproveTransaction-response')],
+       ['@wdk-core/abstractedSendTransaction', getEncoding('@wdk-core/abstractedSendTransaction-response')],
+       ['@wdk-core/abstractedAccountQuoteTransfer', getEncoding('@wdk-core/abstractedAccountQuoteTransfer-response')],
+-      ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-response')]
++      ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-response')],
++      ['@wdk-core/createLightningInvoice', getEncoding('@wdk-core/createLightningInvoice-response')],
++      ['@wdk-core/getTransactionHistory', getEncoding('@wdk-core/getTransactionHistory-response')]
+     ])
+     this._rpc = new RPC(stream, async (req) => {
+       const command = methods.get(req.command)
+@@ -195,6 +203,14 @@ class HRPC {
+     return this._callSync('@wdk-core/dispose', args)
+   }
+ 
++  async createLightningInvoice (args) {
++    return this._call('@wdk-core/createLightningInvoice', args)
++  }
++
++  async getTransactionHistory (args) {
++    return this._call('@wdk-core/getTransactionHistory', args)
++  }
++
+   onLog (responseFn) {
+     this._handlers['@wdk-core/log'] = responseFn
+   }
+@@ -255,6 +271,14 @@ class HRPC {
+     this._handlers['@wdk-core/dispose'] = responseFn
+   }
+ 
++  onCreateLightningInvoice (responseFn) {
++    this._handlers['@wdk-core/createLightningInvoice'] = responseFn
++  }
++
++  onGetTransactionHistory (responseFn) {
++    this._handlers['@wdk-core/getTransactionHistory'] = responseFn
++  }
++
+   _requestIsStream (command) {
+     return [
+     ].includes(command)
+diff --git a/spec/hrpc/messages.js b/spec/hrpc/messages.js
+index d14b4c8..3b01c75 100644
+--- a/spec/hrpc/messages.js
++++ b/spec/hrpc/messages.js
+@@ -1,11 +1,11 @@
+ // This file is autogenerated by the hyperschema compiler
+-// Schema Version: 1
++// Schema Version: 3
+ /* eslint-disable camelcase */
+ /* eslint-disable quotes */
+ 
+ const { c } = require('hyperschema/runtime')
+ 
+-const VERSION = 1
++const VERSION = 3
+ 
+ // eslint-disable-next-line no-unused-vars
+ let version = VERSION
+@@ -728,6 +728,95 @@ const encoding38 = {
+   }
+ }
+ 
++// @wdk-core/createLightningInvoice-request
++const encoding39 = {
++  preencode (state, m) {
++    c.string.preencode(state, m.network)
++    c.uint.preencode(state, m.accountIndex)
++    c.uint.preencode(state, m.amountSats)
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.description) c.string.preencode(state, m.description)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.description) ? 1 : 0
++
++    c.string.encode(state, m.network)
++    c.uint.encode(state, m.accountIndex)
++    c.uint.encode(state, m.amountSats)
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.description) c.string.encode(state, m.description)
++  },
++  decode (state) {
++    const r0 = c.string.decode(state)
++    const r1 = c.uint.decode(state)
++    const r2 = c.uint.decode(state)
++    const flags = c.uint.decode(state)
++
++    return {
++      network: r0,
++      accountIndex: r1,
++      amountSats: r2,
++      description: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/createLightningInvoice-response
++const encoding40 = {
++  preencode (state, m) {
++    state.end++ // max flag is 2 so always one byte
++
++    if (version >= 2 && m.invoice) c.string.preencode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.preencode(state, m.paymentHash)
++  },
++  encode (state, m) {
++    const flags =
++      ((version >= 2 && m.invoice) ? 1 : 0) |
++      ((version >= 2 && m.paymentHash) ? 2 : 0)
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.invoice) c.string.encode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.encode(state, m.paymentHash)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      invoice: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null,
++      paymentHash: (version >= 2 && (flags & 2) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/getTransactionHistory-request
++const encoding41 = encoding4
++
++// @wdk-core/getTransactionHistory-response
++const encoding42 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 3 && m.transactions) c.string.preencode(state, m.transactions)
++  },
++  encode (state, m) {
++    const flags = (version >= 3 && m.transactions) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 3 && m.transactions) c.string.encode(state, m.transactions)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      transactions: (version >= 3 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
+ function setVersion (v) {
+   version = v
+ }
+@@ -790,6 +879,10 @@ function getEncoding (name) {
+     case '@wdk-core/getTransactionReceipt-request': return encoding36
+     case '@wdk-core/getTransactionReceipt-response': return encoding37
+     case '@wdk-core/dispose-request': return encoding38
++    case '@wdk-core/createLightningInvoice-request': return encoding39
++    case '@wdk-core/createLightningInvoice-response': return encoding40
++    case '@wdk-core/getTransactionHistory-request': return encoding41
++    case '@wdk-core/getTransactionHistory-response': return encoding42
+     default: throw new Error('Encoder not found ' + name)
+   }
+ }
+diff --git a/spec/schema/index.js b/spec/schema/index.js
+index d14b4c8..3b01c75 100644
+--- a/spec/schema/index.js
++++ b/spec/schema/index.js
+@@ -1,11 +1,11 @@
+ // This file is autogenerated by the hyperschema compiler
+-// Schema Version: 1
++// Schema Version: 3
+ /* eslint-disable camelcase */
+ /* eslint-disable quotes */
+ 
+ const { c } = require('hyperschema/runtime')
+ 
+-const VERSION = 1
++const VERSION = 3
+ 
+ // eslint-disable-next-line no-unused-vars
+ let version = VERSION
+@@ -728,6 +728,95 @@ const encoding38 = {
+   }
+ }
+ 
++// @wdk-core/createLightningInvoice-request
++const encoding39 = {
++  preencode (state, m) {
++    c.string.preencode(state, m.network)
++    c.uint.preencode(state, m.accountIndex)
++    c.uint.preencode(state, m.amountSats)
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.description) c.string.preencode(state, m.description)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.description) ? 1 : 0
++
++    c.string.encode(state, m.network)
++    c.uint.encode(state, m.accountIndex)
++    c.uint.encode(state, m.amountSats)
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.description) c.string.encode(state, m.description)
++  },
++  decode (state) {
++    const r0 = c.string.decode(state)
++    const r1 = c.uint.decode(state)
++    const r2 = c.uint.decode(state)
++    const flags = c.uint.decode(state)
++
++    return {
++      network: r0,
++      accountIndex: r1,
++      amountSats: r2,
++      description: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/createLightningInvoice-response
++const encoding40 = {
++  preencode (state, m) {
++    state.end++ // max flag is 2 so always one byte
++
++    if (version >= 2 && m.invoice) c.string.preencode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.preencode(state, m.paymentHash)
++  },
++  encode (state, m) {
++    const flags =
++      ((version >= 2 && m.invoice) ? 1 : 0) |
++      ((version >= 2 && m.paymentHash) ? 2 : 0)
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.invoice) c.string.encode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.encode(state, m.paymentHash)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      invoice: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null,
++      paymentHash: (version >= 2 && (flags & 2) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/getTransactionHistory-request
++const encoding41 = encoding4
++
++// @wdk-core/getTransactionHistory-response
++const encoding42 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 3 && m.transactions) c.string.preencode(state, m.transactions)
++  },
++  encode (state, m) {
++    const flags = (version >= 3 && m.transactions) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 3 && m.transactions) c.string.encode(state, m.transactions)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      transactions: (version >= 3 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
+ function setVersion (v) {
+   version = v
+ }
+@@ -790,6 +879,10 @@ function getEncoding (name) {
+     case '@wdk-core/getTransactionReceipt-request': return encoding36
+     case '@wdk-core/getTransactionReceipt-response': return encoding37
+     case '@wdk-core/dispose-request': return encoding38
++    case '@wdk-core/createLightningInvoice-request': return encoding39
++    case '@wdk-core/createLightningInvoice-response': return encoding40
++    case '@wdk-core/getTransactionHistory-request': return encoding41
++    case '@wdk-core/getTransactionHistory-response': return encoding42
+     default: throw new Error('Encoder not found ' + name)
+   }
+ }
+diff --git a/spec/schema/schema.json b/spec/schema/schema.json
+index 70cd599..f81749d 100644
+--- a/spec/schema/schema.json
++++ b/spec/schema/schema.json
+@@ -1,5 +1,5 @@
+ {
+-  "version": 1,
++  "version": 3,
+   "schema": [
+     {
+       "name": "log-type-enum",
+@@ -755,6 +755,89 @@
+       "compact": false,
+       "flagsPosition": -1,
+       "fields": []
++    },
++    {
++      "name": "createLightningInvoice-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 3,
++      "fields": [
++        {
++          "name": "network",
++          "required": true,
++          "type": "string",
++          "version": 2
++        },
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        },
++        {
++          "name": "amountSats",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        },
++        {
++          "name": "description",
++          "required": false,
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "createLightningInvoice-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "invoice",
++          "type": "string",
++          "version": 2
++        },
++        {
++          "name": "paymentHash",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "getTransactionHistory-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "network",
++          "required": true,
++          "type": "string",
++          "version": 3
++        },
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 3
++        }
++      ]
++    },
++    {
++      "name": "getTransactionHistory-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "transactions",
++          "type": "string",
++          "version": 3
++        }
++      ]
+     }
+   ]
+ }
+\ No newline at end of file
+diff --git a/src/schema/schema.js b/src/schema/schema.js
+index b258c2a..535dd60 100644
+--- a/src/schema/schema.js
++++ b/src/schema/schema.js
+@@ -341,6 +341,39 @@ schemaNs.register({
+   ]
+ })
+ 
++schemaNs.register({
++  name: 'createLightningInvoice-request',
++  fields: [
++    { name: 'network', type: 'string', required: true },
++    { name: 'accountIndex', type: 'uint', required: true },
++    { name: 'amountSats', type: 'uint', required: true },
++    { name: 'description', type: 'string', required: false }
++  ]
++})
++
++schemaNs.register({
++  name: 'createLightningInvoice-response',
++  fields: [
++    { name: 'invoice', type: 'string' },
++    { name: 'paymentHash', type: 'string' }
++  ]
++})
++
++schemaNs.register({
++  name: 'getTransactionHistory-request',
++  fields: [
++    { name: 'network', type: 'string', required: true },
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++
++schemaNs.register({
++  name: 'getTransactionHistory-response',
++  fields: [
++    { name: 'transactions', type: 'string' }
++  ]
++})
++
+ schemaNs.register({
+   name: 'dispose-request',
+   fields: []
+@@ -430,6 +463,16 @@ ns.register({
+   request: { name: '@wdk-core/getTransactionReceipt-request', stream: false },
+   response: { name: '@wdk-core/getTransactionReceipt-response', stream: false }
+ })
++ns.register({
++  name: 'createLightningInvoice',
++  request: { name: '@wdk-core/createLightningInvoice-request', stream: false },
++  response: { name: '@wdk-core/createLightningInvoice-response', stream: false }
++})
++ns.register({
++  name: 'getTransactionHistory',
++  request: { name: '@wdk-core/getTransactionHistory-request', stream: false },
++  response: { name: '@wdk-core/getTransactionHistory-response', stream: false }
++})
+ ns.register({
+   name: 'dispose',
+   request: { name: '@wdk-core/dispose-request', send: true }
+diff --git a/src/wdk-core/wdk-manager.d.ts b/src/wdk-core/wdk-manager.d.ts
+index b3f522d..0e4fba3 100644
+--- a/src/wdk-core/wdk-manager.d.ts
++++ b/src/wdk-core/wdk-manager.d.ts
+@@ -11,6 +11,7 @@ export type TonGaslessWalletConfig = import("@wdk/wallet-ton-gasless").TonGasles
+ export type TronWalletConfig = import("@wdk/wallet-tron").TronWalletConfig;
+ export type TronGasfreeWalletConfig = import("@wdk/wallet-tron-gasfree").TronGasfreeWalletConfig;
+ export type BtcWalletConfig = import("@wdk/wallet-btc").BtcWalletConfig;
++export type ArkadeWalletConfig = import("@arkade-os/wdk").ArkadeWalletConfig;
+ export type SolanaWalletConfig = import("@wdk/wallet-solana").SolanaWalletConfig;
+ export type Seed = string | Uint8Array;
+ export type Seeds = {
+@@ -38,6 +39,10 @@ export type Seeds = {
+      * - The bitcoin's wallet seed phrase.
+      */
+     bitcoin: Seed;
++    /**
++     * - The arkade's wallet seed phrase.
++     */
++    arkade: Seed;
+     /**
+      * - The solana's wallet seed phrase.
+      */
+@@ -68,6 +73,10 @@ export type WdkConfig = {
+      * - The bitcoin blockchain configuration.
+      */
+     bitcoin: BtcWalletConfig;
++    /**
++     * - The arkade blockchain configuration.
++     */
++    arkade: ArkadeWalletConfig;
+     /**
+      * - The solana blockchain configuration.
+      */
+@@ -298,5 +307,6 @@ export namespace Blockchain {
+     let Ton: string;
+     let Tron: string;
+     let Bitcoin: string;
++    let Arkade: string;
+     let Solana: string;
+ }
+diff --git a/src/wdk-core/wdk-manager.js b/src/wdk-core/wdk-manager.js
+index ab55aea..630ea1e 100644
+--- a/src/wdk-core/wdk-manager.js
++++ b/src/wdk-core/wdk-manager.js
+@@ -31,6 +31,7 @@
+ /** @typedef {import('@wdk/wallet-tron-gasfree').TronGasfreeWalletConfig} TronGasfreeWalletConfig */
+ 
+ /** @typedef {import('@wdk/wallet-btc').BtcWalletConfig} BtcWalletConfig */
++/** @typedef {import('@arkade-os/wdk').ArkadeWalletConfig} ArkadeWalletConfig */
+ 
+ /** @typedef {import('@wdk/wallet-solana').SolanaWalletConfig} SolanaWalletConfig */
+ 
+@@ -44,6 +45,7 @@
+  * @property {Seed} ton - The ton's wallet seed phrase.
+  * @property {Seed} tron - The tron's wallet seed phrase.
+  * @property {Seed} bitcoin - The bitcoin's wallet seed phrase.
++ * @property {Seed} arkade - The arkade's wallet seed phrase.
+  * @property {Seed} solana - The solana's wallet seed phrase.
+  */
+ 
+@@ -55,6 +57,7 @@
+  * @property {TonWalletConfig | TonGaslessWalletConfig} ton - The ton blockchain configuration.
+  * @property {TronWalletConfig | TronGasfreeWalletConfig} tron - The tron blockchain configuration.
+  * @property {BtcWalletConfig} bitcoin - The bitcoin blockchain configuration.
++ * @property {ArkadeWalletConfig} arkade - The arkade blockchain configuration.
+  * @property {SolanaWalletConfig} solana - The solana blockchain configuration.
+  */
+ 
+@@ -84,6 +87,7 @@ const Blockchain = {
+   Ton: 'ton',
+   Tron: 'tron',
+   Bitcoin: 'bitcoin',
++  Arkade: 'arkade',
+   Solana: 'solana'
+ }
+ 
+@@ -440,6 +444,34 @@ class WdkManager {
+     }
+   }
+ 
++  /**
++   * Creates a Lightning invoice to receive payment.
++   *
++   * @param {Blockchain} blockchain - A blockchain identifier (e.g., "arkade").
++   * @param {number} accountIndex - The index of the account to use.
++   * @param {number} amountSats - Amount in satoshis.
++   * @param {string} [description] - Optional invoice description.
++   * @returns {Promise<{ invoice: string, paymentHash: string }>} The BOLT11 invoice and payment hash.
++   */
++  async createLightningInvoice (blockchain, accountIndex, amountSats, description) {
++    const account = await this.getAccount(blockchain, accountIndex)
++
++    return await account.createLightningInvoice(amountSats, description)
++  }
++
++  /**
++   * Returns the transaction history for a specific blockchain account.
++   *
++   * @param {Blockchain} blockchain - A blockchain identifier.
++   * @param {number} accountIndex - The index of the account.
++   * @returns {Promise<unknown[]>} The transaction history.
++   */
++  async getTransactionHistory (blockchain, accountIndex) {
++    const account = await this.getAccount(blockchain, accountIndex)
++
++    return await account.getTransactionHistory()
++  }
++
+   /** Disposes all the wallet accounts, erasing their private keys from the memory. */
+   dispose () {
+     for (const blockchain in this._wallets) {
+@@ -484,6 +516,12 @@ class WdkManager {
+         const { default: WalletManagerBtc } = await import('@wdk/wallet-btc')
+ 
+         this._wallets.bitcoin = new WalletManagerBtc(seed, config.bitcoin)
++      } else if (blockchain === 'arkade') {
++        // Keep lazy loading, but use a literal specifier so bare-pack can include the module in the bundle graph.
++        const arkadeModule = await import('@arkade-os/wdk')
++        const WalletManagerArkade = arkadeModule.default || arkadeModule.WalletManagerArkade || arkadeModule
++
++        this._wallets.arkade = new WalletManagerArkade(seed, config.arkade)
+       } else if (blockchain === 'solana') {
+         const { default: WalletManagerSolana } = await import('@wdk/wallet-solana')
+ 
+diff --git a/src/wdk-worklet.js b/src/wdk-worklet.js
+index 73af417..8623846 100644
+--- a/src/wdk-worklet.js
++++ b/src/wdk-worklet.js
+@@ -148,6 +148,27 @@ rpc.onGetApproveTransaction(async payload => {
+   }
+ })
+ 
++rpc.onCreateLightningInvoice(async payload => {
++  try {
++    const result = await wdk.createLightningInvoice(
++      payload.network, payload.accountIndex,
++      payload.amountSats, payload.description || undefined
++    )
++    return { invoice: result.invoice, paymentHash: result.paymentHash }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onGetTransactionHistory(async payload => {
++  try {
++    const history = await wdk.getTransactionHistory(payload.network, payload.accountIndex)
++    return { transactions: JSON.stringify(history) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
+ rpc.onDispose(() => {
+   try {
+     wdk.dispose()
+diff --git a/src/worklet.mjs b/src/worklet.mjs
+index 11d5820..6ec817f 100644
+--- a/src/worklet.mjs
++++ b/src/worklet.mjs
+@@ -148,6 +148,27 @@ rpc.onGetApproveTransaction(async payload => {
+   }
+ })
+ 
++rpc.onCreateLightningInvoice(async payload => {
++  try {
++    const result = await wdk.createLightningInvoice(
++      payload.network, payload.accountIndex,
++      payload.amountSats, payload.description || undefined
++    )
++    return { invoice: result.invoice, paymentHash: result.paymentHash }
++  } catch (error) {
++    throw new Error(stringifyError(error))
++  }
++})
++
++rpc.onGetTransactionHistory(async payload => {
++  try {
++    const history = await wdk.getTransactionHistory(payload.network, payload.accountIndex)
++    return { transactions: JSON.stringify(history) }
++  } catch (error) {
++    throw new Error(stringifyError(error))
++  }
++})
++
+ rpc.onDispose(() => {
+   try {
+     wdk.dispose()
+diff --git a/types/src/wdk-core/wdk-manager.d.ts b/types/src/wdk-core/wdk-manager.d.ts
+index 7b98d33..377d1a5 100644
+--- a/types/src/wdk-core/wdk-manager.d.ts
++++ b/types/src/wdk-core/wdk-manager.d.ts
+@@ -255,6 +255,7 @@ export type TonGaslessWalletConfig = import("@tetherto/wdk-wallet-ton-gasless").
+ export type TronWalletConfig = import("@tetherto/wdk-wallet-tron").TronWalletConfig;
+ export type TronGasfreeWalletConfig = import("@tetherto/wdk-wallet-tron-gasfree").TronGasfreeWalletConfig;
+ export type BtcWalletConfig = import("@tetherto/wdk-wallet-btc").BtcWalletConfig;
++export type ArkadeWalletConfig = import("@arkade-os/wdk").ArkadeWalletConfig;
+ export type SolanaWalletConfig = import("@tetherto/wdk-wallet-solana").SolanaWalletConfig;
+ export type Seed = string | Uint8Array;
+ export type Seeds = {
+@@ -282,6 +283,10 @@ export type Seeds = {
+      * - The bitcoin's wallet seed phrase.
+      */
+     bitcoin: Seed;
++    /**
++     * - The arkade's wallet seed phrase.
++     */
++    arkade: Seed;
+     /**
+      * - The solana's wallet seed phrase.
+      */
+@@ -312,6 +317,10 @@ export type WdkConfig = {
+      * - The bitcoin blockchain configuration.
+      */
+     bitcoin: BtcWalletConfig;
++    /**
++     * - The arkade blockchain configuration.
++     */
++    arkade: ArkadeWalletConfig;
+     /**
+      * - The solana blockchain configuration.
+      */
+@@ -345,6 +354,7 @@ declare namespace Blockchain {
+     let Ton: string;
+     let Tron: string;
+     let Bitcoin: string;
++    let Arkade: string;
+     let Solana: string;
+ }
+ export {};
