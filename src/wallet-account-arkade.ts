@@ -18,7 +18,7 @@ import type {
 } from '@arkade-os/boltz-swap';
 import { quoteSend, send } from './lib/send.js';
 
-export type AddressType = 'boarding' | 'offchain';
+export type AddressType = 'boarding' | 'offchain' | 'lightning';
 
 /**
  * Read-only Bitcoin wallet account with Arkade Ark protocol support
@@ -46,6 +46,7 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
    * - 'offchain': Ark protocol address for VTXO-to-VTXO transfers
    */
   async getAddress(): Promise<string> {
+    if (this.addressType === 'lightning') return '';
     if (this.addressType === 'boarding') {
       return await this.wallet.getBoardingAddress();
     }
@@ -233,7 +234,7 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
    * @param amount Amount in satoshis to receive
    * @param description Optional description for the invoice
    */
-  async createLightningInvoice(amount: number, description?: string): Promise<string> {
+  async createLightningInvoice(amount: number, description?: string): Promise<{ invoice: string; paymentHash: string }> {
     if (!this.arkadeLightning) {
       throw new Error('Lightning support not configured. Provide swapProviderUrl in wallet config.');
     }
@@ -243,7 +244,7 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
       description,
     });
 
-    return response.invoice;
+    return { invoice: response.invoice, paymentHash: response.paymentHash };
   }
 
 }

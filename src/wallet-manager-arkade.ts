@@ -24,7 +24,8 @@ const WALLET_CREATE_TIMEOUT_MS = 30_000;
  * Account index convention:
  * - index 0 → boarding address (on-chain Bitcoin deposit address)
  * - index 1 → offchain Ark address (VTXO-to-VTXO transfers)
- * Both share the same underlying Ark wallet instance.
+ * - index 2 → lightning (no static address; uses invoice generation)
+ * All share the same underlying Ark wallet instance.
  */
 class WalletManagerArkade extends WalletManager {
   private config: ArkadeWalletConfig;
@@ -133,12 +134,13 @@ class WalletManagerArkade extends WalletManager {
    *
    * - index 0: returns account exposing the **boarding** (on-chain) address
    * - index 1: returns account exposing the **offchain** Ark address
-   * - Both share the same Wallet instance, same balance, same sendTransaction()
+   * - index 2: returns account for **lightning** (no static address)
+   * - All share the same Wallet instance, same balance, same sendTransaction()
    */
   async getAccount(index: number = 0): Promise<WalletAccountArkade> {
     this.disposeCheck();
 
-    const addressType: AddressType = index === 0 ? 'boarding' : 'offchain';
+    const addressType: AddressType = index === 0 ? 'boarding' : index === 2 ? 'lightning' : 'offchain';
     const cacheKey = `account:${index}`;
 
     const existing = this.accounts.get(cacheKey);
@@ -181,7 +183,7 @@ class WalletManagerArkade extends WalletManager {
 
     // Extract index from path to determine address type
     const index = parseInt(path.split('/').pop() || '0', 10);
-    const addressType: AddressType = index === 0 ? 'boarding' : 'offchain';
+    const addressType: AddressType = index === 0 ? 'boarding' : index === 2 ? 'lightning' : 'offchain';
 
     const { wallet, keyPair, lightning } = await this.getOrCreateWallet();
 
