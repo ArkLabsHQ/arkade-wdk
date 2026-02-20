@@ -220,15 +220,9 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
   dispose(): void {
     this.keyPair.privateKey?.fill(0);
     (this as unknown as { wallet: Wallet | null }).wallet = null;
-    this.arkadeLightning?.dispose();
+    void this.arkadeLightning?.dispose();
   }
 
-  /**
-   * Get transaction history from the Ark wallet
-   */
-  async getTransactionHistory(): Promise<ArkTransaction[]> {
-    return this.wallet.getTransactionHistory();
-  }
 
   // ==========================================
   // Lightning Receive Methods
