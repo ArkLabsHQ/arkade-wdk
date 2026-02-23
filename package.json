@@ -35,8 +35,9 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@arkade-os/boltz-swap": "^0.2.20",
+    "@arkade-os/boltz-swap": "github:arkade-os/boltz-swap#master",
     "@arkade-os/sdk": "github:arkade-os/ts-sdk#master",
+    "bare-node-runtime": "^1.1.4",
     "@scure/base": "^2.0.0",
     "@scure/bip32": "^2.0.1",
     "@scure/btc-signer": "^2.0.1",

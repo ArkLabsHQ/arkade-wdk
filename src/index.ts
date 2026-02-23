@@ -11,7 +11,6 @@ export { default } from './wallet-manager-arkade.js';
 export {
   WalletAccountArkade,
   WalletAccountArkadeReadOnly,
-  type AddressType,
 } from './wallet-account-arkade.js';
 
 // Configuration types
