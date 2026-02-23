@@ -13,7 +13,6 @@ import { HDKey } from '@scure/bip32';
 import { ArkadeLightning, BoltzSwapProvider } from '@arkade-os/boltz-swap';
 import type { FeeRates } from '@tetherto/wdk';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
-import type { AddressType } from './wallet-account-arkade.js';
 
 const WALLET_CREATE_TIMEOUT_MS = 30_000;
 
@@ -21,11 +20,12 @@ const WALLET_CREATE_TIMEOUT_MS = 30_000;
  * Bitcoin wallet manager using Arkade SDK with Ark protocol support
  * Implements WDK-compatible interface with Arkade's dual-layer transaction capabilities
  *
- * Account index convention:
- * - index 0 → boarding address (on-chain Bitcoin deposit address)
- * - index 1 → offchain Ark address (VTXO-to-VTXO transfers)
- * - index 2 → lightning (no static address; uses invoice generation)
- * All share the same underlying Ark wallet instance.
+ * Each account index creates a unified account exposing all capabilities:
+ * - `getAddress()` → Ark offchain address (primary)
+ * - `getBoardingAddress()` → on-chain Bitcoin deposit address
+ * - `createLightningInvoice()` → Lightning receive (when configured)
+ *
+ * All accounts share the same underlying Ark wallet instance.
  */
 class WalletManagerArkade extends WalletManager {
   private config: ArkadeWalletConfig;
@@ -130,17 +130,12 @@ class WalletManagerArkade extends WalletManager {
   }
 
   /**
-   * Get or create account at specified index.
-   *
-   * - index 0: returns account exposing the **boarding** (on-chain) address
-   * - index 1: returns account exposing the **offchain** Ark address
-   * - index 2: returns account for **lightning** (no static address)
-   * - All share the same Wallet instance, same balance, same sendTransaction()
+   * Get or create a unified account at the specified index.
+   * Each account exposes all capabilities (offchain, boarding, lightning).
    */
   async getAccount(index: number = 0): Promise<WalletAccountArkade> {
     this.disposeCheck();
 
-    const addressType: AddressType = index === 0 ? 'boarding' : index === 2 ? 'lightning' : 'offchain';
     const cacheKey = `account:${index}`;
 
     const existing = this.accounts.get(cacheKey);
@@ -161,17 +156,14 @@ class WalletManagerArkade extends WalletManager {
       wallet.indexerProvider,
       this.info,
       lightning,
-      addressType,
     );
-
 
     this.accounts.set(cacheKey, account);
     return account;
   }
 
   /**
-   * Get or create account at specific derivation path.
-   * For the two-account model, prefer getAccount(0) or getAccount(1).
+   * Get or create a unified account at a specific derivation path.
    */
   async getAccountByPath(path: string): Promise<WalletAccountArkade> {
     this.disposeCheck();
@@ -180,10 +172,6 @@ class WalletManagerArkade extends WalletManager {
     if (existing) {
       return existing;
     }
-
-    // Extract index from path to determine address type
-    const index = parseInt(path.split('/').pop() || '0', 10);
-    const addressType: AddressType = index === 0 ? 'boarding' : index === 2 ? 'lightning' : 'offchain';
 
     const { wallet, keyPair, lightning } = await this.getOrCreateWallet();
 
@@ -194,9 +182,7 @@ class WalletManagerArkade extends WalletManager {
       wallet.indexerProvider,
       this.info,
       lightning,
-      addressType,
     );
-
 
     this.accounts.set(path, account);
     return account;

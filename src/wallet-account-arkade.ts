@@ -18,15 +18,17 @@ import type {
 } from '@arkade-os/boltz-swap';
 import { quoteSend, send } from './lib/send.js';
 
-export type AddressType = 'boarding' | 'offchain' | 'lightning';
-
 /**
  * Read-only Bitcoin wallet account with Arkade Ark protocol support
  * Cannot sign or send transactions - only query balances and verify signatures
+ *
+ * Each account is a unified view exposing all capabilities:
+ * - `getAddress()` → Ark offchain address (primary)
+ * - `getBoardingAddress()` → on-chain Bitcoin deposit address
+ * - Lightning via `createLightningInvoice()` (on the full account)
  */
 export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   public readonly index: number;
-  public readonly addressType: AddressType;
 
   constructor(
     public readonly path: string,
@@ -34,23 +36,22 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
     public readonly keyPair: { publicKey: Uint8Array },
     protected readonly indexerProvider: IndexerProvider,
     protected readonly arkInfo: Promise<ArkInfo>,
-    addressType: AddressType = 'offchain'
   ) {
     this.index = parseInt(path.split('/').pop() || '0', 10);
-    this.addressType = addressType;
   }
 
   /**
-   * Get address based on addressType:
-   * - 'boarding': on-chain Bitcoin address for initial deposits
-   * - 'offchain': Ark protocol address for VTXO-to-VTXO transfers
+   * Get the Ark offchain address (primary address for VTXO-to-VTXO transfers)
    */
   async getAddress(): Promise<string> {
-    if (this.addressType === 'lightning') return '';
-    if (this.addressType === 'boarding') {
-      return await this.wallet.getBoardingAddress();
-    }
     return await this.wallet.getAddress();
+  }
+
+  /**
+   * Get the on-chain Bitcoin boarding address for initial deposits
+   */
+  async getBoardingAddress(): Promise<string> {
+    return await this.wallet.getBoardingAddress();
   }
 
   /**
@@ -135,9 +136,8 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     indexerProvider: IndexerProvider,
     arkInfo: Promise<ArkInfo>,
     public readonly arkadeLightning: ArkadeLightning | null = null,
-    addressType: AddressType = 'offchain'
   ) {
-    super(path, wallet, keyPair, indexerProvider, arkInfo, addressType);
+    super(path, wallet, keyPair, indexerProvider, arkInfo);
     this.keyPair = keyPair;
   }
 
@@ -212,7 +212,6 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
       { publicKey: this.keyPair.publicKey },
       this.indexerProvider,
       this.arkInfo,
-      this.addressType
     ));
   }
 
