@@ -776,6 +776,54 @@ index 0000000..92a7c45
 +  await ensureSymlink(linkPath, pkg.target);
 +  console.log(`Linked @tetherto/${pkg.name} -> ${pkg.target}`);
 +}
+diff --git a/src/app/_layout.tsx b/src/app/_layout.tsx
+index 4df44bd..2a80a69 100644
+--- a/src/app/_layout.tsx
++++ b/src/app/_layout.tsx
+@@ -1,5 +1,5 @@
+ import { DarkTheme, ThemeProvider as NavigationThemeProvider } from '@react-navigation/native';
+-import { WalletProvider, WDKService } from '@tetherto/wdk-react-native-provider';
++import { WalletProvider, WDKService, useWallet } from '@tetherto/wdk-react-native-provider';
+ import { ThemeProvider } from '@tetherto/wdk-uikit-react-native';
+ import { Stack } from 'expo-router';
+ import * as SplashScreen from 'expo-splash-screen';
+@@ -9,11 +9,27 @@ import { View } from 'react-native';
+ import { GestureHandlerRootView } from 'react-native-gesture-handler';
+ import 'react-native-reanimated';
+ import getChainsConfig from '@/config/get-chains-config';
+-import { Toaster } from 'sonner-native';
++import { toast, Toaster } from 'sonner-native';
+ import { colors } from '@/constants/colors';
+ 
+ SplashScreen.preventAutoHideAsync();
+ 
++function IncomingFundsNotifier() {
++  const { onIncomingFunds, isUnlocked } = useWallet();
++
++  useEffect(() => {
++    if (!isUnlocked) return;
++    const unsub = onIncomingFunds((data) => {
++      toast.success('Payment received!', {
++        description: `You've received ${data.amountSats.toLocaleString()} sats`,
++      });
++    });
++    return unsub;
++  }, [isUnlocked, onIncomingFunds]);
++
++  return null;
++}
++
+ const CustomDarkTheme = {
+   ...DarkTheme,
+   colors: {
+@@ -56,6 +72,7 @@ export default function RootLayout() {
+             enableCaching: true,
+           }}
+         >
++          <IncomingFundsNotifier />
+           <NavigationThemeProvider value={CustomDarkTheme}>
+             <View style={{ flex: 1, backgroundColor: colors.background }}>
+               <Stack
 diff --git a/src/app/activity.tsx b/src/app/activity.tsx
 index 8025f1b..b542c47 100644
 --- a/src/app/activity.tsx
@@ -869,19 +917,49 @@ index 8025f1b..b542c47 100644
      // eslint-disable-next-line react-hooks/exhaustive-deps
    }, [walletTransactions.list, addresses]);
  
+diff --git a/src/app/receive/details.tsx b/src/app/receive/details.tsx
+index 0ac6e1c..3ee2664 100644
+--- a/src/app/receive/details.tsx
++++ b/src/app/receive/details.tsx
+@@ -1,9 +1,10 @@
+ import { QRCode } from '@tetherto/wdk-uikit-react-native';
+ import { useLocalSearchParams } from 'expo-router';
+ import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
++import { useWallet } from '@tetherto/wdk-react-native-provider';
+ import * as Clipboard from 'expo-clipboard';
+ import { ArrowLeft, Copy, Share, X } from 'lucide-react-native';
+-import React, { useCallback } from 'react';
++import React, { useCallback, useEffect } from 'react';
+ import { Share as RNShare, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { toast } from 'sonner-native';
+@@ -13,6 +14,13 @@ export default function ReceiveQRCodeScreen() {
+   const insets = useSafeAreaInsets();
+   const router = useDebouncedNavigation();
+   const params = useLocalSearchParams();
++  const { setIncomingFundsPollingInterval } = useWallet();
++
++  // Fast-poll while on the receive screen
++  useEffect(() => {
++    setIncomingFundsPollingInterval(2000);
++    return () => setIncomingFundsPollingInterval(10000);
++  }, [setIncomingFundsPollingInterval]);
+ 
+   const { tokenName, networkName, address } = params as {
+     tokenName: string;
 diff --git a/src/app/receive/lightning.tsx b/src/app/receive/lightning.tsx
 new file mode 100644
-index 0000000..0729d9a
+index 0000000..62f5e31
 --- /dev/null
 +++ b/src/app/receive/lightning.tsx
-@@ -0,0 +1,336 @@
+@@ -0,0 +1,342 @@
 +import { QRCode } from '@tetherto/wdk-uikit-react-native';
 +import { useLocalSearchParams } from 'expo-router';
 +import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
 +import { useWallet } from '@tetherto/wdk-react-native-provider';
 +import * as Clipboard from 'expo-clipboard';
 +import { ArrowLeft, Copy, Share, X } from 'lucide-react-native';
-+import React, { useCallback, useState } from 'react';
++import React, { useCallback, useEffect, useState } from 'react';
 +import {
 +  ActivityIndicator,
 +  Share as RNShare,
@@ -900,10 +978,16 @@ index 0000000..0729d9a
 +export default function LightningReceiveScreen() {
 +  const insets = useSafeAreaInsets();
 +  const router = useDebouncedNavigation();
-+  const { createLightningInvoice } = useWallet();
++  const { createLightningInvoice, setIncomingFundsPollingInterval } = useWallet();
 +  const params = useLocalSearchParams();
 +
 +  const { tokenName } = params as { tokenName: string };
++
++  // Fast-poll while on the receive screen
++  useEffect(() => {
++    setIncomingFundsPollingInterval(2000);
++    return () => setIncomingFundsPollingInterval(10000);
++  }, [setIncomingFundsPollingInterval]);
 +
 +  const [phase, setPhase] = useState<Phase>('amount');
 +  const [amountSats, setAmountSats] = useState('');
