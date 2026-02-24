@@ -114,7 +114,7 @@ class WalletManagerArkade extends WalletManager {
         lightning = new ArkadeLightning({
           wallet,
           swapProvider,
-          swapManager: { autoStart: true },
+          swapManager: { autoStart: true, pollInterval: 5_000 },
         });
       }
 
