@@ -50,7 +50,14 @@ arkade-wdk/
 │   └── wdk-react-native-provider/# submodule: React Native provider (WDK service, contexts, UI wiring)
 ├── examples/
 │   └── wdk-starter-react-native/ # submodule: Expo example app
-└── scripts/setup-dev.js          # local dev setup helper
+├── patches/
+│   ├── pear-wrk-wdk.patch
+│   ├── wdk-react-native-provider.patch
+│   └── wdk-starter-react-native.patch
+└── scripts/
+    ├── setup-dev.js              # local dev setup helper
+    ├── apply-patches.js          # apply ./patches to each submodule
+    └── generate-patches.js       # regenerate ./patches from submodule diffs
 ```
 
 ## Installation
@@ -290,6 +297,52 @@ Or use the setup script which also builds and links:
 
 ```bash
 npm run setup:dev
+```
+
+### Patch management
+
+Because the submodules are upstream repos, local modifications are tracked as patch files under `./patches/` rather than as commits in forks. This keeps the parent repo's changes visible without requiring write access to the upstream repos.
+
+#### Apply patches (after a fresh clone or submodule update)
+
+```bash
+node scripts/apply-patches.js
+```
+
+Run with `--check` to verify patches apply cleanly without modifying the working tree:
+
+```bash
+node scripts/apply-patches.js --check
+```
+
+#### Regenerate patches (after editing submodule files)
+
+```bash
+node scripts/generate-patches.js
+```
+
+This compares each submodule's working tree against `origin/main` and overwrites the corresponding file in `./patches/`. Commit the updated patch files to the parent repo.
+
+Specify a different base ref with `--base`:
+
+```bash
+node scripts/generate-patches.js --base origin/v2
+```
+
+#### Typical patch-update workflow
+
+```bash
+# 1. Edit files inside the submodule
+cd packages/wdk-react-native-provider
+# ... edit files ...
+
+# 2. Regenerate the patch from the parent repo root
+cd ../..
+node scripts/generate-patches.js
+
+# 3. Commit the updated patch to the parent repo
+git add patches/wdk-react-native-provider.patch
+git commit -m "Update wdk-react-native-provider patch"
 ```
 
 ### Provider build
