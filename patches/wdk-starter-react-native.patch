@@ -949,17 +949,17 @@ index 0ac6e1c..3ee2664 100644
      tokenName: string;
 diff --git a/src/app/receive/lightning.tsx b/src/app/receive/lightning.tsx
 new file mode 100644
-index 0000000..62f5e31
+index 0000000..58afa21
 --- /dev/null
 +++ b/src/app/receive/lightning.tsx
-@@ -0,0 +1,342 @@
+@@ -0,0 +1,381 @@
 +import { QRCode } from '@tetherto/wdk-uikit-react-native';
 +import { useLocalSearchParams } from 'expo-router';
 +import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
 +import { useWallet } from '@tetherto/wdk-react-native-provider';
 +import * as Clipboard from 'expo-clipboard';
 +import { ArrowLeft, Copy, Share, X } from 'lucide-react-native';
-+import React, { useCallback, useEffect, useState } from 'react';
++import React, { useCallback, useEffect, useMemo, useState } from 'react';
 +import {
 +  ActivityIndicator,
 +  Share as RNShare,
@@ -978,7 +978,7 @@ index 0000000..62f5e31
 +export default function LightningReceiveScreen() {
 +  const insets = useSafeAreaInsets();
 +  const router = useDebouncedNavigation();
-+  const { createLightningInvoice, setIncomingFundsPollingInterval } = useWallet();
++  const { createLightningInvoice, getLightningFees, setIncomingFundsPollingInterval } = useWallet();
 +  const params = useLocalSearchParams();
 +
 +  const { tokenName } = params as { tokenName: string };
@@ -994,6 +994,24 @@ index 0000000..62f5e31
 +  const [description, setDescription] = useState('');
 +  const [invoice, setInvoice] = useState('');
 +  const [isGenerating, setIsGenerating] = useState(false);
++  const [fees, setFees] = useState<{
++    percentage: number;
++    minerFees: { claim: number; lockup: number };
++    limits: { min: number; max: number };
++  } | null>(null);
++
++  useEffect(() => {
++    getLightningFees().then(setFees).catch(() => {});
++  }, [getLightningFees]);
++
++  const feeEstimate = useMemo(() => {
++    const sats = parseInt(amountSats, 10);
++    if (!sats || sats <= 0 || !fees) return null;
++    const percentageFee = Math.ceil((sats * fees.percentage) / 100);
++    const totalFee = percentageFee + fees.minerFees.claim + fees.minerFees.lockup;
++    const receiveAmount = sats - totalFee;
++    return { totalFee, receiveAmount };
++  }, [amountSats, fees]);
 +
 +  const handleBack = useCallback(() => {
 +    if (phase === 'invoice') {
@@ -1085,6 +1103,17 @@ index 0000000..62f5e31
 +              keyboardType="numeric"
 +              autoFocus
 +            />
++
++            {feeEstimate && feeEstimate.receiveAmount > 0 && (
++              <View style={styles.feeRow}>
++                <Text style={styles.feeText}>
++                  Fee: {feeEstimate.totalFee.toLocaleString()} sats
++                </Text>
++                <Text style={styles.feeText}>
++                  You receive: ~{feeEstimate.receiveAmount.toLocaleString()} sats
++                </Text>
++              </View>
++            )}
 +
 +            <Text style={[styles.inputLabel, styles.descriptionLabel]}>
 +              Description (optional)
@@ -1220,6 +1249,16 @@ index 0000000..62f5e31
 +  },
 +  descriptionLabel: {
 +    marginTop: 20,
++  },
++  feeRow: {
++    marginTop: 12,
++    paddingHorizontal: 4,
++    flexDirection: 'row',
++    justifyContent: 'space-between',
++  },
++  feeText: {
++    fontSize: 13,
++    color: colors.textSecondary,
 +  },
 +  input: {
 +    backgroundColor: colors.card,
