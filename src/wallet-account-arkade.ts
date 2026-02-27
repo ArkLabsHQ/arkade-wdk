@@ -13,9 +13,10 @@ import type {
 import { Signer, Verifier } from 'bip322-js';
 import type { IndexerProvider } from '@arkade-os/sdk';
 import type {
-  ArkadeLightning,
+  ArkadeSwaps,
   CreateLightningInvoiceResponse,
 } from '@arkade-os/boltz-swap';
+import { calculateOffchainFee } from './lib/fees.js';
 import { quoteSend, send } from './lib/send.js';
 
 /**
@@ -90,10 +91,14 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   }
 
   /**
-   * Get token balance - not applicable to Bitcoin
+   * Get token balance for a specific asset
    */
-  getTokenBalance(_tokenAddress: string): Promise<bigint> {
-    return Promise.resolve(0n);
+  async getTokenBalance(tokenAddress: string): Promise<bigint> {
+    const balance = await this.wallet.getBalance();
+    const asset = balance.assets.find(
+      (a: { assetId: string; amount: number }) => a.assetId === tokenAddress,
+    );
+    return asset ? BigInt(asset.amount) : 0n;
   }
 
   /**
@@ -111,14 +116,15 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   }
 
   /**
-   * Quote transfer costs - not applicable to Bitcoin
+   * Quote transfer costs for an asset transfer
    */
-  quoteTransfer(_options: {
+  async quoteTransfer(_options: {
     token: string;
     recipient: string;
     amount: number | bigint;
   }): Promise<Omit<TransferResult, 'hash'>> {
-    throw new Error('quoteTransfer not applicable to Bitcoin wallets');
+    const feeEstimate = await calculateOffchainFee(this.arkInfo);
+    return { fee: feeEstimate.fee };
   }
 }
 
@@ -135,7 +141,7 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     keyPair: KeyPair,
     indexerProvider: IndexerProvider,
     arkInfo: Promise<ArkInfo>,
-    public readonly arkadeLightning: ArkadeLightning | null = null,
+    public readonly arkadeLightning: ArkadeSwaps | null = null,
   ) {
     super(path, wallet, keyPair, indexerProvider, arkInfo);
     this.keyPair = keyPair;
@@ -177,16 +183,24 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
   }
 
   /**
-   * Transfer tokens (ERC-20 specific - not applicable to Bitcoin)
-   * Required by official WDK IWalletAccount interface
+   * Transfer an asset to a recipient via Ark protocol
    */
-  transfer(_options: {
+  async transfer(options: {
     token: string;
     recipient: string;
     amount: number | bigint;
   }): Promise<TransferResult> {
-    // Bitcoin doesn't have token transfers like EVM chains
-    throw new Error('transfer not applicable to Bitcoin wallets - use sendTransaction instead');
+    const txid = await this.wallet.send({
+      address: options.recipient,
+      assets: [{ assetId: options.token, amount: Number(options.amount) }],
+    });
+
+    const feeEstimate = await calculateOffchainFee(this.arkInfo);
+
+    return {
+      hash: txid,
+      fee: feeEstimate.fee,
+    };
   }
 
   /**
