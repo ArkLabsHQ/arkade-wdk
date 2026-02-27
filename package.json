@@ -39,10 +39,8 @@
     "@arkade-os/sdk": "github:arkade-os/ts-sdk#master",
     "@scure/base": "^2.0.0",
     "@scure/bip32": "^2.0.1",
-    "@scure/btc-signer": "^2.0.1",
     "@tetherto/wdk-wallet": "^1.0.0-beta.5",
     "bare-node-runtime": "^1.1.4",
-    "bip322-js": "^3.0.0",
     "light-bolt11-decoder": "^3.2.0"
   },
   "devDependencies": {

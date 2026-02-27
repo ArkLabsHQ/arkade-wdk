@@ -1,6 +1,4 @@
-import { ArkInfo, ArkTransaction, IWallet, Wallet } from '@arkade-os/sdk';
-import * as btc from '@scure/btc-signer';
-import { hex } from '@scure/base';
+import { ArkInfo, ArkTransaction, BIP322, IWallet, Wallet } from '@arkade-os/sdk';
 // Official WDK types
 import type { IWalletAccountReadOnly, KeyPair } from '@tetherto/wdk-wallet';
 
@@ -10,7 +8,6 @@ import type {
   TransferResult,
   IWalletAccount,
 } from '@tetherto/wdk-wallet';
-import { Signer, Verifier } from 'bip322-js';
 import type { IndexerProvider } from '@arkade-os/sdk';
 import type {
   ArkadeLightning,
@@ -66,13 +63,8 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   /**
    * Verify a message signature
    */
-  async verify(_message: string, _signature: string): Promise<boolean> {
-    return Verifier.verifySignature(
-      btc.p2tr(await this.wallet.identity.xOnlyPublicKey()).address,
-      _message,
-      _signature,
-      false
-    );
+  async verify(message: string, signature: string): Promise<boolean> {
+    return BIP322.verify(message, signature, await this.wallet.getAddress());
   }
 
   /**
@@ -204,16 +196,10 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
   }
 
   /**
-   * Sign a message with the account's private key
-   * Note: Arkade SDK Identity is designed for Bitcoin transaction signing, not arbitrary messages.
-   * This is a simplified implementation for WDK compatibility.
+   * Sign a message using BIP322 with the wallet's identity
    */
   async sign(message: string): Promise<string> {
-    return Signer.sign(
-      hex.encode(this.keyPair.privateKey!),
-      btc.p2tr(await this.wallet.identity.xOnlyPublicKey()).address,
-      message
-    );
+    return BIP322.sign(message, this.wallet.identity);
   }
 
   /**
