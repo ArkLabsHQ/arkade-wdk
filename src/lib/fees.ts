@@ -3,7 +3,7 @@
  */
 
 import type { ArkInfo } from '@arkade-os/sdk';
-import type { ArkadeLightning } from '@arkade-os/boltz-swap';
+import type { ArkadeSwaps } from '@arkade-os/boltz-swap';
 
 export interface FeeEstimate {
   fee: bigint;
@@ -63,12 +63,12 @@ export async function calculateOnchainFee(arkInfo: Promise<ArkInfo>): Promise<Fe
  * Calculate fees for a Lightning invoice payment (submarine swap)
  * Uses actual fee data from the Boltz swap provider
  * @param amount - Amount in satoshis
- * @param lightning - ArkadeLightning instance with swap provider
+ * @param lightning - ArkadeSwaps instance with swap provider
  * @returns Fee estimate
  */
 export async function calculateLightningFee(
   amount: bigint,
-  lightning: ArkadeLightning | null
+  lightning: ArkadeSwaps | null
 ): Promise<FeeEstimate> {
   if (!lightning) {
     throw new Error('Lightning support not configured');
