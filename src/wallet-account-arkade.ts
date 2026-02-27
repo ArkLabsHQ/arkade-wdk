@@ -13,7 +13,7 @@ import type {
 import { Signer, Verifier } from 'bip322-js';
 import type { IndexerProvider } from '@arkade-os/sdk';
 import type {
-  ArkadeSwaps,
+  ArkadeLightning,
   CreateLightningInvoiceResponse,
 } from '@arkade-os/boltz-swap';
 import { calculateOffchainFee } from './lib/fees.js';
@@ -141,7 +141,7 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     keyPair: KeyPair,
     indexerProvider: IndexerProvider,
     arkInfo: Promise<ArkInfo>,
-    public readonly arkadeLightning: ArkadeSwaps | null = null,
+    public readonly arkadeLightning: ArkadeLightning | null = null,
   ) {
     super(path, wallet, keyPair, indexerProvider, arkInfo);
     this.keyPair = keyPair;

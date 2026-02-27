@@ -4,16 +4,13 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  '@arkade-os/boltz-swap': link:../boltz-swap
-
 importers:
 
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: link:../boltz-swap
-        version: link:../boltz-swap
+        specifier: ^0.2.20
+        version: 0.2.20
       '@arkade-os/sdk':
         specifier: github:arkade-os/ts-sdk#master
         version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/cc3befafc0c365d4b17826b745b255b7f8b4d387
@@ -77,6 +74,14 @@ importers:
         version: 5.9.3
 
 packages:
+
+  '@arkade-os/boltz-swap@0.2.20':
+    resolution: {integrity: sha512-1aQ9TKKEoW3CZXwlmM+CbjEpiyDshqYEY8HBeCijUl4drQW16dxDKtXMwn7pYJdWwdBEkhBFsF3MN/J0ctTCxg==}
+    engines: {node: '>=22'}
+
+  '@arkade-os/sdk@0.3.13':
+    resolution: {integrity: sha512-eC6XGifqVf2Xu+sf/3T2duUgLiXlgh/IQXHD+v09wsu8ik/CZedH4gvQpetTjRMKti3DdY/QVLC1OQTKKWgvqQ==}
+    engines: {node: '>=20.0.0'}
 
   '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/cc3befafc0c365d4b17826b745b255b7f8b4d387':
     resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/cc3befafc0c365d4b17826b745b255b7f8b4d387}
@@ -2487,6 +2492,24 @@ packages:
     engines: {node: '>=10'}
 
 snapshots:
+
+  '@arkade-os/boltz-swap@0.2.20':
+    dependencies:
+      '@arkade-os/sdk': 0.3.13
+      '@noble/hashes': 2.0.1
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
+      light-bolt11-decoder: 3.2.0
+
+  '@arkade-os/sdk@0.3.13':
+    dependencies:
+      '@marcbachmann/cel-js': 7.3.1
+      '@noble/curves': 2.0.0
+      '@noble/secp256k1': 3.0.0
+      '@scure/base': 2.0.0
+      '@scure/btc-signer': 2.0.1
+      bip68: 1.0.4
 
   '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/cc3befafc0c365d4b17826b745b255b7f8b4d387':
     dependencies:
