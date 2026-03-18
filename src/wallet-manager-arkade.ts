@@ -3,14 +3,13 @@ import type { ArkadeWalletConfig } from './types.js';
 import {
   ArkInfo,
   ArkProvider,
-  NetworkName,
   RestArkProvider,
   SingleKey,
   Wallet,
   WalletConfig,
 } from '@arkade-os/sdk';
 import { HDKey } from '@scure/bip32';
-import { ArkadeLightning, BoltzSwapProvider } from '@arkade-os/boltz-swap';
+import { ArkadeSwaps } from '@arkade-os/boltz-swap';
 import type { FeeRates } from '@tetherto/wdk';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
 
@@ -37,7 +36,7 @@ class WalletManagerArkade extends WalletManager {
   private walletPromise: Promise<{
     wallet: Wallet;
     keyPair: KeyPair;
-    lightning: ArkadeLightning | null;
+    lightning: ArkadeSwaps | null;
   }> | null = null;
 
   constructor(seed: string | Uint8Array, config?: ArkadeWalletConfig) {
@@ -64,7 +63,7 @@ class WalletManagerArkade extends WalletManager {
   private getOrCreateWallet(): Promise<{
     wallet: Wallet;
     keyPair: KeyPair;
-    lightning: ArkadeLightning | null;
+    lightning: ArkadeSwaps | null;
   }> {
     if (this.walletPromise) {
       return this.walletPromise;
@@ -105,15 +104,10 @@ class WalletManagerArkade extends WalletManager {
         publicKey: hdKey.publicKey,
       };
 
-      let lightning: ArkadeLightning | null = null;
+      let lightning: ArkadeSwaps | null = null;
       if (this.config.swapProviderUrl) {
-        const swapProvider = new BoltzSwapProvider({
-          apiUrl: this.config.swapProviderUrl,
-          network: info.network as NetworkName,
-        });
-        lightning = new ArkadeLightning({
+        lightning = await ArkadeSwaps.create({
           wallet,
-          swapProvider,
           swapManager: { autoStart: true, pollInterval: 5_000 },
         });
       }

@@ -3,7 +3,7 @@
  */
 
 import type { IWallet, ArkInfo } from '@arkade-os/sdk';
-import type { ArkadeLightning } from '@arkade-os/boltz-swap';
+import type { ArkadeSwaps } from '@arkade-os/boltz-swap';
 import {
   isArkAddress,
   isBTCAddress,
@@ -32,7 +32,7 @@ export interface SendOptions {
   amount: bigint;
   wallet: IWallet;
   arkInfo: Promise<ArkInfo>;
-  lightning?: ArkadeLightning | null;
+  lightning?: ArkadeSwaps | null;
 }
 
 /**

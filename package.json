@@ -35,8 +35,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@arkade-os/boltz-swap": "^0.2.20",
-    "@arkade-os/sdk": "github:arkade-os/ts-sdk#master",
+    "@arkade-os/boltz-swap": "^0.3.6",
+    "@arkade-os/sdk": "^0.4.8",
     "@scure/base": "^2.0.0",
     "@scure/bip32": "^2.0.1",
     "@tetherto/wdk-wallet": "^1.0.0-beta.5",
@@ -60,9 +60,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "@arkade-os/sdk"
-    ]
-  }
+  "pnpm": {}
+
 }
