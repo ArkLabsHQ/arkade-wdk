@@ -1,6 +1,4 @@
-import { ArkInfo, ArkTransaction, IWallet, Wallet } from '@arkade-os/sdk';
-import * as btc from '@scure/btc-signer';
-import { hex } from '@scure/base';
+import { ArkInfo, ArkTransaction, BIP322, IWallet, Wallet } from '@arkade-os/sdk';
 // Official WDK types
 import type { IWalletAccountReadOnly, KeyPair } from '@tetherto/wdk-wallet';
 
@@ -10,12 +8,12 @@ import type {
   TransferResult,
   IWalletAccount,
 } from '@tetherto/wdk-wallet';
-import { Signer, Verifier } from 'bip322-js';
 import type { IndexerProvider } from '@arkade-os/sdk';
 import type {
   ArkadeLightning,
   CreateLightningInvoiceResponse,
 } from '@arkade-os/boltz-swap';
+import { calculateOffchainFee } from './lib/fees.js';
 import { quoteSend, send } from './lib/send.js';
 
 /**
@@ -65,13 +63,8 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   /**
    * Verify a message signature
    */
-  async verify(_message: string, _signature: string): Promise<boolean> {
-    return Verifier.verifySignature(
-      btc.p2tr(await this.wallet.identity.xOnlyPublicKey()).address,
-      _message,
-      _signature,
-      false
-    );
+  async verify(message: string, signature: string): Promise<boolean> {
+    return BIP322.verify(message, signature, await this.wallet.getAddress());
   }
 
   /**
@@ -90,10 +83,14 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   }
 
   /**
-   * Get token balance - not applicable to Bitcoin
+   * Get token balance for a specific asset
    */
-  getTokenBalance(_tokenAddress: string): Promise<bigint> {
-    return Promise.resolve(0n);
+  async getTokenBalance(tokenAddress: string): Promise<bigint> {
+    const balance = await this.wallet.getBalance();
+    const asset = balance.assets.find(
+      (a: { assetId: string; amount: number }) => a.assetId === tokenAddress,
+    );
+    return asset ? BigInt(asset.amount) : 0n;
   }
 
   /**
@@ -111,14 +108,15 @@ export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
   }
 
   /**
-   * Quote transfer costs - not applicable to Bitcoin
+   * Quote transfer costs for an asset transfer
    */
-  quoteTransfer(_options: {
+  async quoteTransfer(_options: {
     token: string;
     recipient: string;
     amount: number | bigint;
   }): Promise<Omit<TransferResult, 'hash'>> {
-    throw new Error('quoteTransfer not applicable to Bitcoin wallets');
+    const feeEstimate = await calculateOffchainFee(this.arkInfo);
+    return { fee: feeEstimate.fee };
   }
 }
 
@@ -177,29 +175,31 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
   }
 
   /**
-   * Transfer tokens (ERC-20 specific - not applicable to Bitcoin)
-   * Required by official WDK IWalletAccount interface
+   * Transfer an asset to a recipient via Ark protocol
    */
-  transfer(_options: {
+  async transfer(options: {
     token: string;
     recipient: string;
     amount: number | bigint;
   }): Promise<TransferResult> {
-    // Bitcoin doesn't have token transfers like EVM chains
-    throw new Error('transfer not applicable to Bitcoin wallets - use sendTransaction instead');
+    const txid = await this.wallet.send({
+      address: options.recipient,
+      assets: [{ assetId: options.token, amount: Number(options.amount) }],
+    });
+
+    const feeEstimate = await calculateOffchainFee(this.arkInfo);
+
+    return {
+      hash: txid,
+      fee: feeEstimate.fee,
+    };
   }
 
   /**
-   * Sign a message with the account's private key
-   * Note: Arkade SDK Identity is designed for Bitcoin transaction signing, not arbitrary messages.
-   * This is a simplified implementation for WDK compatibility.
+   * Sign a message using BIP322 with the wallet's identity
    */
   async sign(message: string): Promise<string> {
-    return Signer.sign(
-      hex.encode(this.keyPair.privateKey!),
-      btc.p2tr(await this.wallet.identity.xOnlyPublicKey()).address,
-      message
-    );
+    return BIP322.sign(message, this.wallet.identity);
   }
 
   /**
