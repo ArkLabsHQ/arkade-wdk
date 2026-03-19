@@ -9,11 +9,11 @@ importers:
   .:
     dependencies:
       '@arkade-os/boltz-swap':
-        specifier: ^0.2.20
-        version: 0.2.20
+        specifier: ^0.3.6
+        version: 0.3.6
       '@arkade-os/sdk':
-        specifier: github:arkade-os/ts-sdk#master
-        version: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/63ed775c60a22f1def41364b7f1a761733c93f76
+        specifier: ^0.4.8
+        version: 0.4.8
       '@scure/base':
         specifier: ^2.0.0
         version: 2.0.0
@@ -69,18 +69,30 @@ importers:
 
 packages:
 
-  '@arkade-os/boltz-swap@0.2.20':
-    resolution: {integrity: sha512-1aQ9TKKEoW3CZXwlmM+CbjEpiyDshqYEY8HBeCijUl4drQW16dxDKtXMwn7pYJdWwdBEkhBFsF3MN/J0ctTCxg==}
-    engines: {node: '>=22'}
+  '@arkade-os/boltz-swap@0.3.6':
+    resolution: {integrity: sha512-h3QY0O0lvfL26/D1/jONf/SY3wZMtcTdZi2HDMWyKUXpertY0Qj9eUyFg11vRgh3dZRVIz3UQPAXx52wLekoig==}
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
 
-  '@arkade-os/sdk@0.3.13':
-    resolution: {integrity: sha512-eC6XGifqVf2Xu+sf/3T2duUgLiXlgh/IQXHD+v09wsu8ik/CZedH4gvQpetTjRMKti3DdY/QVLC1OQTKKWgvqQ==}
-    engines: {node: '>=20.0.0'}
-
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/63ed775c60a22f1def41364b7f1a761733c93f76':
-    resolution: {tarball: https://codeload.github.com/arkade-os/ts-sdk/tar.gz/63ed775c60a22f1def41364b7f1a761733c93f76}
-    version: 0.3.13
-    engines: {node: '>=20.0.0'}
+  '@arkade-os/sdk@0.4.8':
+    resolution: {integrity: sha512-+O/m/FRzq02esjfB3NRiISfFR5/NQZ6XF23vPObYC8LJ7EOj18KVECLJ1eThedqV+OV01LMva99TLVursX2tjg==}
+    engines: {node: '>=22.12.0 <23', pnpm: '>=10.25.0 <11'}
+    peerDependencies:
+      '@react-native-async-storage/async-storage': '>=1.0.0'
+      expo: '>=54.0.0'
+      expo-background-task: ~1.0.10
+      expo-sqlite: ~16.0.10
+      expo-task-manager: ~14.0.9
+    peerDependenciesMeta:
+      '@react-native-async-storage/async-storage':
+        optional: true
+      expo:
+        optional: true
+      expo-background-task:
+        optional: true
+      expo-sqlite:
+        optional: true
+      expo-task-manager:
+        optional: true
 
   '@babel/code-frame@7.29.0':
     resolution: {integrity: sha512-9NhCeYjq9+3uxgdtp20LSiJXJvN0FeCtNGpJxuMFZ1Kv3cWUNb6DOhJwUvcVCzKGR66cw4njwM6hrJLqgOwbcw==}
@@ -2209,25 +2221,23 @@ packages:
 
 snapshots:
 
-  '@arkade-os/boltz-swap@0.2.20':
+  '@arkade-os/boltz-swap@0.3.6':
     dependencies:
-      '@arkade-os/sdk': 0.3.13
+      '@arkade-os/sdk': 0.4.8
+      '@noble/curves': 2.0.1
       '@noble/hashes': 2.0.1
       '@scure/base': 2.0.0
       '@scure/btc-signer': 2.0.1
       bip68: 1.0.4
       light-bolt11-decoder: 3.2.0
+    transitivePeerDependencies:
+      - '@react-native-async-storage/async-storage'
+      - expo
+      - expo-background-task
+      - expo-sqlite
+      - expo-task-manager
 
-  '@arkade-os/sdk@0.3.13':
-    dependencies:
-      '@marcbachmann/cel-js': 7.3.1
-      '@noble/curves': 2.0.0
-      '@noble/secp256k1': 3.0.0
-      '@scure/base': 2.0.0
-      '@scure/btc-signer': 2.0.1
-      bip68: 1.0.4
-
-  '@arkade-os/sdk@https://codeload.github.com/arkade-os/ts-sdk/tar.gz/63ed775c60a22f1def41364b7f1a761733c93f76':
+  '@arkade-os/sdk@0.4.8':
     dependencies:
       '@kukks/bitcoin-descriptors': 3.1.0
       '@marcbachmann/cel-js': 7.3.1

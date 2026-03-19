@@ -10,7 +10,7 @@ import type {
 } from '@tetherto/wdk-wallet';
 import type { IndexerProvider } from '@arkade-os/sdk';
 import type {
-  ArkadeLightning,
+  ArkadeSwaps,
   CreateLightningInvoiceResponse,
 } from '@arkade-os/boltz-swap';
 import { calculateOffchainFee } from './lib/fees.js';
@@ -133,7 +133,7 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     keyPair: KeyPair,
     indexerProvider: IndexerProvider,
     arkInfo: Promise<ArkInfo>,
-    public readonly arkadeLightning: ArkadeLightning | null = null,
+    public readonly arkadeLightning: ArkadeSwaps | null = null,
   ) {
     super(path, wallet, keyPair, indexerProvider, arkInfo);
     this.keyPair = keyPair;
