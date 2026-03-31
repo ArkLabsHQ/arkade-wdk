@@ -1,7 +1,5 @@
-import { ArkInfo, ArkTransaction, BIP322, IWallet, Wallet } from '@arkade-os/sdk';
-// Official WDK types
-import type { IWalletAccountReadOnly, KeyPair } from '@tetherto/wdk-wallet';
-
+import { ArkInfo, BIP322, IWallet } from '@arkade-os/sdk';
+import type { KeyPair, IWalletAccountReadOnly } from '@tetherto/wdk-wallet';
 import type {
   Transaction,
   TransactionResult,
@@ -15,140 +13,41 @@ import type {
 } from '@arkade-os/boltz-swap';
 import { calculateOffchainFee } from './lib/fees.js';
 import { quoteSend, send } from './lib/send.js';
+import { WalletAccountReadOnlyArkade } from './wallet-account-read-only-arkade.js';
 
 /**
- * Read-only Bitcoin wallet account with Arkade Ark protocol support
- * Cannot sign or send transactions - only query balances and verify signatures
- *
- * Each account is a unified view exposing all capabilities:
- * - `getAddress()` → Ark offchain address (primary)
- * - `getBoardingAddress()` → on-chain Bitcoin deposit address
- * - Lightning via `createLightningInvoice()` (on the full account)
+ * Full Bitcoin wallet account with Arkade Ark protocol support.
+ * Extends the read-only account with signing, sending, and Lightning capabilities.
  */
-export class WalletAccountArkadeReadOnly implements IWalletAccountReadOnly {
+export class WalletAccountArkade extends WalletAccountReadOnlyArkade implements IWalletAccount {
   public readonly index: number;
+  public readonly path: string;
+  public readonly keyPair: KeyPair;
+
+  declare protected readonly wallet: IWallet;
 
   constructor(
-    public readonly path: string,
-    protected readonly wallet: IWallet,
-    public readonly keyPair: { publicKey: Uint8Array },
-    protected readonly indexerProvider: IndexerProvider,
-    protected readonly arkInfo: Promise<ArkInfo>,
-  ) {
-    this.index = parseInt(path.split('/').pop() || '0', 10);
-  }
-
-  /**
-   * Get the Ark offchain address (primary address for VTXO-to-VTXO transfers)
-   */
-  async getAddress(): Promise<string> {
-    return await this.wallet.getAddress();
-  }
-
-  /**
-   * Get the on-chain Bitcoin boarding address for initial deposits
-   */
-  async getBoardingAddress(): Promise<string> {
-    return await this.wallet.getBoardingAddress();
-  }
-
-  /**
-   * Get simple balance (total spendable amount)
-   */
-  async getBalance(): Promise<bigint> {
-    const balance = await this.wallet.getBalance();
-    return BigInt(balance.total);
-  }
-
-  /**
-   * Verify a message signature
-   */
-  async verify(message: string, signature: string): Promise<boolean> {
-    return BIP322.verify(message, signature, await this.wallet.getAddress());
-  }
-
-  /**
-   * Get transaction receipt
-   */
-  async getTransactionReceipt(_hash: string): Promise<unknown> {
-    const res = await this.indexerProvider.getVirtualTxs([_hash]);
-    return res.txs.length > 0 ? res.txs[0] : null;
-  }
-
-  /**
-   * Get transaction history from the Ark SDK
-   */
-  async getTransactionHistory(): Promise<ArkTransaction[]> {
-    return await this.wallet.getTransactionHistory();
-  }
-
-  /**
-   * Get token balance for a specific asset
-   */
-  async getTokenBalance(tokenAddress: string): Promise<bigint> {
-    const balance = await this.wallet.getBalance();
-    const asset = balance.assets.find(
-      (a: { assetId: string; amount: number }) => a.assetId === tokenAddress,
-    );
-    return asset ? BigInt(asset.amount) : 0n;
-  }
-
-  /**
-   * Quote transaction fee without sending (read-only can still estimate)
-   */
-  async quoteSendTransaction(tx: Transaction): Promise<Omit<TransactionResult, 'hash'>> {
-    const estimate = await quoteSend({
-      to: tx.to,
-      amount: BigInt(tx.value),
-      wallet: this.wallet,
-      arkInfo: this.arkInfo,
-      lightning: null,
-    });
-    return { fee: estimate.fee };
-  }
-
-  /**
-   * Quote transfer costs for an asset transfer
-   */
-  async quoteTransfer(_options: {
-    token: string;
-    recipient: string;
-    amount: number | bigint;
-  }): Promise<Omit<TransferResult, 'hash'>> {
-    const feeEstimate = await calculateOffchainFee(this.arkInfo);
-    return { fee: feeEstimate.fee };
-  }
-}
-
-/**
- * Bitcoin wallet account with Arkade Ark protocol support
- * Extends standard WalletAccount with Arkade-specific features like VTXOs and boarding addresses
- */
-export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements IWalletAccount {
-  public override readonly keyPair: KeyPair;
-
-  constructor(
+    address: string,
     path: string,
-    public readonly wallet: IWallet,
+    wallet: IWallet,
     keyPair: KeyPair,
     indexerProvider: IndexerProvider,
     arkInfo: Promise<ArkInfo>,
-    public readonly arkadeLightning: ArkadeSwaps | null = null,
+    public readonly arkadeSwaps: ArkadeSwaps | null = null,
   ) {
-    super(path, wallet, keyPair, indexerProvider, arkInfo);
+    super(address, wallet, indexerProvider, arkInfo);
+    this.path = path;
+    this.index = parseInt(path.split('/').pop() || '0', 10);
     this.keyPair = keyPair;
   }
 
-  /**
-   * Send Bitcoin transaction (official WDK signature)
-   */
   async sendTransaction(tx: Transaction): Promise<TransactionResult> {
     const result = await send({
       to: tx.to,
       amount: BigInt(tx.value),
       wallet: this.wallet,
       arkInfo: this.arkInfo,
-      lightning: this.arkadeLightning,
+      lightning: this.arkadeSwaps,
     });
 
     return {
@@ -157,26 +56,18 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     };
   }
 
-  /**
-   * Quote transaction fee without sending (official WDK signature)
-   */
   override async quoteSendTransaction(tx: Transaction): Promise<Omit<TransactionResult, 'hash'>> {
     const estimate = await quoteSend({
       to: tx.to,
       amount: BigInt(tx.value),
       wallet: this.wallet,
       arkInfo: this.arkInfo,
-      lightning: this.arkadeLightning,
+      lightning: this.arkadeSwaps,
     });
 
-    return {
-      fee: estimate.fee,
-    };
+    return { fee: estimate.fee };
   }
 
-  /**
-   * Transfer an asset to a recipient via Ark protocol
-   */
   async transfer(options: {
     token: string;
     recipient: string;
@@ -188,64 +79,44 @@ export class WalletAccountArkade extends WalletAccountArkadeReadOnly implements 
     });
 
     const feeEstimate = await calculateOffchainFee(this.arkInfo);
-
-    return {
-      hash: txid,
-      fee: feeEstimate.fee,
-    };
+    return { hash: txid, fee: feeEstimate.fee };
   }
 
-  /**
-   * Sign a message using BIP322 with the wallet's identity
-   */
   async sign(message: string): Promise<string> {
     return BIP322.sign(message, this.wallet.identity);
   }
 
-  /**
-   * Create a read-only version of this account
-   */
   toReadOnlyAccount(): Promise<IWalletAccountReadOnly> {
-    return Promise.resolve(new WalletAccountArkadeReadOnly(
-      this.path,
+    return Promise.resolve(new WalletAccountReadOnlyArkade(
+      this._address!,
       this.wallet,
-      { publicKey: this.keyPair.publicKey },
       this.indexerProvider,
       this.arkInfo,
     ));
   }
 
-  /**
-   * Securely dispose of sensitive data
-   */
   dispose(): void {
-    this.keyPair.privateKey?.fill(0);
-    (this as unknown as { wallet: Wallet | null }).wallet = null;
-    void this.arkadeLightning?.dispose();
+    if (this.keyPair.privateKey) {
+      globalThis.crypto.getRandomValues(this.keyPair.privateKey);
+      this.keyPair.privateKey.fill(0);
+    }
+    void this.arkadeSwaps?.dispose();
   }
-
 
   // ==========================================
   // Lightning Receive Methods
   // ==========================================
 
-  /**
-   * Create a Lightning invoice to receive payment
-   * Requires Lightning support to be configured (swapProviderUrl)
-   * @param amount Amount in satoshis to receive
-   * @param description Optional description for the invoice
-   */
   async createLightningInvoice(amount: number, description?: string): Promise<{ invoice: string; paymentHash: string }> {
-    if (!this.arkadeLightning) {
+    if (!this.arkadeSwaps) {
       throw new Error('Lightning support not configured. Provide swapProviderUrl in wallet config.');
     }
 
-    const response: CreateLightningInvoiceResponse = await this.arkadeLightning.createLightningInvoice({
+    const response: CreateLightningInvoiceResponse = await this.arkadeSwaps.createLightningInvoice({
       amount,
       description,
     });
 
     return { invoice: response.invoice, paymentHash: response.paymentHash };
   }
-
 }
