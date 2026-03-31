@@ -140,14 +140,9 @@ class WalletManagerArkade extends WalletManager {
     return account;
   }
 
-  async getFeeRates(): Promise<FeeRates> {
+  getFeeRates(): Promise<FeeRates> {
     this.disposeCheck();
-    const info = await this.info;
-    const feeRate = BigInt(Math.ceil(parseFloat(info.fees.txFeeRate)));
-    return {
-      normal: feeRate,
-      fast: feeRate * 2n,
-    };
+    return Promise.resolve({ normal: 0n, fast: 0n });
   }
 
   dispose(): void {
