@@ -27,7 +27,6 @@ describe('WDK Integration', () => {
       arkServerUrl: 'https://test.example.com',
     };
 
-    // Note: Using 'as any' because our WalletConfig type differs from official WDK
     expect(() => {
       wdk.registerWallet('bitcoin', WalletManagerArkade as any, config as any);
     }).not.toThrow();
@@ -56,24 +55,18 @@ describe('WDK Integration', () => {
 
 describe('Asset Support', () => {
   it('getTokenBalance returns 0n for unknown asset', async () => {
-    const { WalletAccountArkadeReadOnly } = await import('../wallet-account-arkade.js');
+    const { WalletAccountReadOnlyArkade } = await import('../wallet-account-read-only-arkade.js');
 
     const mockWallet = {
       getBalance: jest.fn<() => Promise<unknown>>().mockResolvedValue({
         total: 100000,
-        settled: 80000,
-        preconfirmed: 20000,
-        available: 100000,
-        recoverable: 0,
-        boarding: { confirmed: 0, unconfirmed: 0, total: 0 },
         assets: [],
       }),
     };
 
-    const account = new WalletAccountArkadeReadOnly(
-      "m/86'/0'/0'/0/0",
+    const account = new WalletAccountReadOnlyArkade(
+      'ark1testaddress',
       mockWallet as any,
-      { publicKey: new Uint8Array(33) },
       {} as any,
       Promise.resolve({} as any),
     );
@@ -83,16 +76,11 @@ describe('Asset Support', () => {
   });
 
   it('getTokenBalance returns correct balance for known asset', async () => {
-    const { WalletAccountArkadeReadOnly } = await import('../wallet-account-arkade.js');
+    const { WalletAccountReadOnlyArkade } = await import('../wallet-account-read-only-arkade.js');
 
     const mockWallet = {
       getBalance: jest.fn<() => Promise<unknown>>().mockResolvedValue({
         total: 100000,
-        settled: 80000,
-        preconfirmed: 20000,
-        available: 100000,
-        recoverable: 0,
-        boarding: { confirmed: 0, unconfirmed: 0, total: 0 },
         assets: [
           { assetId: 'asset-aaa', amount: 500 },
           { assetId: 'asset-bbb', amount: 1200 },
@@ -100,10 +88,9 @@ describe('Asset Support', () => {
       }),
     };
 
-    const account = new WalletAccountArkadeReadOnly(
-      "m/86'/0'/0'/0/0",
+    const account = new WalletAccountReadOnlyArkade(
+      'ark1testaddress',
       mockWallet as any,
-      { publicKey: new Uint8Array(33) },
       {} as any,
       Promise.resolve({} as any),
     );
@@ -117,15 +104,14 @@ describe('Asset Support', () => {
 
     const mockSend = jest.fn<(...args: unknown[]) => Promise<string>>().mockResolvedValue('txid-abc123');
 
-    const mockWallet = {
-      send: mockSend,
-    };
+    const mockWallet = { send: mockSend };
 
     const mockArkInfo = Promise.resolve({
       fees: { txFeeRate: '2' },
     } as any);
 
     const account = new WalletAccountArkade(
+      'ark1testaddress',
       "m/86'/0'/0'/0/0",
       mockWallet as any,
       { publicKey: new Uint8Array(33), privateKey: new Uint8Array(32) },
@@ -149,16 +135,15 @@ describe('Asset Support', () => {
   });
 
   it('quoteTransfer returns offchain fee estimate', async () => {
-    const { WalletAccountArkadeReadOnly } = await import('../wallet-account-arkade.js');
+    const { WalletAccountReadOnlyArkade } = await import('../wallet-account-read-only-arkade.js');
 
     const mockArkInfo = Promise.resolve({
       fees: { txFeeRate: '2' },
     } as any);
 
-    const account = new WalletAccountArkadeReadOnly(
-      "m/86'/0'/0'/0/0",
+    const account = new WalletAccountReadOnlyArkade(
+      'ark1testaddress',
       {} as any,
-      { publicKey: new Uint8Array(33) },
       {} as any,
       mockArkInfo,
     );
@@ -170,5 +155,71 @@ describe('Asset Support', () => {
     });
 
     expect(result.fee).toBe(300n); // 150 vB * 2 sat/vB
+  });
+});
+
+describe('Base class conformance', () => {
+  it('read-only account extends WalletAccountReadOnly', async () => {
+    const { WalletAccountReadOnly } = await import('@tetherto/wdk-wallet');
+    const { WalletAccountReadOnlyArkade } = await import('../wallet-account-read-only-arkade.js');
+
+    const account = new WalletAccountReadOnlyArkade(
+      'ark1testaddress',
+      {} as any,
+      {} as any,
+      Promise.resolve({} as any),
+    );
+
+    expect(account).toBeInstanceOf(WalletAccountReadOnly);
+  });
+
+  it('getAddress() returns address set at construction time', async () => {
+    const { WalletAccountReadOnlyArkade } = await import('../wallet-account-read-only-arkade.js');
+
+    const account = new WalletAccountReadOnlyArkade(
+      'ark1myaddress',
+      {} as any,
+      {} as any,
+      Promise.resolve({} as any),
+    );
+
+    expect(await account.getAddress()).toBe('ark1myaddress');
+  });
+
+  it('full account has path, index, and keyPair', async () => {
+    const { WalletAccountArkade } = await import('../wallet-account-arkade.js');
+
+    const account = new WalletAccountArkade(
+      'ark1testaddress',
+      "m/86'/0'/0'/0/5",
+      {} as any,
+      { publicKey: new Uint8Array(33), privateKey: new Uint8Array(32) },
+      {} as any,
+      Promise.resolve({} as any),
+      null,
+    );
+
+    expect(account.path).toBe("m/86'/0'/0'/0/5");
+    expect(account.index).toBe(5);
+    expect(account.keyPair.publicKey).toBeInstanceOf(Uint8Array);
+  });
+
+  it('dispose securely erases private key', async () => {
+    const { WalletAccountArkade } = await import('../wallet-account-arkade.js');
+    const privateKey = new Uint8Array(32);
+    privateKey.fill(0xAB);
+
+    const account = new WalletAccountArkade(
+      'ark1testaddress',
+      "m/86'/0'/0'/0/0",
+      {} as any,
+      { publicKey: new Uint8Array(33), privateKey },
+      {} as any,
+      Promise.resolve({} as any),
+      null,
+    );
+
+    account.dispose();
+    expect(privateKey.every(b => b === 0)).toBe(true);
   });
 });

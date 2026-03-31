@@ -16,27 +16,18 @@ import { WalletAccountArkade } from './wallet-account-arkade.js';
 const WALLET_CREATE_TIMEOUT_MS = 30_000;
 
 /**
- * Bitcoin wallet manager using Arkade SDK with Ark protocol support
- * Implements WDK-compatible interface with Arkade's dual-layer transaction capabilities
- *
- * Each account index creates a unified account exposing all capabilities:
- * - `getAddress()` → Ark offchain address (primary)
- * - `getBoardingAddress()` → on-chain Bitcoin deposit address
- * - `createLightningInvoice()` → Lightning receive (when configured)
- *
- * All accounts share the same underlying Ark wallet instance.
+ * Bitcoin wallet manager using Arkade SDK with Ark protocol support.
+ * Caches accounts in the inherited `_accounts` map and delegates disposal to the base class.
  */
 class WalletManagerArkade extends WalletManager {
   private config: ArkadeWalletConfig;
-  private accounts: Map<string, WalletAccountArkade> = new Map();
   private disposed: boolean = false;
   private arkProvider: ArkProvider;
   private info: Promise<ArkInfo>;
-  /** Cached wallet instance shared across account indices */
   private walletPromise: Promise<{
     wallet: Wallet;
     keyPair: KeyPair;
-    lightning: ArkadeSwaps | null;
+    swaps: ArkadeSwaps | null;
   }> | null = null;
 
   constructor(seed: string | Uint8Array, config?: ArkadeWalletConfig) {
@@ -56,14 +47,10 @@ class WalletManagerArkade extends WalletManager {
     }
   }
 
-  /**
-   * Create or return the shared Ark wallet instance.
-   * The wallet key always derives from BIP-86 index 0 path.
-   */
   private getOrCreateWallet(): Promise<{
     wallet: Wallet;
     keyPair: KeyPair;
-    lightning: ArkadeSwaps | null;
+    swaps: ArkadeSwaps | null;
   }> {
     if (this.walletPromise) {
       return this.walletPromise;
@@ -84,8 +71,6 @@ class WalletManagerArkade extends WalletManager {
         identity: SingleKey.fromPrivateKey(hdKey.privateKey),
       };
 
-      // Wrap Wallet.create() with a timeout so an unreachable Ark server
-      // doesn't hang the worklet indefinitely.
       const wallet = await Promise.race([
         Wallet.create(walletConfig),
         new Promise<never>((_resolve, reject) => {
@@ -104,18 +89,17 @@ class WalletManagerArkade extends WalletManager {
         publicKey: hdKey.publicKey,
       };
 
-      let lightning: ArkadeSwaps | null = null;
+      let swaps: ArkadeSwaps | null = null;
       if (this.config.swapProviderUrl) {
-        lightning = await ArkadeSwaps.create({
+        swaps = await ArkadeSwaps.create({
           wallet,
           swapManager: { autoStart: true, pollInterval: 5_000 },
         });
       }
 
-      return { wallet, keyPair, lightning };
+      return { wallet, keyPair, swaps };
     })();
 
-    // If creation fails, clear the promise so the next call retries
     this.walletPromise.catch(() => {
       this.walletPromise = null;
     });
@@ -123,90 +107,55 @@ class WalletManagerArkade extends WalletManager {
     return this.walletPromise;
   }
 
-  /**
-   * Get or create a unified account at the specified index.
-   * Each account exposes all capabilities (offchain, boarding, lightning).
-   */
   async getAccount(index: number = 0): Promise<WalletAccountArkade> {
     this.disposeCheck();
-
-    const cacheKey = `account:${index}`;
-
-    const existing = this.accounts.get(cacheKey);
-    if (existing) {
-      return existing;
-    }
-
-    const { wallet, keyPair, lightning } = await this.getOrCreateWallet();
 
     const info = await this.info;
     const network = ['bitcoin', 'mainnet'].includes(String(info.network)) ? '0' : '1';
     const path = `m/86'/${network}/0'/0/${index}`;
 
-    const account = new WalletAccountArkade(
-      path,
-      wallet,
-      keyPair,
-      wallet.indexerProvider,
-      this.info,
-      lightning,
-    );
-
-    this.accounts.set(cacheKey, account);
-    return account;
+    return this.getAccountByPath(path);
   }
 
-  /**
-   * Get or create a unified account at a specific derivation path.
-   */
   async getAccountByPath(path: string): Promise<WalletAccountArkade> {
     this.disposeCheck();
 
-    const existing = this.accounts.get(path);
-    if (existing) {
-      return existing;
-    }
+    const cached = this._accounts[path] as WalletAccountArkade | undefined;
+    if (cached) return cached;
 
-    const { wallet, keyPair, lightning } = await this.getOrCreateWallet();
+    const { wallet, keyPair, swaps } = await this.getOrCreateWallet();
+    const address = await wallet.getAddress();
 
     const account = new WalletAccountArkade(
+      address,
       path,
       wallet,
       keyPair,
       wallet.indexerProvider,
       this.info,
-      lightning,
+      swaps,
     );
 
-    this.accounts.set(path, account);
+    this._accounts[path] = account;
     return account;
   }
 
-  /**
-   * Get current Bitcoin network fee rates
-   */
-  getFeeRates(): Promise<FeeRates> {
+  async getFeeRates(): Promise<FeeRates> {
     this.disposeCheck();
-    return Promise.resolve({
-      normal: 0n,
-      fast: 0n,
-    });
+    const info = await this.info;
+    const feeRate = BigInt(Math.ceil(parseFloat(info.fees.txFeeRate)));
+    return {
+      normal: feeRate,
+      fast: feeRate * 2n,
+    };
   }
 
-  /**
-   * Securely dispose of sensitive data
-   */
   dispose(): void {
     this.disposeCheck();
-
-    // Clear all accounts
-    for (const account of this.accounts.values()) {
-      account.dispose();
-    }
-    this.accounts.clear();
+    super.dispose();
     this.walletPromise = null;
-
-    this.seed.set(new Uint8Array(this.seed.length));
+    globalThis.crypto.getRandomValues(this.seed);
+    this.seed.fill(0);
     this.disposed = true;
   }
 }
