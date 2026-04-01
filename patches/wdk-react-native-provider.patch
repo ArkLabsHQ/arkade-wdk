@@ -1,5 +1,5 @@
 diff --git a/package.json b/package.json
-index fd6fc94..cbed861 100644
+index fd6fc94..0ef96fa 100644
 --- a/package.json
 +++ b/package.json
 @@ -2,6 +2,7 @@
@@ -18,11 +18,20 @@ index fd6fc94..cbed861 100644
 -    "gen:worker-bundle": "npx bare-pack --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --imports node_modules/@tetherto/pear-wrk-wdk/pack.imports.json --out lib/module/services/wdk-service/wdk-worklet.mobile.bundle.js node_modules/@tetherto/pear-wrk-wdk/src/wdk-worklet.js",
 -    "gen:secret-manager-bundle": "npx bare-pack --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --out lib/module/services/wdk-service/wdk-secret-manager-worklet.bundle.js src/worklet/wdk-secret-manager-worklet.js"
 +    "prepare": "npm run gen:secret-manager-bundle && npm run gen:worker-bundle && bob build",
-+    "gen:worker-bundle": "npx bare-pack --host android-arm64 --host android-x64 --linked --encoding base64 --imports node_modules/@tetherto/pear-wrk-wdk/pack.imports.json --out src/services/wdk-service/wdk-worklet.mobile.bundle.js node_modules/@tetherto/pear-wrk-wdk/src/wdk-worklet.js",
++    "gen:worker-bundle": "npx bare-pack --host android-arm64 --host android-x64 --linked --encoding base64 --imports node_modules/@tetherto/pear-wrk-wdk/pack.imports.json --out src/services/wdk-service/wdk-worklet.mobile.bundle.js node_modules/@tetherto/pear-wrk-wdk/wdk-worklet-entry.js",
 +    "gen:secret-manager-bundle": "npx bare-pack --host android-arm64 --host android-x64 --linked --encoding base64 --out src/services/wdk-service/wdk-secret-manager-worklet.bundle.js src/worklet/wdk-secret-manager-worklet.js"
    },
    "keywords": [
      "react-native",
+@@ -84,7 +85,7 @@
+   "peerDependencies": {
+     "@craftzdog/react-native-buffer": "^6.1.0",
+     "@react-native-async-storage/async-storage": "^2.2.0",
+-    "@tetherto/pear-wrk-wdk": "^1.0.0-beta.4",
++    "@tetherto/pear-wrk-wdk": "^1.0.0-beta.6",
+     "@tetherto/wdk-secret-manager": "^1.0.0-beta.3",
+     "b4a": "^1.7.2",
+     "bip39": "^3.1.0",
 diff --git a/src/contexts/types.ts b/src/contexts/types.ts
 index aa13609..e0c27c4 100644
 --- a/src/contexts/types.ts
@@ -221,7 +230,7 @@ index 477987a..34522da 100644
          case InstanceEnum.wdkSecretManager:
            BareWorkletApi.hrpcInstances[instance] = new HRPC(
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..c290317 100644
+index 5ae8528..02c34d0 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -41,6 +41,10 @@ const toNetwork = (n: NetworkType): string => {
@@ -254,17 +263,46 @@ index 5ae8528..c290317 100644
  interface WalletCache {
    wdk: WdkManager;
    data: Wallet;
-@@ -79,6 +95,9 @@ class WDKService {
+@@ -79,6 +95,38 @@ class WDKService {
    private wdkManager: WdkManager | null = null;
    private secretManager: any | null = null;
    private config: WDKServiceConfig | undefined;
 +  // First-time manager/account initialization can be slow on emulators.
 +  private static readonly ADDRESS_RESOLUTION_TIMEOUT_MS = 45000;
 +  private esploraUrlCache: string | null = null;
++
++  /**
++   * Call a WDK account method via the generic callMethod RPC.
++   * Handles JSON serialization/deserialization of args and results.
++   */
++  private async callWdkMethod(
++    methodName: string,
++    network: string,
++    accountIndex: number,
++    args?: any,
++    options?: any
++  ): Promise<any> {
++    if (!this.wdkManager) {
++      throw new Error('WDK Manager not initialized');
++    }
++    const response = await this.wdkManager.callMethod({
++      methodName,
++      network,
++      accountIndex,
++      ...(args !== undefined ? { args: JSON.stringify(args) } : {}),
++      ...(options !== undefined ? { options: JSON.stringify(options) } : {}),
++    });
++    if (!response.result) return null;
++    try {
++      return JSON.parse(response.result);
++    } catch {
++      return response.result;
++    }
++  }
  
    private constructor() {}
  
-@@ -129,6 +148,161 @@ class WDKService {
+@@ -129,6 +177,161 @@ class WDKService {
      return this.config.chains;
    }
  
@@ -426,7 +464,20 @@ index 5ae8528..c290317 100644
    async initialize(): Promise<void> {
      if (this.isInitialized) return;
  
-@@ -195,6 +369,7 @@ class WDKService {
+@@ -174,10 +377,10 @@ class WDKService {
+       // 1. Gracefully stop worklet operations if they're running
+       if (this.wdkManager) {
+         try {
+-          await this.wdkManager.workletStop();
++          await this.wdkManager.dispose();
+         } catch (error) {
+           // Worklet might not be started, ignore
+-          console.warn('Could not stop wdkManager worklet:', error);
++          console.warn('Could not dispose wdkManager:', error);
+         }
+       }
+ 
+@@ -195,6 +398,7 @@ class WDKService {
  
        // 4. Reset internal state (but keep worklets alive)
        this.walletManagerCache.clear();
@@ -434,28 +485,37 @@ index 5ae8528..c290317 100644
  
        // Note: We keep this.wdkManager and this.secretManager references intact
        // as the worklets are still running and can be reused
-@@ -354,7 +529,19 @@ class WDKService {
+@@ -354,16 +558,20 @@ class WDKService {
        throw new Error('WDK Manager not initialized');
      }
  
 -    if (network === NetworkType.SEGWIT) {
+-      return await this.wdkManager.getAddress({
+-        network: toNetwork(network),
+-        accountIndex: index,
+-      });
 +    if (network === NetworkType.LIGHTNING) {
 +      return { address: '' };
 +    } else if (network === NetworkType.ARKADE) {
-+      return await this.wdkManager.getBoardingAddress({
-+        network: 'arkade',
-+        accountIndex: 0,
-+      });
++      const address = await this.callWdkMethod('getBoardingAddress', 'arkade', 0);
++      return { address };
 +    } else if (network === NetworkType.ARKADE_OFFCHAIN) {
-+      return await this.wdkManager.getAddress({
-+        network: 'arkade',
-+        accountIndex: 0,
-+      });
++      const address = await this.callWdkMethod('getAddress', 'arkade', 0);
++      return { address };
 +    } else if (network === NetworkType.SEGWIT) {
-       return await this.wdkManager.getAddress({
-         network: toNetwork(network),
-         accountIndex: index,
-@@ -375,38 +562,46 @@ class WDKService {
++      const address = await this.callWdkMethod('getAddress', toNetwork(network), index);
++      return { address };
+     } else {
+-      return await this.wdkManager.getAbstractedAddress({
+-        network: toNetwork(network),
+-        accountIndex: index,
+-      });
++      const address = await this.callWdkMethod('getAbstractedAddress', toNetwork(network), index);
++      return { address };
+     }
+   }
+ 
+@@ -375,38 +583,46 @@ class WDKService {
        throw new Error('WDK Manager not initialized');
      }
  
@@ -527,7 +587,7 @@ index 5ae8528..c290317 100644
  
      return networkAddresses;
    }
-@@ -419,13 +614,13 @@ class WDKService {
+@@ -419,18 +635,16 @@ class WDKService {
      asset: AssetTicker
    ) {
      try {
@@ -536,15 +596,49 @@ index 5ae8528..c290317 100644
          const value = new Decimal(amount)
            .mul(this.getDenominationValue(AssetTicker.BTC))
            .toNumber();
-         const quote = await this.wdkManager.quoteSendTransaction({
+-        const quote = await this.wdkManager.quoteSendTransaction({
 -          network: 'bitcoin',
 -          accountIndex: index,
-+          network: toNetwork(network),
-+          accountIndex: network === NetworkType.SEGWIT ? index : 0,
-           options: {
-             to: recipientAddress,
-             value: value.toString(),
-@@ -504,7 +699,7 @@ class WDKService {
+-          options: {
+-            to: recipientAddress,
+-            value: value.toString(),
+-          },
+-        });
++        const quote = await this.callWdkMethod(
++          'quoteSendTransaction',
++          toNetwork(network),
++          network === NetworkType.SEGWIT ? index : 0,
++          { to: recipientAddress, value: value.toString() }
++        );
+ 
+         return Number(quote.fee) / this.getDenominationValue(AssetTicker.BTC);
+       } else if (
+@@ -450,17 +664,17 @@ class WDKService {
+           },
+         };
+ 
+-        const quote = await this.wdkManager.abstractedAccountQuoteTransfer({
+-          network: network,
+-          accountIndex: index,
+-          options: {
++        const quote = await this.callWdkMethod(
++          'quoteTransfer',
++          network,
++          index,
++          [{
+             recipient: recipientAddress,
+             // @ts-expect-error
+             token: SMART_CONTRACT_BALANCE_ADDRESSES[asset][network],
+             amount: sendAmount.toString(),
+-          },
+-          config: config,
+-        });
++          }, config]
++        );
+ 
+         return Number(quote.fee) / this.getDenominationValue(AssetTicker.USDT);
+       } else {
+@@ -504,7 +718,7 @@ class WDKService {
        );
      }
  
@@ -553,18 +647,46 @@ index 5ae8528..c290317 100644
        const sendParams = {
          to: recipientAddress,
          value: new Decimal(amount)
-@@ -514,8 +709,8 @@ class WDKService {
+@@ -513,13 +727,12 @@ class WDKService {
+           .toString(),
        };
  
-       const response = await this.wdkManager.sendTransaction({
+-      const response = await this.wdkManager.sendTransaction({
 -        network: network,
 -        accountIndex: index,
-+        network: toNetwork(network),
-+        accountIndex: network === NetworkType.SEGWIT ? index : 0,
-         options: sendParams,
-       });
+-        options: sendParams,
+-      });
+-
+-      return response;
++      return await this.callWdkMethod(
++        'sendTransaction',
++        toNetwork(network),
++        network === NetworkType.SEGWIT ? index : 0,
++        sendParams
++      );
+     } else if (
+       [
+         NetworkType.ETHEREUM,
+@@ -545,19 +758,148 @@ class WDKService {
+         },
+       };
  
-@@ -558,6 +753,137 @@ class WDKService {
+-      const response = await this.wdkManager.abstractedAccountTransfer({
+-        network: network,
+-        accountIndex: index,
+-        options: sendParams,
+-        config,
+-      });
+-
+-      return response;
++      return await this.callWdkMethod(
++        'transfer',
++        network,
++        index,
++        [sendParams, config]
++      );
+     } else {
+       throw new Error('Unsupported network');
      }
    }
  
@@ -613,12 +735,12 @@ index 5ae8528..c290317 100644
 +      throw new Error('WDK Manager not initialized');
 +    }
 +
-+    return await this.wdkManager.createLightningInvoice({
-+      network: 'arkade',
-+      accountIndex: 0,
-+      amountSats,
-+      description: description || '',
-+    });
++    return await this.callWdkMethod(
++      'createLightningInvoice',
++      'arkade',
++      0,
++      [amountSats, description || '']
++    );
 +  }
 +
 +  // --- Incoming funds polling ---
@@ -702,7 +824,34 @@ index 5ae8528..c290317 100644
    getDenominationValue(asset: AssetTicker): number {
      switch (asset) {
        case AssetTicker.BTC:
-@@ -645,11 +971,16 @@ class WDKService {
+@@ -595,10 +937,22 @@ class WDKService {
+     };
+ 
+     const wdkManager = BareWorkletApi.hrpcInstances.wdkManager;
+-    await wdkManager.workletStart({
+-      enableDebugLogs: 0,
+-      seedPhrase: seed,
+-      config: JSON.stringify(this.getChainsConfig()),
++
++    // Convert mnemonic to encrypted seed for the new initializeWDK flow
++    const { encryptionKey, encryptedSeedBuffer } =
++      await wdkManager.getSeedAndEntropyFromMnemonic({ mnemonic: seed });
++
++    // Build networks config in the format expected by initializeWDK
++    const chainsConfig = this.getChainsConfig();
++    const networks: Record<string, { blockchain: string; config: any }> = {};
++    for (const [blockchain, config] of Object.entries(chainsConfig)) {
++      networks[blockchain] = { blockchain, config };
++    }
++
++    await wdkManager.initializeWDK({
++      encryptionKey,
++      encryptedSeed: encryptedSeedBuffer,
++      config: JSON.stringify({ networks }),
+     });
+ 
+     // Update our local reference
+@@ -645,11 +999,16 @@ class WDKService {
          const key = `${networkType}_${asset}`;
          transactionMap[key] = [];
  
@@ -720,7 +869,7 @@ index 5ae8528..c290317 100644
              token: asset,
              address,
              limit: 100,
-@@ -680,10 +1011,68 @@ class WDKService {
+@@ -680,10 +1039,64 @@ class WDKService {
      (data as Array<{ transfers: Transaction[] }>).forEach((item, index) => {
        const key = payloadKeys[index];
        if (key) {
@@ -738,17 +887,13 @@ index 5ae8528..c290317 100644
 +      try {
 +        const offchainAddress = networkAddresses[NetworkType.ARKADE_OFFCHAIN] || '';
 +        const boardingAddress = networkAddresses[NetworkType.ARKADE] || '';
-+        const result = await this.wdkManager.getTransactionHistory({
-+          network: 'arkade',
-+          accountIndex: 0,
-+        });
 +        const arkTxs: Array<{
 +          key: { boardingTxid: string; commitmentTxid: string; arkTxid: string };
 +          type: string;
 +          amount: number;
 +          settled: boolean;
 +          createdAt: number;
-+        }> = result?.transactions ? JSON.parse(result.transactions) : [];
++        }> = (await this.callWdkMethod('getTransactionHistory', 'arkade', 0)) || [];
 +
 +        const btcDenom = this.getDenominationValue(AssetTicker.BTC);
 +        const seenHashes = new Set<string>();
@@ -790,7 +935,7 @@ index 5ae8528..c290317 100644
      return transactionMap;
    }
  
-@@ -709,56 +1098,99 @@ class WDKService {
+@@ -709,56 +1122,99 @@ class WDKService {
        token: AssetTicker;
        address: string;
      }[] = [];
@@ -876,6 +1021,11 @@ index 5ae8528..c290317 100644
 +        headers: headers,
 +        body: JSON.stringify(payload),
 +      };
++
++      const response = await fetch(
++        `${this.getIndexerUrl()}/api/${this.getIndexerVersion()}/batch/token-balances`,
++        requestOptions
++      );
  
 -    const balanceMap = Object.entries(
 -      data as Record<
@@ -888,11 +1038,6 @@ index 5ae8528..c290317 100644
 -        allBalances[`${obj.blockchain}_${obj.token}`] = {
 -          balance: parseFloat(obj.amount),
 -          asset: obj.token as AssetTicker,
-+      const response = await fetch(
-+        `${this.getIndexerUrl()}/api/${this.getIndexerVersion()}/batch/token-balances`,
-+        requestOptions
-+      );
-+
 +      if (!response.ok) {
 +        throw new Error(`Failed to fetch balances: ${response.status}`);
 +      }

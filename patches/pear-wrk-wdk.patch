@@ -1,0 +1,22 @@
+diff --git a/package.json b/package.json
+index 125112a..2e53024 100644
+--- a/package.json
++++ b/package.json
+@@ -22,7 +22,17 @@
+     "README.md"
+   ],
+   "dependencies": {
++    "@arkade-os/wdk": "file:../../",
+     "@scure/bip39": "^1.6.0",
++    "@wdk/wallet": "https://github.com/tetherto/wdk-wallet#integration-rn-starter",
++    "@wdk/wallet-btc": "https://github.com/tetherto/wdk-wallet-btc#integration-rn-starter",
++    "@wdk/wallet-evm": "https://github.com/tetherto/wdk-wallet-evm#integration-rn-starter",
++    "@wdk/wallet-evm-erc-4337": "https://github.com/tetherto/wdk-wallet-evm-erc-4337#integration-rn-starter",
++    "@wdk/wallet-solana": "https://github.com/tetherto/wdk-wallet-solana#integration-rn-starter",
++    "@wdk/wallet-ton": "https://github.com/tetherto/wdk-wallet-ton#integration-rn-starter",
++    "@wdk/wallet-ton-gasless": "https://github.com/tetherto/wdk-wallet-ton-gasless#integration-rn-starter",
++    "@wdk/wallet-tron": "https://github.com/tetherto/wdk-wallet-tron#integration-rn-starter",
++    "@wdk/wallet-tron-gasfree": "https://github.com/tetherto/wdk-wallet-tron-gasfree#integration-rn-starter",
+     "hrpc": "^4.0.1",
+     "hyperschema": "^1.12.4"
+   },
