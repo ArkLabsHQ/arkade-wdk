@@ -35,8 +35,8 @@ class WalletManagerArkade extends WalletManager {
     /** @private */
     this.disposed = false;
 
-    /** @private @type {Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps | null }> | null} */
-    this.walletPromise = null;
+    /** @private @type {{ [path: string]: Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps | null }> }} */
+    this._walletPromises = {};
   }
 
   /** @private */
@@ -48,18 +48,15 @@ class WalletManagerArkade extends WalletManager {
 
   /**
    * @private
+   * @param {string} path — full BIP-86 derivation path (e.g. `m/86'/1/0'/0/3`)
    * @returns {Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps | null }>}
    */
-  getOrCreateWallet() {
-    if (this.walletPromise) {
-      return this.walletPromise;
+  _getOrCreateWalletForPath(path) {
+    if (this._walletPromises[path]) {
+      return this._walletPromises[path];
     }
 
-    this.walletPromise = (async () => {
-      const info = await this.info;
-      const network = ['bitcoin', 'mainnet'].includes(String(info.network)) ? '0' : '1';
-      const path = `m/86'/${network}/0'/0/0`;
-
+    this._walletPromises[path] = (async () => {
       const hdKey = HDKey.fromMasterSeed(this.seed).derive(path);
       if (!hdKey.privateKey || !hdKey.publicKey) {
         throw new Error(`Failed to derive private key at path ${path}`);
@@ -105,11 +102,11 @@ class WalletManagerArkade extends WalletManager {
       return { wallet, keyPair, swaps };
     })();
 
-    this.walletPromise.catch(() => {
-      this.walletPromise = null;
+    this._walletPromises[path].catch(() => {
+      delete this._walletPromises[path];
     });
 
-    return this.walletPromise;
+    return this._walletPromises[path];
   }
 
   /**
@@ -136,7 +133,7 @@ class WalletManagerArkade extends WalletManager {
     const cached = /** @type {WalletAccountArkade | undefined} */ (this._accounts[path]);
     if (cached) return cached;
 
-    const { wallet, keyPair, swaps } = await this.getOrCreateWallet();
+    const { wallet, keyPair, swaps } = await this._getOrCreateWalletForPath(path);
     const address = await wallet.getAddress();
 
     const account = new WalletAccountArkade(
@@ -159,13 +156,26 @@ class WalletManagerArkade extends WalletManager {
     return Promise.resolve({ normal: 0n, fast: 0n });
   }
 
-  dispose() {
+  async dispose() {
     this.disposeCheck();
+    this.disposed = true;
+
     super.dispose();
-    this.walletPromise = null;
+
+    const walletPromises = Object.values(this._walletPromises);
+    this._walletPromises = {};
+
+    for (const wp of walletPromises) {
+      try {
+        const { wallet } = await wp;
+        await wallet.dispose();
+      } catch (_err) {
+        // Wallet creation may have failed — nothing to dispose
+      }
+    }
+
     globalThis.crypto.getRandomValues(this.seed);
     this.seed.fill(0);
-    this.disposed = true;
   }
 }
 
