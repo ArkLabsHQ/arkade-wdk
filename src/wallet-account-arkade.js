@@ -104,6 +104,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
       this.keyPair.privateKey.fill(0);
     }
     void this.arkadeSwaps?.dispose();
+    if (typeof super.dispose === 'function') super.dispose();
   }
 
   // ==========================================
