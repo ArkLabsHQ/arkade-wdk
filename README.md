@@ -8,56 +8,44 @@ Implemented:
 - WDK `WalletManager` integration (`getAccount`, `getAccountByPath`, `dispose`)
 - WDK account methods for send/sign/verify/quote and read-only conversion
 - Destination auto-detection for Ark address, BTC address, and BOLT11 invoices
-- LNURL/Lightning-address helpers (`fetchInvoice`, limits, callback resolution)
-- Utility exports for address detection, BIP21 parsing/encoding, fees, and formatting
-- Three account types via index: boarding (0), offchain (1), lightning (2)
-- Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
+- Lightning receive via `createLightningInvoice()` (Boltz swap)
 - Lightning send via auto-detection of BOLT11 invoices in `sendTransaction()`
-- Transaction history for arkade networks via `getTransactionHistory()` (HRPC → SDK)
-- Arkade balance fetching via direct REST calls to Ark indexer and Esplora
+- Transaction history via `getTransactionHistory()` (SDK)
+- Asset transfers via `transfer()` (Ark protocol)
+- Balance fetching via SDK
 
-`TODO` (known gaps in current implementation):
+`TODO` (known gaps):
 - `getFeeRates()` currently returns placeholder values (`normal: 0n`, `fast: 0n`)
 - Lightning swap lifecycle helpers are not implemented yet (needs evaluation whether these are needed):
   `waitForLightningPayment`, `getPendingLightningReceives`, `getPendingLightningSends`,
   `getSwapHistory`, `getLightningLimits`, `getLightningFees`
 - Transaction routing enum includes `EMAIL`, but email payments are not implemented
-- BIP21 helpers are implemented, but `sendTransaction`/`quoteSendTransaction` currently expect direct destination values (Ark/BTC/BOLT11), not a BIP21 URI
-
-## Account Model
-
-The wallet manager exposes three account indices, all sharing the same underlying `@arkade-os/sdk` wallet instance:
-
-| Index | AddressType | Purpose |
-|-------|-------------|---------|
-| 0 | `boarding` | On-chain BTC deposit address (funds enter the Ark) |
-| 1 | `offchain` | Ark protocol address (VTXO-to-VTXO transfers) |
-| 2 | `lightning` | Lightning via Boltz swaps (no static address; uses invoice generation) |
-
-`getAddress()` returns an empty string for Lightning (index 2). The UI should detect this and present an amount-input + invoice-generation flow instead of a static QR code.
+- BIP21 helpers are available in `src/lib/bip21.js`, but `sendTransaction`/`quoteSendTransaction` currently expect direct destination values (Ark/BTC/BOLT11), not a BIP21 URI
 
 ## Repository Structure
 
 ```text
 arkade-wdk/
 ├── src/
-│   ├── lib/                      # address, bip21, bolt11, lnurl, fees, formatting, send routing
-│   ├── wallet-manager-arkade.ts  # WDK wallet manager implementation
-│   ├── wallet-account-arkade.ts  # WDK account + read-only account implementations
-│   └── index.ts                  # package exports
+│   ├── lib/                               # address, bip21, bolt11, lnurl, fees, formatting, send routing
+│   ├── wallet-manager-arkade.js           # WDK wallet manager implementation
+│   ├── wallet-account-arkade.js           # WDK full account (extends read-only)
+│   ├── wallet-account-read-only-arkade.js # WDK read-only account (extends WalletAccountReadOnly)
+│   ├── types.js                           # ArkadeWalletConfig typedef
+│   └── index.js                           # package exports
 ├── packages/
-│   ├── pear-wrk-wdk/             # submodule: bare-kit worklet runtime (HRPC schema + handlers)
-│   └── wdk-react-native-provider/# submodule: React Native provider (WDK service, contexts, UI wiring)
+│   ├── pear-wrk-wdk/                      # submodule: bare-kit worklet runtime (HRPC schema + handlers)
+│   └── wdk-react-native-provider/         # submodule: React Native provider (WDK service, contexts, UI wiring)
 ├── examples/
-│   └── wdk-starter-react-native/ # submodule: Expo example app
+│   └── wdk-starter-react-native/          # submodule: Expo example app
 ├── patches/
 │   ├── pear-wrk-wdk.patch
 │   ├── wdk-react-native-provider.patch
 │   └── wdk-starter-react-native.patch
 └── scripts/
-    ├── setup-dev.js              # local dev setup helper
-    ├── apply-patches.js          # apply ./patches to each submodule
-    └── generate-patches.js       # regenerate ./patches from submodule diffs
+    ├── setup-dev.js                       # local dev setup helper
+    ├── apply-patches.js                   # apply ./patches to each submodule
+    └── generate-patches.js                # regenerate ./patches from submodule diffs
 ```
 
 ## Installation
@@ -78,7 +66,7 @@ npm run setup:dev
 
 ## Quick Start
 
-```typescript
+```javascript
 import WdkManager from '@tetherto/wdk'
 import WalletManagerArkade from '@arkade-os/wdk'
 
@@ -112,15 +100,15 @@ console.log({ balance, quoteFee: quote.fee, txid: tx.hash })
 
 Create Lightning invoice (enabled only when `swapProviderUrl` is configured):
 
-```typescript
+```javascript
 const { invoice, paymentHash } = await account.createLightningInvoice(50_000, 'Payment for coffee')
 console.log(invoice) // BOLT11 invoice string
 ```
 
-Pay to Lightning address / LNURL:
+Pay to Lightning address / LNURL (using utilities from `src/lib/`):
 
-```typescript
-import { fetchInvoice, isLightningAddress } from '@arkade-os/wdk'
+```javascript
+import { fetchInvoice, isLightningAddress } from '@arkade-os/wdk/src/lib/lnurl.js'
 
 if (isLightningAddress('user@wallet.com')) {
   const invoice = await fetchInvoice('user@wallet.com', 1000, 'tip')
@@ -128,120 +116,76 @@ if (isLightningAddress('user@wallet.com')) {
 }
 ```
 
-## Accessing Arkade SDK Directly
-
-`WalletAccountArkade` exposes the underlying SDK wallet as `account.wallet` for operations not covered by the WDK interface:
-
-```typescript
-const detailedBalance = await account.wallet.getBalance() // { total, offchain, onchain }
-const history = await account.getTransactionHistory()
-```
-
-## API Reference (Current)
+## API Reference
 
 ### WalletManagerArkade
 
-```typescript
+```javascript
 class WalletManagerArkade extends WalletManager {
   // inherited from @tetherto/wdk-wallet WalletManager
-  static getRandomSeedPhrase(wordCount?: 12 | 24): string
-  static isValidSeedPhrase(seedPhrase: string): boolean
+  static getRandomSeedPhrase(wordCount) // 12 | 24 → string
+  static isValidSeedPhrase(seedPhrase)  // string → boolean
 
-  constructor(seed: string | Uint8Array, config?: ArkadeWalletConfig)
-  getAccount(index?: number): Promise<WalletAccountArkade>
-  getAccountByPath(path: string): Promise<WalletAccountArkade>
-  getFeeRates(): Promise<{ normal: bigint; fast: bigint }>
-  dispose(): void
+  constructor(seed, config)             // (string | Uint8Array, ArkadeWalletConfig?) → void
+  getAccount(index)                     // (number?) → Promise<WalletAccountArkade>
+  getAccountByPath(path)                // (string) → Promise<WalletAccountArkade>
+  getFeeRates()                         // () → Promise<{ normal: bigint, fast: bigint }>
+  dispose()                             // () → void
 }
 ```
 
-### WalletAccountArkadeReadOnly
+### WalletAccountReadOnlyArkade
 
-```typescript
-class WalletAccountArkadeReadOnly {
-  readonly index: number
-  readonly path: string
-  readonly keyPair: { publicKey: Uint8Array }
-
-  getAddress(): Promise<string> // returns '' for lightning accounts
-  getBalance(): Promise<bigint>
-  getTransactionHistory(): Promise<ArkTransaction[]>
-  verify(message: string, signature: string): Promise<boolean>
-  getTransactionReceipt(hash: string): Promise<unknown | null>
-  getTokenBalance(tokenAddress: string): Promise<bigint> // always 0n for Bitcoin
-  quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
-  quoteTransfer(options: TransferOptions): Promise<{ fee: bigint }> // throws (not applicable)
+```javascript
+class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
+  getAddress()                          // () → Promise<string>  (inherited from base)
+  getBoardingAddress()                  // () → Promise<string>
+  getBalance()                          // () → Promise<bigint>
+  getTransactionHistory()               // () → Promise<ArkTransaction[]>
+  verify(message, signature)            // (string, string) → Promise<boolean>
+  getTransactionReceipt(hash)           // (string) → Promise<unknown | null>
+  getTokenBalance(tokenAddress)         // (string) → Promise<bigint>
+  quoteSendTransaction(tx)              // (Transaction) → Promise<{ fee: bigint }>
+  quoteTransfer(options)                // ({ token, recipient, amount }) → Promise<{ fee: bigint }>
 }
 ```
 
 ### WalletAccountArkade
 
-```typescript
-class WalletAccountArkade extends WalletAccountArkadeReadOnly {
-  readonly keyPair: { publicKey: Uint8Array; privateKey: Uint8Array | null }
-  readonly wallet: IWallet
-  readonly arkadeLightning: ArkadeLightning | null
+```javascript
+class WalletAccountArkade extends WalletAccountReadOnlyArkade {
+  index                                 // number (readonly)
+  path                                  // string (readonly)
+  keyPair                               // { publicKey: Uint8Array, privateKey: Uint8Array | null } (readonly)
+  arkadeSwaps                           // ArkadeSwaps | null (readonly)
 
-  sendTransaction(tx: Transaction): Promise<{ hash: string; fee: bigint }>
-  quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
-  transfer(options: TransferOptions): Promise<TransferResult> // throws (not applicable)
-  sign(message: string): Promise<string>
-  toReadOnlyAccount(): Promise<WalletAccountArkadeReadOnly>
-  dispose(): void
-  createLightningInvoice(amount: number, description?: string): Promise<{ invoice: string; paymentHash: string }>
+  sendTransaction(tx)                   // (Transaction) → Promise<{ hash: string, fee: bigint }>
+  quoteSendTransaction(tx)              // (Transaction) → Promise<{ fee: bigint }>
+  transfer(options)                     // ({ token, recipient, amount }) → Promise<{ hash: string, fee: bigint }>
+  sign(message)                         // (string) → Promise<string>
+  toReadOnlyAccount()                   // () → Promise<WalletAccountReadOnlyArkade>
+  dispose()                             // () → void
+  createLightningInvoice(amount, desc)  // (number, string?) → Promise<{ invoice: string, paymentHash: string }>
 }
 ```
 
-### Utility Exports
+### Internal Utilities (src/lib/)
 
-Address:
-- `decodeArkAddress`
-- `isArkAddress`
-- `isBTCAddress`
-- `isLightningInvoice`
+These are available as direct imports from `src/lib/` but are not part of the public API surface:
 
-Transaction routing:
-- `detectTransactionType`
-- `quoteSend`
-- `send`
-- `TransactionType`
-
-BIP21:
-- `isBip21`
-- `decodeBip21`
-- `encodeBip21`
-
-BOLT11:
-- `decodeInvoice`
-- `isValidInvoice`
-
-LNURL / Lightning address:
-- `isLnUrl`
-- `isLightningAddress`
-- `isValidLnUrl`
-- `getCallbackUrl`
-- `checkLnUrlConditions`
-- `fetchInvoice`
-- `fetchArkAddress`
-- `getLnUrlLimits`
-- `extractRecipientFromMetadata`
-
-Fees and formatting:
-- `calculateOffchainFee`
-- `calculateOnchainFee`
-- `calculateLightningFee`
-- `fromSatoshis`
-- `toSatoshis`
-- `formatSats`
-- `formatSatsWithCommas`
-- `prettyNumber`
+- **`address.js`** — `isArkAddress`, `isBTCAddress`, `isLightningInvoice`, `decodeArkAddress`
+- **`send.js`** — `detectTransactionType`, `quoteSend`, `send`, `TransactionType`
+- **`bip21.js`** — `isBip21`, `decodeBip21`, `encodeBip21`
+- **`bolt11.js`** — `decodeInvoice`, `isValidInvoice`
+- **`lnurl.js`** — `isLnUrl`, `isLightningAddress`, `isValidLnUrl`, `getCallbackUrl`, `checkLnUrlConditions`, `fetchInvoice`, `fetchArkAddress`, `getLnUrlLimits`, `extractRecipientFromMetadata`
+- **`fees.js`** — `calculateOffchainFee`, `calculateOnchainFee`, `calculateLightningFee`
+- **`format.js`** — `fromSatoshis`, `toSatoshis`, `formatSats`, `formatSatsWithCommas`, `prettyNumber`
 
 ## Configuration
 
-```typescript
-import type { ArkadeWalletConfig } from '@arkade-os/wdk'
-
-const config: ArkadeWalletConfig = {
+```javascript
+/** @type {import('@arkade-os/wdk/src/types.js').ArkadeWalletConfig} */
+const config = {
   arkServerUrl: 'https://arkade.computer',
   swapProviderUrl: 'https://api.ark.boltz.exchange',
 }
@@ -293,7 +237,7 @@ Repeat for each submodule that changed (`packages/pear-wrk-wdk`, `examples/wdk-s
 git submodule update --init --recursive
 ```
 
-Or use the setup script which also builds and links:
+Or use the setup script which also links:
 
 ```bash
 npm run setup:dev
@@ -360,8 +304,6 @@ This re-bundles the worklet (picking up any HRPC schema changes from `pear-wrk-w
 
 ```bash
 npm install
-npm run build
-npm run dev
 npm run lint
 npm run format
 ```
