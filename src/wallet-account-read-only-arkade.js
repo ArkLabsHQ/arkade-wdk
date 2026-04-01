@@ -1,5 +1,6 @@
 import { WalletAccountReadOnly } from '@tetherto/wdk-wallet';
 import { BIP322 } from '@arkade-os/sdk';
+import { quoteSend } from './lib/send.js';
 import { calculateOffchainFee } from './lib/fees.js';
 
 /**
@@ -77,9 +78,15 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
    * @param {import('@tetherto/wdk-wallet').Transaction} _tx
    * @returns {Promise<Omit<import('@tetherto/wdk-wallet').TransactionResult, 'hash'>>}
    */
-  async quoteSendTransaction(_tx) {
-    const feeEstimate = await calculateOffchainFee(this.arkInfo);
-    return { fee: feeEstimate.fee };
+  async quoteSendTransaction(tx) {
+    const estimate = await quoteSend({
+      to: tx.to,
+      amount: BigInt(tx.value),
+      wallet: this.wallet,
+      arkInfo: this.arkInfo,
+      lightning: null,
+    });
+    return { fee: estimate.fee };
   }
 
   /**
