@@ -4,13 +4,14 @@
  * These tests verify that WalletManagerArkade integrates correctly
  * with the official WDK Manager.
  */
-import { describe, it, mock } from 'node:test';
+import { describe, it, mock, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import WdkManager from '@tetherto/wdk';
 import WalletManagerArkade from '../wallet-manager-arkade.js';
 import { WalletAccountReadOnlyArkade } from '../wallet-account-read-only-arkade.js';
 import { WalletAccountArkade } from '../wallet-account-arkade.js';
 import { WalletAccountReadOnly } from '@tetherto/wdk-wallet';
+import { Wallet } from '@arkade-os/sdk';
 
 const validSeedPhrase =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
@@ -196,5 +197,68 @@ describe('Base class conformance', () => {
 
     account.dispose();
     assert.ok(privateKey.every((b) => b === 0));
+  });
+});
+
+describe('Per-account wallet isolation', () => {
+  let walletCreateMock;
+
+  /** Creates a mock wallet whose address is derived from the identity's public key. */
+  function makeMockWallet() {
+    let callCount = 0;
+    walletCreateMock = mock.method(Wallet, 'create', async (config) => {
+      const pubkey = await config.identity.xOnlyPublicKey();
+      const addr = `ark1mock_${Buffer.from(pubkey).toString('hex').slice(0, 8)}`;
+      callCount++;
+      return {
+        getAddress: () => Promise.resolve(addr),
+        indexerProvider: {},
+        dispose: mock.fn(),
+        identity: config.identity,
+        _callIndex: callCount,
+      };
+    });
+  }
+
+  afterEach(() => {
+    walletCreateMock?.mock.restore();
+  });
+
+  it('different account indices produce distinct wallets', async () => {
+    makeMockWallet();
+    const manager = new WalletManagerArkade(validSeedPhrase, { arkProvider: stubArkProvider });
+
+    const account0 = await manager.getAccount(0);
+    const account1 = await manager.getAccount(1);
+
+    const addr0 = await account0.getAddress();
+    const addr1 = await account1.getAddress();
+
+    assert.notEqual(addr0, addr1, 'accounts at different indices must have different addresses');
+    assert.equal(walletCreateMock.mock.callCount(), 2, 'Wallet.create called once per index');
+  });
+
+  it('same account index returns cached instance', async () => {
+    makeMockWallet();
+    const manager = new WalletManagerArkade(validSeedPhrase, { arkProvider: stubArkProvider });
+
+    const first = await manager.getAccount(0);
+    const second = await manager.getAccount(0);
+
+    assert.equal(first, second, 'same index must return the same cached account');
+    assert.equal(walletCreateMock.mock.callCount(), 1, 'Wallet.create called only once');
+  });
+
+  it('dispose calls wallet.dispose() for each created wallet', async () => {
+    makeMockWallet();
+    const manager = new WalletManagerArkade(validSeedPhrase, { arkProvider: stubArkProvider });
+
+    const account0 = await manager.getAccount(0);
+    const account1 = await manager.getAccount(1);
+
+    await manager.dispose();
+
+    assert.equal(account0.wallet.dispose.mock.callCount(), 1);
+    assert.equal(account1.wallet.dispose.mock.callCount(), 1);
   });
 });
