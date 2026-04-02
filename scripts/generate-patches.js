@@ -62,10 +62,25 @@ for (const { path: subPath, patch } of SUBMODULES) {
     continue;
   }
 
-  // Write diff directly to file via shell redirection to avoid Node buffer limits.
-  // `git diff` exits 0 even when there are changes, and 1 only on error.
+  // Stage untracked source files so they appear in the diff, then write the
+  // combined diff (tracked changes + new files) to the patch file.
+  // Exclude lock files and pnpm artifacts that are side-effects of local setup.
+  const excludes = [
+    'pnpm-lock.yaml',
+    'pnpm-workspace.yaml',
+    'node_modules',
+    '*.bundle.js',
+  ].map((p) => `':(exclude)${p}'`).join(' ');
+
   try {
-    execFileSync('sh', ['-c', `git diff ${BASE_REF} > "${patchFile}"`], {
+    // Intent-to-add registers untracked files without staging their content,
+    // so `git diff` will include them as new-file diffs.
+    execFileSync('sh', ['-c', 'git add --intent-to-add .'], {
+      cwd: absPath,
+      stdio: ['ignore', 'ignore', 'pipe'],
+      maxBuffer: 1024 * 1024 * 5,
+    });
+    execFileSync('sh', ['-c', `git diff ${BASE_REF} -- . ${excludes} > "${patchFile}"`], {
       cwd: absPath,
       stdio: ['ignore', 'ignore', 'pipe'],
       maxBuffer: 1024 * 1024 * 5,

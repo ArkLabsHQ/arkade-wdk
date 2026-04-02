@@ -1,7 +1,15 @@
 #!/usr/bin/env node
 /**
- * Cross-platform setup script for arkade-wdk development environment
- * This script initializes submodules and sets up pnpm links for local development
+ * Cross-platform setup script for arkade-wdk development environment.
+ *
+ * Prerequisites — run these BEFORE this script:
+ *   git submodule update --init --recursive
+ *   git submodule foreach 'git checkout main && git pull origin main'
+ *   node scripts/apply-patches.js
+ *
+ * This script installs dependencies and wires up local links so that
+ * the example app resolves @arkade-os/wdk, pear-wrk-wdk, and the
+ * provider from the monorepo working tree.
  */
 
 import { execSync } from 'child_process';
@@ -13,68 +21,61 @@ const PROJECT_ROOT = join(__dirname, '..');
 
 function run(cmd, cwd = PROJECT_ROOT) {
   console.log(`> ${cmd}`);
+  execSync(cmd, { cwd, stdio: 'inherit', shell: true });
+}
+
+function tryRun(cmd, cwd = PROJECT_ROOT) {
+  console.log(`> ${cmd}`);
   try {
     execSync(cmd, { cwd, stdio: 'inherit', shell: true });
-  } catch (error) {
-    // Some commands may fail but we want to continue
-    console.log(`  (command completed with warnings)`);
+  } catch {
+    console.log('  (command completed with warnings)');
   }
 }
 
+const pearWrkDir = join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk');
+const providerDir = join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider');
+const exampleDir = join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native');
+
 console.log('=== Arkade WDK Development Setup ===\n');
 
-// Initialize and update submodules
-console.log('1. Initializing git submodules...');
-run('git submodule update --init --recursive');
-
-// Install dependencies for main package
-console.log('\n2. Installing arkade-wdk dependencies...');
+// 1. Install root dependencies
+console.log('1. Installing arkade-wdk dependencies...');
 run('pnpm install');
 
-// Build the main package
-console.log('\n3. Building arkade-wdk...');
-run('pnpm run build');
-
-// Setup pear-wrk-wdk submodule
-console.log('\n4. Setting up pear-wrk-wdk...');
-const pearWrkDir = join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk');
-// Install dependencies (postinstall generates mobile bundle)
+// 2. Setup pear-wrk-wdk submodule
+console.log('\n2. Setting up pear-wrk-wdk...');
 run('pnpm install', pearWrkDir);
-// Link @arkade-os/wdk for Arkade blockchain support
 run(`pnpm link ${PROJECT_ROOT}`, pearWrkDir);
 
-// Setup wdk-react-native-provider submodule
-console.log('\n5. Setting up wdk-react-native-provider...');
-const providerDir = join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider');
-// Install without running scripts (prepare would fail without @arkade-os/wdk linked)
-run('pnpm install --ignore-scripts', providerDir);
-// Link @arkade-os/wdk and @tetherto/pear-wrk-wdk BEFORE building
-run(`pnpm link ${PROJECT_ROOT} ${pearWrkDir}`, providerDir);
-// Now build (prepare script)
-run('pnpm run prepare', providerDir);
+// 3. Setup wdk-react-native-provider (uses npm per its packageManager field)
+//    Install deps first — this fetches pear-wrk-wdk from the registry and runs
+//    `prepare` (bob build), which produces pre-built bundles under lib/module/.
+//    Then copy the worklet bundles into src/ so that Metro (which resolves from
+//    the src/ tree for the linked provider) can find them at runtime.
+//    Finally, link local packages for development.
+console.log('\n3. Setting up wdk-react-native-provider...');
+run('npm install', providerDir);
 
-// Setup wdk-starter-react-native example
-console.log('\n6. Setting up wdk-starter-react-native example...');
-const exampleDir = join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native');
-// Install without scripts to avoid issues with missing linked packages
+// Copy pre-built worklet bundles from lib/ to src/ for Metro resolution
+const wdkServiceSrc = join(providerDir, 'src', 'services', 'wdk-service');
+const wdkServiceLib = join(providerDir, 'lib', 'module', 'services', 'wdk-service');
+run(`cp ${join(wdkServiceLib, 'wdk-worklet.mobile.bundle.js')} ${wdkServiceSrc}/`);
+
+run(`npm link ${PROJECT_ROOT} ${pearWrkDir}`, providerDir);
+
+// 4. Setup wdk-starter-react-native example
+console.log('\n4. Setting up wdk-starter-react-native example...');
 run('pnpm install --ignore-scripts', exampleDir);
-// Link all packages
 run(`pnpm link ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
-
-// Install expo-crypto for Arkade support (if not already installed)
-console.log('\n7. Ensuring expo-crypto is installed...');
-run('npx expo install expo-crypto', exampleDir);
 
 console.log('\n=== Setup Complete ===\n');
 console.log('The following packages are now linked:');
 console.log('  - @arkade-os/wdk (from root)');
 console.log('  - @tetherto/pear-wrk-wdk (from packages/pear-wrk-wdk)');
-console.log('  - @tetherto/wdk-react-native-provider (from packages/)');
+console.log('  - @tetherto/wdk-react-native-provider (from packages/wdk-react-native-provider)');
 console.log('');
 console.log('To run the example app:');
 console.log('  cd examples/wdk-starter-react-native');
 console.log('  pnpm run android  # or pnpm run ios');
-console.log('');
-console.log('To rebuild after changes:');
-console.log('  pnpm run build  # in the root directory');
 console.log('');

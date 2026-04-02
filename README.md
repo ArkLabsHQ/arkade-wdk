@@ -61,6 +61,9 @@ If your app imports `@arkade-os/sdk` directly, add it explicitly to your app dep
 For local monorepo development with submodules and links:
 
 ```bash
+git submodule update --init --recursive
+git submodule foreach 'git checkout main && git pull origin main'
+node scripts/apply-patches.js
 npm run setup:dev
 ```
 
