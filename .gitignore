@@ -1,6 +1,6 @@
 # Dependencies
 node_modules/
-package-lock.json
+pnpm-lock.yaml
 yarn.lock
 
 # Build output
@@ -38,3 +38,4 @@ yarn-error.log*
 .cache/
 CLAUDE.md
 .claude
+*.agents.md

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /**
  * Cross-platform setup script for arkade-wdk development environment
- * This script initializes submodules and sets up pnpm links for local development
+ * This script initializes submodules and sets up npm links for local development
  */
 
 import { execSync } from 'child_process';
@@ -29,37 +29,37 @@ run('git submodule update --init --recursive');
 
 // Install dependencies for main package
 console.log('\n2. Installing arkade-wdk dependencies...');
-run('pnpm install');
+run('npm install');
 
 // Build the main package
 console.log('\n3. Building arkade-wdk...');
-run('pnpm run build');
+run('npm run build');
 
 // Setup pear-wrk-wdk submodule
 console.log('\n4. Setting up pear-wrk-wdk...');
 const pearWrkDir = join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk');
 // Install dependencies (postinstall generates mobile bundle)
-run('pnpm install', pearWrkDir);
+run('npm install', pearWrkDir);
 // Link @arkade-os/wdk for Arkade blockchain support
-run(`pnpm link ${PROJECT_ROOT}`, pearWrkDir);
+run(`npm link ${PROJECT_ROOT}`, pearWrkDir);
 
 // Setup wdk-react-native-provider submodule
 console.log('\n5. Setting up wdk-react-native-provider...');
 const providerDir = join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider');
 // Install without running scripts (prepare would fail without @arkade-os/wdk linked)
-run('pnpm install --ignore-scripts', providerDir);
+run('npm install --ignore-scripts', providerDir);
 // Link @arkade-os/wdk and @tetherto/pear-wrk-wdk BEFORE building
-run(`pnpm link ${PROJECT_ROOT} ${pearWrkDir}`, providerDir);
+run(`npm link ${PROJECT_ROOT} ${pearWrkDir}`, providerDir);
 // Now build (prepare script)
-run('pnpm run prepare', providerDir);
+run('npm run prepare', providerDir);
 
 // Setup wdk-starter-react-native example
 console.log('\n6. Setting up wdk-starter-react-native example...');
 const exampleDir = join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native');
 // Install without scripts to avoid issues with missing linked packages
-run('pnpm install --ignore-scripts', exampleDir);
+run('npm install --ignore-scripts', exampleDir);
 // Link all packages
-run(`pnpm link ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
+run(`npm link ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
 
 // Install expo-crypto for Arkade support (if not already installed)
 console.log('\n7. Ensuring expo-crypto is installed...');
@@ -73,8 +73,8 @@ console.log('  - @tetherto/wdk-react-native-provider (from packages/)');
 console.log('');
 console.log('To run the example app:');
 console.log('  cd examples/wdk-starter-react-native');
-console.log('  pnpm run android  # or pnpm run ios');
+console.log('  npm run android  # or npm run ios');
 console.log('');
 console.log('To rebuild after changes:');
-console.log('  pnpm run build  # in the root directory');
+console.log('  npm run build  # in the root directory');
 console.log('');
