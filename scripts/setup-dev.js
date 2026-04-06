@@ -27,16 +27,22 @@ console.log('=== Arkade WDK Development Setup ===\n');
 console.log('1. Initializing git submodules...');
 run('git submodule update --init --recursive');
 
+// Apply patches to submodules
+console.log('\n2. Applying patches to submodules...');
+const patchDir = join(PROJECT_ROOT, 'patches');
+run(`git apply ${join(patchDir, 'pear-wrk-wdk.patch')}`, join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk'));
+run(`git apply ${join(patchDir, 'wdk-react-native-provider.patch')}`, join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider'));
+
 // Install dependencies for main package
-console.log('\n2. Installing arkade-wdk dependencies...');
+console.log('\n3. Installing arkade-wdk dependencies...');
 run('npm install');
 
 // Build the main package
-console.log('\n3. Building arkade-wdk...');
+console.log('\n4. Building arkade-wdk...');
 run('npm run build');
 
 // Setup pear-wrk-wdk submodule
-console.log('\n4. Setting up pear-wrk-wdk...');
+console.log('\n5. Setting up pear-wrk-wdk...');
 const pearWrkDir = join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk');
 // Install dependencies (postinstall generates mobile bundle)
 run('npm install', pearWrkDir);
@@ -44,17 +50,19 @@ run('npm install', pearWrkDir);
 run(`npm link ${PROJECT_ROOT}`, pearWrkDir);
 
 // Setup wdk-react-native-provider submodule
-console.log('\n5. Setting up wdk-react-native-provider...');
+console.log('\n6. Setting up wdk-react-native-provider...');
 const providerDir = join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider');
 // Install without running scripts (prepare would fail without @arkade-os/wdk linked)
 run('npm install --ignore-scripts', providerDir);
 // Link @arkade-os/wdk and @tetherto/pear-wrk-wdk BEFORE building
 run(`npm link ${PROJECT_ROOT} ${pearWrkDir}`, providerDir);
+// Reinstall deps that npm link may have removed
+run('npm install --ignore-scripts', providerDir);
 // Now build (prepare script)
 run('npm run prepare', providerDir);
 
 // Setup wdk-starter-react-native example
-console.log('\n6. Setting up wdk-starter-react-native example...');
+console.log('\n7. Setting up wdk-starter-react-native example...');
 const exampleDir = join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native');
 // Install without scripts to avoid issues with missing linked packages
 run('npm install --ignore-scripts', exampleDir);
@@ -62,7 +70,7 @@ run('npm install --ignore-scripts', exampleDir);
 run(`npm link ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
 
 // Install expo-crypto for Arkade support (if not already installed)
-console.log('\n7. Ensuring expo-crypto is installed...');
+console.log('\n8. Ensuring expo-crypto is installed...');
 run('npx expo install expo-crypto', exampleDir);
 
 console.log('\n=== Setup Complete ===\n');

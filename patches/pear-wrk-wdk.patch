@@ -1,27 +1,15 @@
-diff --git a/src/wdk-worklet.js b/src/wdk-worklet.js
-new file mode 100644
-index 0000000..4c9d172
---- /dev/null
-+++ b/src/wdk-worklet.js
-@@ -0,0 +1,21 @@
-+/* eslint-disable no-undef */
-+const { registerRpcHandlers } = require('../worklet')
-+const HRPC = require('../generated/hrpc')
-+
-+// WDK core + Arkade wallet manager
-+const WDK = require('@tetherto/wdk')
-+const WalletManagerArkade = require('@arkade-os/wdk')
-+
-+const { IPC } = BareKit
-+const rpc = new HRPC(IPC)
-+
-+const context = {
-+  WDK: WDK.default || WDK,
-+  walletManagers: {
-+    arkade: WalletManagerArkade.default || WalletManagerArkade
-+  },
-+  protocolManagers: {},
-+  wdk: null
-+}
-+
-+registerRpcHandlers(rpc, context)
+diff --git a/package.json b/package.json
+index 83a4a5c..63bd445 100644
+--- a/package.json
++++ b/package.json
+@@ -6,8 +6,8 @@
+     "build:types": "rimraf *.d.ts **/*.d.ts; tsc",
+     "lint": "standard",
+     "lint:fix": "standard --fix",
+-    "gen:macos-bundle": "npx bare-pack --target darwin-arm64 --linked --out bundle/wdk-worklet.bundle.js src/wdk-worklet.js",
+-    "gen:mobile-bundle": "npx bare-pack --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --imports ./pack.imports.json --out bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js",
++    "gen:macos-bundle": "npx bare-pack@1 --target darwin-arm64 --linked --out bundle/wdk-worklet.bundle.js src/wdk-worklet.js",
++    "gen:mobile-bundle": "npx bare-pack@1 --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --imports ./pack.imports.json --out bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js",
+     "gen:schema": "node src/schema/schema.js",
+     "postinstall": "npm run gen:mobile-bundle"
+   },
