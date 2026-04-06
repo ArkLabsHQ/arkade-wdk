@@ -1,0 +1,36 @@
+diff --git a/metro.config.js b/metro.config.js
+index dba8528..8b09d8b 100644
+--- a/metro.config.js
++++ b/metro.config.js
+@@ -17,11 +17,19 @@ config.resolver = {
+   sourceExts: [...resolver.sourceExts, 'svg'],
+   // Ensure module paths include root node_modules
+   nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
++  // Follow npm link symlinks (needed for local dev with linked submodules)
++  unstable_enableSymlinks: true,
+   alias: {
+     '@': path.resolve(__dirname, 'src'),
+   },
+ };
+
++// Watch the linked package source directories so Metro picks up changes
++config.watchFolders = [
++  path.resolve(__dirname, '../../packages/wdk-react-native-provider'),
++  path.resolve(__dirname, '../../packages/pear-wrk-wdk'),
++];
++
+ // Apply WDK polyfills configuration first (handles Node.js core module polyfills)
+ const wdkConfig = configureMetroForWDK(config);
+
+diff --git a/package.json b/package.json
+index bafed0e..b385c08 100644
+--- a/package.json
++++ b/package.json
+@@ -87,6 +87,7 @@
+     "react-native-worklets": "0.5.1",
+     "react-redux": "^9.2.0",
+     "sodium-javascript": "^0.8.0",
++    "sodium-native": "5.0.9",
+     "sonner-native": "^0.21.1",
+     "stream-browserify": "^3.0.0",
+     "stream-http": "^3.2.0"

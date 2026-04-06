@@ -32,6 +32,7 @@ console.log('\n2. Applying patches to submodules...');
 const patchDir = join(PROJECT_ROOT, 'patches');
 run(`git apply ${join(patchDir, 'pear-wrk-wdk.patch')}`, join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk'));
 run(`git apply ${join(patchDir, 'wdk-react-native-provider.patch')}`, join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider'));
+run(`git apply ${join(patchDir, 'wdk-starter-react-native.patch')}`, join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native'));
 
 // Install dependencies for main package
 console.log('\n3. Installing arkade-wdk dependencies...');
@@ -60,18 +61,23 @@ run(`npm link ${PROJECT_ROOT} ${pearWrkDir}`, providerDir);
 run('npm install --ignore-scripts', providerDir);
 // Now build (prepare script)
 run('npm run prepare', providerDir);
+// Remove duplicate copies of peer-dep packages so the example app's
+// instance is used at runtime (avoids "Invalid hook call" from duplicate React)
+run('rm -rf node_modules/react node_modules/react-native node_modules/react-dom node_modules/@types/react', providerDir);
 
 // Setup wdk-starter-react-native example
 console.log('\n7. Setting up wdk-starter-react-native example...');
 const exampleDir = join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native');
 // Install without scripts to avoid issues with missing linked packages
 run('npm install --ignore-scripts', exampleDir);
-// Link all packages
-run(`npm link ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
 
 // Install expo-crypto for Arkade support (if not already installed)
 console.log('\n8. Ensuring expo-crypto is installed...');
 run('npx expo install expo-crypto', exampleDir);
+
+// Link local packages AFTER expo install (which would otherwise overwrite symlinks)
+console.log('\n9. Linking local packages into example app...');
+run(`npm link ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
 
 console.log('\n=== Setup Complete ===\n');
 console.log('The following packages are now linked:');
