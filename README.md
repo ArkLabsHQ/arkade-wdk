@@ -44,6 +44,7 @@ arkade-wdk/
 │   ├── lib/                      # address, bip21, bolt11, lnurl, fees, formatting, send routing
 │   ├── wallet-manager-arkade.ts  # WDK wallet manager implementation
 │   ├── wallet-account-arkade.ts  # WDK account + read-only account implementations
+│   ├── types.ts                  # ArkadeWalletConfig type
 │   └── index.ts                  # package exports
 ├── packages/
 │   ├── pear-wrk-wdk/             # submodule: bare-kit worklet runtime (HRPC schema + handlers)
@@ -266,84 +267,55 @@ This involves an inline bech32m decoder (`arkAddressToPkScript`) to extract the 
 
 Unlike balances, transaction history goes through the full HRPC path: RN provider -> HRPC `getTransactionHistory` -> worklet -> SDK `wallet.getTransactionHistory()`. The SDK returns `ArkTransaction[]` which is serialized as JSON through HRPC and mapped to the provider's `Transaction` interface on the RN side.
 
-## Git Submodules
+## Git Submodules and Patches
 
-The `packages/` and `examples/` directories are git submodules, each with their own repository. Changes flow **inside-out**: commit within the submodule first, then commit the updated submodule reference in the parent.
+The `packages/` and `examples/` directories are git submodules pointing at upstream repositories we don't have write access to. Local modifications are stored as patch files under `./patches/` and applied on top of pinned upstream commits.
 
-### Workflow
+### Submodules
 
-```bash
-# 1. Make changes inside a submodule
-cd packages/wdk-react-native-provider
-# ... edit files ...
-git add -A && git commit -m "your change"
-git push
-
-# 2. Back in the parent repo, commit the updated submodule pointer
-cd ../..
-git add packages/wdk-react-native-provider
-git commit -m "Update wdk-react-native-provider submodule"
-```
-
-Repeat for each submodule that changed (`packages/pear-wrk-wdk`, `examples/wdk-starter-react-native`).
+| Path | Pinned at |
+|------|-----------|
+| `packages/pear-wrk-wdk` | `1.0.0-beta.4` (commit `ef7a951`) |
+| `packages/wdk-react-native-provider` | `1.0.0-beta.3` (tag `v1.0.0-beta.3`) |
+| `examples/wdk-starter-react-native` | `main` |
 
 ### After cloning
 
-```bash
-git submodule update --init --recursive
-```
-
-Or use the setup script which also builds and links:
+Use the setup script — it initializes submodules, applies all patches, installs dependencies, builds the root package, and links everything for local development:
 
 ```bash
 npm run setup:dev
 ```
 
-### Patch management
-
-Because the submodules are upstream repos, local modifications are tracked as patch files under `./patches/` rather than as commits in forks. This keeps the parent repo's changes visible without requiring write access to the upstream repos.
-
-#### Apply patches (after a fresh clone or submodule update)
+If you only need to (re-)apply patches without running the rest of the setup:
 
 ```bash
-node scripts/apply-patches.js
+node scripts/apply-patches.js          # apply all patches
+node scripts/apply-patches.js --check  # dry-run (verify they apply cleanly)
 ```
 
-Run with `--check` to verify patches apply cleanly without modifying the working tree:
+### Editing a submodule
 
-```bash
-node scripts/apply-patches.js --check
-```
+Submodule working trees are kept dirty: the patches in `./patches/` are applied on top of the pinned upstream commits. To make a change:
 
-#### Regenerate patches (after editing submodule files)
+1. Edit files inside the submodule directly:
+   ```bash
+   cd packages/wdk-react-native-provider
+   # ... edit files ...
+   ```
 
-```bash
-node scripts/generate-patches.js
-```
+2. From the parent repo, regenerate the patch:
+   ```bash
+   cd ../..
+   node scripts/generate-patches.js --base HEAD
+   ```
+   Pass `--base HEAD` so the diff is taken against the currently-pinned commit. The script defaults to `origin/main`, which is only correct when the submodule is checked out at the tip of main (true for `examples/wdk-starter-react-native`, but not for the two `packages/` submodules which are pinned at older tags).
 
-This compares each submodule's working tree against `origin/main` and overwrites the corresponding file in `./patches/`. Commit the updated patch files to the parent repo.
-
-Specify a different base ref with `--base`:
-
-```bash
-node scripts/generate-patches.js --base origin/v2
-```
-
-#### Typical patch-update workflow
-
-```bash
-# 1. Edit files inside the submodule
-cd packages/wdk-react-native-provider
-# ... edit files ...
-
-# 2. Regenerate the patch from the parent repo root
-cd ../..
-node scripts/generate-patches.js
-
-# 3. Commit the updated patch to the parent repo
-git add patches/wdk-react-native-provider.patch
-git commit -m "Update wdk-react-native-provider patch"
-```
+3. Commit the updated patch in the parent repo:
+   ```bash
+   git add patches/wdk-react-native-provider.patch
+   git commit -m "Update wdk-react-native-provider patch"
+   ```
 
 ### Provider build
 
@@ -351,7 +323,7 @@ After editing provider source, regenerate bundles and type definitions before co
 
 ```bash
 cd packages/wdk-react-native-provider
-npm run prepare   # runs gen:secret-manager-bundle + gen:worker-bundle + bob build
+npm run prepare   # runs bob build + gen:secret-manager-bundle + gen:worker-bundle
 ```
 
 This re-bundles the worklet (picking up any HRPC schema changes from `pear-wrk-wdk`) and type-checks with the stricter `bob build` settings.
