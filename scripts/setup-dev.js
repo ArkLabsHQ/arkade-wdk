@@ -5,6 +5,7 @@
  */
 
 import { execSync } from 'child_process';
+import { mkdirSync, readFileSync, rmSync, symlinkSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -19,6 +20,23 @@ function run(cmd, cwd = PROJECT_ROOT) {
     // Some commands may fail but we want to continue
     console.log(`  (command completed with warnings)`);
   }
+}
+
+// Symlink a local package into another package's node_modules directly,
+// bypassing `npm link <path>`. We can't use `npm link` here because it
+// re-runs the linked package's `prepare` script even with --ignore-scripts
+// (prepare is part of the publish lifecycle and isn't gated by that flag
+// in npm 10.x). For our dev-link use case the linked packages are already
+// built — all we actually need is a symlink at node_modules/<pkg-name>.
+function linkPackage(sourceDir, hostDir) {
+  const pkg = JSON.parse(readFileSync(join(sourceDir, 'package.json'), 'utf8'));
+  const targetPath = join(hostDir, 'node_modules', pkg.name);
+  console.log(`> ln -sfn ${sourceDir} ${targetPath}`);
+  mkdirSync(dirname(targetPath), { recursive: true });
+  // rmSync removes symlinks themselves (without following) and directories
+  // recursively, so this handles all three cases: symlink, real install, missing.
+  rmSync(targetPath, { recursive: true, force: true });
+  symlinkSync(sourceDir, targetPath);
 }
 
 // Apply a patch idempotently: skip if it's already applied (so reruns are safe).
@@ -90,14 +108,16 @@ run('npm install --ignore-scripts', exampleDir);
 console.log('\n7. Ensuring expo-crypto is installed...');
 run('npx expo install expo-crypto', exampleDir);
 
-// Link local packages AFTER expo install (which would otherwise overwrite symlinks).
-// `--ignore-scripts` is required because the provider's `prepare` script runs
-// `bob build` (→ tsc), which would fail here: step 5 deleted react/react-native
-// from the provider's node_modules to avoid duplicate-React at runtime, so the
-// provider's tsc can no longer resolve `react`. The provider was already built
-// successfully in step 5, so we just need the symlinks — no rebuild.
+// Link local packages AFTER expo install (which would otherwise overwrite
+// symlinks). We use direct fs symlinks rather than `npm link` because npm
+// re-runs the provider's `prepare` script (which runs bob build → tsc) and
+// that would fail here: step 5 deleted react/react-native from the provider's
+// node_modules, so its tsc can no longer resolve `react`. The provider is
+// already built; we only need the symlinks.
 console.log('\n8. Linking local packages into example app...');
-run(`npm link --ignore-scripts ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
+linkPackage(PROJECT_ROOT, exampleDir);
+linkPackage(pearWrkDir, exampleDir);
+linkPackage(providerDir, exampleDir);
 
 console.log('\n=== Setup Complete ===\n');
 console.log('The following packages are now linked:');
