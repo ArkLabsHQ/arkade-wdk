@@ -6,4 +6,3 @@
 export { default } from './wallet-manager-arkade.js';
 export { WalletAccountArkade } from './wallet-account-arkade.js';
 export { WalletAccountReadOnlyArkade } from './wallet-account-read-only-arkade.js';
-export type { ArkadeWalletConfig } from './types.js';
