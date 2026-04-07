@@ -38,12 +38,8 @@ run(`git apply ${join(patchDir, 'wdk-starter-react-native.patch')}`, join(PROJEC
 console.log('\n3. Installing arkade-wdk dependencies...');
 run('npm install');
 
-// Build the main package
-console.log('\n4. Building arkade-wdk...');
-run('npm run build');
-
 // Setup pear-wrk-wdk submodule
-console.log('\n5. Setting up pear-wrk-wdk...');
+console.log('\n4. Setting up pear-wrk-wdk...');
 const pearWrkDir = join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk');
 // Install dependencies (postinstall generates mobile bundle)
 run('npm install', pearWrkDir);
@@ -51,7 +47,7 @@ run('npm install', pearWrkDir);
 run(`npm link ${PROJECT_ROOT}`, pearWrkDir);
 
 // Setup wdk-react-native-provider submodule
-console.log('\n6. Setting up wdk-react-native-provider...');
+console.log('\n5. Setting up wdk-react-native-provider...');
 const providerDir = join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider');
 // Install without running scripts (prepare would fail without @arkade-os/wdk linked)
 run('npm install --ignore-scripts', providerDir);
@@ -66,17 +62,17 @@ run('npm run prepare', providerDir);
 run('rm -rf node_modules/react node_modules/react-native node_modules/react-dom node_modules/@types/react', providerDir);
 
 // Setup wdk-starter-react-native example
-console.log('\n7. Setting up wdk-starter-react-native example...');
+console.log('\n6. Setting up wdk-starter-react-native example...');
 const exampleDir = join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native');
 // Install without scripts to avoid issues with missing linked packages
 run('npm install --ignore-scripts', exampleDir);
 
 // Install expo-crypto for Arkade support (if not already installed)
-console.log('\n8. Ensuring expo-crypto is installed...');
+console.log('\n7. Ensuring expo-crypto is installed...');
 run('npx expo install expo-crypto', exampleDir);
 
 // Link local packages AFTER expo install (which would otherwise overwrite symlinks)
-console.log('\n9. Linking local packages into example app...');
+console.log('\n8. Linking local packages into example app...');
 run(`npm link ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
 
 console.log('\n=== Setup Complete ===\n');
@@ -89,6 +85,5 @@ console.log('To run the example app:');
 console.log('  cd examples/wdk-starter-react-native');
 console.log('  npm run android  # or npm run ios');
 console.log('');
-console.log('To rebuild after changes:');
-console.log('  npm run build  # in the root directory');
+console.log('Source ships from src/ — no build step. Edit and re-run.');
 console.log('');
