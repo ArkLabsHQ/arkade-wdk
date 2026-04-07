@@ -21,6 +21,25 @@ function run(cmd, cwd = PROJECT_ROOT) {
   }
 }
 
+// Apply a patch idempotently: skip if it's already applied (so reruns are safe).
+// `git apply --reverse --check` succeeds only when the patch's changes are
+// already present in the working tree.
+function applyPatch(patchPath, cwd) {
+  console.log(`> git apply ${patchPath}`);
+  try {
+    execSync(`git apply --reverse --check "${patchPath}"`, { cwd, stdio: 'pipe' });
+    console.log('  (already applied, skipping)');
+    return;
+  } catch {
+    // Not already applied — fall through and apply.
+  }
+  try {
+    execSync(`git apply "${patchPath}"`, { cwd, stdio: 'inherit', shell: true });
+  } catch {
+    console.log('  (command completed with warnings)');
+  }
+}
+
 console.log('=== Arkade WDK Development Setup ===\n');
 
 // Initialize and update submodules
@@ -30,9 +49,9 @@ run('git submodule update --init --recursive');
 // Apply patches to submodules
 console.log('\n2. Applying patches to submodules...');
 const patchDir = join(PROJECT_ROOT, 'patches');
-run(`git apply ${join(patchDir, 'pear-wrk-wdk.patch')}`, join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk'));
-run(`git apply ${join(patchDir, 'wdk-react-native-provider.patch')}`, join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider'));
-run(`git apply ${join(patchDir, 'wdk-starter-react-native.patch')}`, join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native'));
+applyPatch(join(patchDir, 'pear-wrk-wdk.patch'), join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk'));
+applyPatch(join(patchDir, 'wdk-react-native-provider.patch'), join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider'));
+applyPatch(join(patchDir, 'wdk-starter-react-native.patch'), join(PROJECT_ROOT, 'examples', 'wdk-starter-react-native'));
 
 // Install dependencies for main package
 console.log('\n3. Installing arkade-wdk dependencies...');
@@ -71,9 +90,14 @@ run('npm install --ignore-scripts', exampleDir);
 console.log('\n7. Ensuring expo-crypto is installed...');
 run('npx expo install expo-crypto', exampleDir);
 
-// Link local packages AFTER expo install (which would otherwise overwrite symlinks)
+// Link local packages AFTER expo install (which would otherwise overwrite symlinks).
+// `--ignore-scripts` is required because the provider's `prepare` script runs
+// `bob build` (→ tsc), which would fail here: step 5 deleted react/react-native
+// from the provider's node_modules to avoid duplicate-React at runtime, so the
+// provider's tsc can no longer resolve `react`. The provider was already built
+// successfully in step 5, so we just need the symlinks — no rebuild.
 console.log('\n8. Linking local packages into example app...');
-run(`npm link ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
+run(`npm link --ignore-scripts ${PROJECT_ROOT} ${pearWrkDir} ${providerDir}`, exampleDir);
 
 console.log('\n=== Setup Complete ===\n');
 console.log('The following packages are now linked:');
