@@ -14,7 +14,7 @@ index fd6fc94..ea59d93 100644
    "keywords": [
      "react-native",
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..0d790d1 100644
+index 5ae8528..abbb194 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -375,6 +375,7 @@ class WDKService {
@@ -57,3 +57,32 @@ index 5ae8528..0d790d1 100644
        }
      }
  
+@@ -395,18 +415,22 @@ class WDKService {
+         // @ts-expect-error
+         networkAddresses[key] = (addresses[i] as any).value.address;
+       } else {
+-        // @ts-expect-error
+-        networkAddresses[key] = null;
++        // Leave the entry unset on failure so the map stays a true
++        // Partial<Record<NetworkType, string>>. Consumers already guard
++        // with `if (address)` truthiness checks, and writing `null` here
++        // crashed call sites that did `Object.values(...).map(a => a.toLowerCase())`.
+         console.error(
+           `Error while resolving wallet address ${key} - err - ${(addresses[i] as any).reason}`
+         );
+       }
+     });
+ 
+-    networkAddresses[NetworkType.POLYGON] =
+-      networkAddresses[NetworkType.ETHEREUM];
+-    networkAddresses[NetworkType.ARBITRUM] =
+-      networkAddresses[NetworkType.ETHEREUM];
++    if (networkAddresses[NetworkType.ETHEREUM]) {
++      networkAddresses[NetworkType.POLYGON] =
++        networkAddresses[NetworkType.ETHEREUM];
++      networkAddresses[NetworkType.ARBITRUM] =
++        networkAddresses[NetworkType.ETHEREUM];
++    }
+ 
+     return networkAddresses;
+   }
