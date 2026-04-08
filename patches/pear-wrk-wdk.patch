@@ -1,3 +1,88 @@
+diff --git a/package-lock.json b/package-lock.json
+index 1ba00ef..07a906d 100644
+--- a/package-lock.json
++++ b/package-lock.json
+@@ -1873,7 +1873,7 @@
+     },
+     "node_modules/@wdk/wallet": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet.git#ee0f6046b6128d0a096f18cc6ca7845ca4cedb12",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet.git#ee0f6046b6128d0a096f18cc6ca7845ca4cedb12",
+       "integrity": "sha512-PfCaoBWFS0c+FuJRexdQWOtcB+x2z0pK0QtLAEaB82H74bBzmQZpsE6wV+mNqgggtNfz5Pp3b35Cu5lQ8l0wdw==",
+       "dependencies": {
+         "bare-wdk-runtime": "2.0.0",
+@@ -1882,7 +1882,7 @@
+     },
+     "node_modules/@wdk/wallet-btc": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-btc.git#ed35de0b49344bb07736fc296a28b8465a8e8a6e",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-btc.git#ed35de0b49344bb07736fc296a28b8465a8e8a6e",
+       "integrity": "sha512-LUb5jzm98AgOEWtR5pNMottf9i2M9b3YU+9474i2kFMhhVybCspnMXugdf4cTeOb9BUYkdkaDH17bw47zZYqcQ==",
+       "dependencies": {
+         "@bitcoinerlab/secp256k1": "1.2.0",
+@@ -1897,7 +1897,7 @@
+     },
+     "node_modules/@wdk/wallet-evm": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-evm.git#74e281ea63f7df6e2590580bba988daeda021df6",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-evm.git#74e281ea63f7df6e2590580bba988daeda021df6",
+       "integrity": "sha512-vrbfYPcmloFjEFY0AK9hN9EyCEF8g6w/N4WPkpr12klEGjXUjb7+Q+VWI/HJTWFxmHhJKlYT85GVZKgAD5kY7g==",
+       "dependencies": {
+         "@noble/curves": "1.9.2",
+@@ -1911,7 +1911,7 @@
+     },
+     "node_modules/@wdk/wallet-evm-erc-4337": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-evm-erc-4337.git#cc4431332b86d9c0609eaf833daa7295c13d8f86",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-evm-erc-4337.git#cc4431332b86d9c0609eaf833daa7295c13d8f86",
+       "integrity": "sha512-DzoyeTK2ul6P8W0TxC7313F0QRw0va6NhvoQ0CKZekwgQtK7YbG00TEj+RpDtIA/14LgaoBo+oyPVwYdoMMp4g==",
+       "dependencies": {
+         "@wdk-safe-global/relay-kit": "4.1.0",
+@@ -2017,7 +2017,7 @@
+     },
+     "node_modules/@wdk/wallet-solana": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-solana.git#e132dc8247cd7b9e84aeaad6c20667a92830e212",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-solana.git#e132dc8247cd7b9e84aeaad6c20667a92830e212",
+       "integrity": "sha512-1TOAIZ9FYylUudJSyC1DBtlbnRrJO0omMChHXO9VYYRSbw8q1URST0e1r/ImWjcixo+e7lyBVNtPqBAJfaRcKQ==",
+       "dependencies": {
+         "@solana-program/system": "0.7.0",
+@@ -2034,7 +2034,7 @@
+     },
+     "node_modules/@wdk/wallet-ton": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-ton.git#e2fc2c913fc003a0ad895822dc452db263faa259",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-ton.git#e2fc2c913fc003a0ad895822dc452db263faa259",
+       "integrity": "sha512-jvUTUT9KM2lz2LX37OLhI1B9aASo4O82p0jcHxFUQ/ninmX1IH4LiGzzG1gFmYeZ+VaDWBcOQP4sn1kpIY6LOQ==",
+       "dependencies": {
+         "@ton/crypto": "3.3.0",
+@@ -2050,7 +2050,7 @@
+     },
+     "node_modules/@wdk/wallet-ton-gasless": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-ton-gasless.git#4b62e81488647158b2492e06c6cde176b69dd17d",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-ton-gasless.git#4b62e81488647158b2492e06c6cde176b69dd17d",
+       "integrity": "sha512-pdKpA8zbenSKeD1LrpqTMdFXHwBXAZZavIulQx/gl6k8PqP50Y9WNtnN4IDpzO4TpoIRZqrfnkbrni4d5ZRU1g==",
+       "dependencies": {
+         "@ton-api/client": "0.4.0",
+@@ -2090,7 +2090,7 @@
+     },
+     "node_modules/@wdk/wallet-tron": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-tron.git#ec076473a5b8340599e005ab5ece8c8d246b3965",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-tron.git#ec076473a5b8340599e005ab5ece8c8d246b3965",
+       "integrity": "sha512-kVuF+TLKq9XG4oPA14dTS4LYs/Qs95rXnyXWJHte3ypew5mN4Yr5aPZQCsOmecmdrknU5tueNGAQxI/Ng7aVfw==",
+       "dependencies": {
+         "@noble/curves": "1.9.2",
+@@ -2106,7 +2106,7 @@
+     },
+     "node_modules/@wdk/wallet-tron-gasfree": {
+       "version": "1.0.0-beta.1",
+-      "resolved": "https://github.com/tetherto/wdk-wallet-tron-gasfree.git#fd57ed375801ae281e98c6882ea0f2ad4c2b30f5",
++      "resolved": "git+ssh://git@github.com/tetherto/wdk-wallet-tron-gasfree.git#fd57ed375801ae281e98c6882ea0f2ad4c2b30f5",
+       "integrity": "sha512-pJUGHNn26Dyv/pbeN9HTcnp+SH6DuENN6WWTCOHr2GxojrrrwGxBaJnmgq1DrgXoh8xxR3KEbX029kpp1IvQTA==",
+       "dependencies": {
+         "@noble/curves": "1.9.2",
 diff --git a/package.json b/package.json
 index 83a4a5c..63bd445 100644
 --- a/package.json
@@ -13,3 +98,1667 @@ index 83a4a5c..63bd445 100644
      "gen:schema": "node src/schema/schema.js",
      "postinstall": "npm run gen:mobile-bundle"
    },
+diff --git a/spec/hrpc/hrpc.json b/spec/hrpc/hrpc.json
+index 23079ea..7ebced9 100644
+--- a/spec/hrpc/hrpc.json
++++ b/spec/hrpc/hrpc.json
+@@ -1,5 +1,5 @@
+ {
+-  "version": 1,
++  "version": 2,
+   "schema": [
+     {
+       "id": 0,
+@@ -187,6 +187,123 @@
+         "send": true
+       },
+       "version": 1
++    },
++    {
++      "id": 15,
++      "name": "@wdk-core/arkadeGetBoardingAddress",
++      "request": {
++        "name": "@wdk-core/arkadeGetBoardingAddress-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetBoardingAddress-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 16,
++      "name": "@wdk-core/arkadeCreateLightningInvoice",
++      "request": {
++        "name": "@wdk-core/arkadeCreateLightningInvoice-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeCreateLightningInvoice-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 17,
++      "name": "@wdk-core/arkadeGetPendingLightningReceives",
++      "request": {
++        "name": "@wdk-core/arkadeGetPendingLightningReceives-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetPendingLightningReceives-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 18,
++      "name": "@wdk-core/arkadeGetPendingLightningSends",
++      "request": {
++        "name": "@wdk-core/arkadeGetPendingLightningSends-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetPendingLightningSends-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 19,
++      "name": "@wdk-core/arkadeGetSwapHistory",
++      "request": {
++        "name": "@wdk-core/arkadeGetSwapHistory-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetSwapHistory-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 20,
++      "name": "@wdk-core/arkadeGetLightningLimits",
++      "request": {
++        "name": "@wdk-core/arkadeGetLightningLimits-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetLightningLimits-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 21,
++      "name": "@wdk-core/arkadeGetLightningFees",
++      "request": {
++        "name": "@wdk-core/arkadeGetLightningFees-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetLightningFees-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 22,
++      "name": "@wdk-core/arkadeGetTransactionHistory",
++      "request": {
++        "name": "@wdk-core/arkadeGetTransactionHistory-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetTransactionHistory-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 23,
++      "name": "@wdk-core/arkadeWaitForLightningPayment",
++      "request": {
++        "name": "@wdk-core/arkadeWaitForLightningPayment-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeWaitForLightningPayment-response",
++        "stream": false
++      },
++      "version": 2
+     }
+   ]
+ }
+\ No newline at end of file
+diff --git a/spec/hrpc/index.js b/spec/hrpc/index.js
+index e7371d5..cea0fc4 100644
+--- a/spec/hrpc/index.js
++++ b/spec/hrpc/index.js
+@@ -34,7 +34,25 @@ const methods = new Map([
+   ['@wdk-core/getTransactionReceipt', 13],
+   [13, '@wdk-core/getTransactionReceipt'],
+   ['@wdk-core/dispose', 14],
+-  [14, '@wdk-core/dispose']
++  [14, '@wdk-core/dispose'],
++  ['@wdk-core/arkadeGetBoardingAddress', 15],
++  [15, '@wdk-core/arkadeGetBoardingAddress'],
++  ['@wdk-core/arkadeCreateLightningInvoice', 16],
++  [16, '@wdk-core/arkadeCreateLightningInvoice'],
++  ['@wdk-core/arkadeGetPendingLightningReceives', 17],
++  [17, '@wdk-core/arkadeGetPendingLightningReceives'],
++  ['@wdk-core/arkadeGetPendingLightningSends', 18],
++  [18, '@wdk-core/arkadeGetPendingLightningSends'],
++  ['@wdk-core/arkadeGetSwapHistory', 19],
++  [19, '@wdk-core/arkadeGetSwapHistory'],
++  ['@wdk-core/arkadeGetLightningLimits', 20],
++  [20, '@wdk-core/arkadeGetLightningLimits'],
++  ['@wdk-core/arkadeGetLightningFees', 21],
++  [21, '@wdk-core/arkadeGetLightningFees'],
++  ['@wdk-core/arkadeGetTransactionHistory', 22],
++  [22, '@wdk-core/arkadeGetTransactionHistory'],
++  ['@wdk-core/arkadeWaitForLightningPayment', 23],
++  [23, '@wdk-core/arkadeWaitForLightningPayment']
+ ])
+ 
+ class HRPC {
+@@ -56,7 +74,16 @@ class HRPC {
+       ['@wdk-core/abstractedSendTransaction', getEncoding('@wdk-core/abstractedSendTransaction-request')],
+       ['@wdk-core/abstractedAccountQuoteTransfer', getEncoding('@wdk-core/abstractedAccountQuoteTransfer-request')],
+       ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-request')],
+-      ['@wdk-core/dispose', getEncoding('@wdk-core/dispose-request')]
++      ['@wdk-core/dispose', getEncoding('@wdk-core/dispose-request')],
++      ['@wdk-core/arkadeGetBoardingAddress', getEncoding('@wdk-core/arkadeGetBoardingAddress-request')],
++      ['@wdk-core/arkadeCreateLightningInvoice', getEncoding('@wdk-core/arkadeCreateLightningInvoice-request')],
++      ['@wdk-core/arkadeGetPendingLightningReceives', getEncoding('@wdk-core/arkadeGetPendingLightningReceives-request')],
++      ['@wdk-core/arkadeGetPendingLightningSends', getEncoding('@wdk-core/arkadeGetPendingLightningSends-request')],
++      ['@wdk-core/arkadeGetSwapHistory', getEncoding('@wdk-core/arkadeGetSwapHistory-request')],
++      ['@wdk-core/arkadeGetLightningLimits', getEncoding('@wdk-core/arkadeGetLightningLimits-request')],
++      ['@wdk-core/arkadeGetLightningFees', getEncoding('@wdk-core/arkadeGetLightningFees-request')],
++      ['@wdk-core/arkadeGetTransactionHistory', getEncoding('@wdk-core/arkadeGetTransactionHistory-request')],
++      ['@wdk-core/arkadeWaitForLightningPayment', getEncoding('@wdk-core/arkadeWaitForLightningPayment-request')]
+     ])
+     this._responseEncodings = new Map([
+       ['@wdk-core/workletStart', getEncoding('@wdk-core/workletStart-response')],
+@@ -71,7 +98,16 @@ class HRPC {
+       ['@wdk-core/getApproveTransaction', getEncoding('@wdk-core/getApproveTransaction-response')],
+       ['@wdk-core/abstractedSendTransaction', getEncoding('@wdk-core/abstractedSendTransaction-response')],
+       ['@wdk-core/abstractedAccountQuoteTransfer', getEncoding('@wdk-core/abstractedAccountQuoteTransfer-response')],
+-      ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-response')]
++      ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-response')],
++      ['@wdk-core/arkadeGetBoardingAddress', getEncoding('@wdk-core/arkadeGetBoardingAddress-response')],
++      ['@wdk-core/arkadeCreateLightningInvoice', getEncoding('@wdk-core/arkadeCreateLightningInvoice-response')],
++      ['@wdk-core/arkadeGetPendingLightningReceives', getEncoding('@wdk-core/arkadeGetPendingLightningReceives-response')],
++      ['@wdk-core/arkadeGetPendingLightningSends', getEncoding('@wdk-core/arkadeGetPendingLightningSends-response')],
++      ['@wdk-core/arkadeGetSwapHistory', getEncoding('@wdk-core/arkadeGetSwapHistory-response')],
++      ['@wdk-core/arkadeGetLightningLimits', getEncoding('@wdk-core/arkadeGetLightningLimits-response')],
++      ['@wdk-core/arkadeGetLightningFees', getEncoding('@wdk-core/arkadeGetLightningFees-response')],
++      ['@wdk-core/arkadeGetTransactionHistory', getEncoding('@wdk-core/arkadeGetTransactionHistory-response')],
++      ['@wdk-core/arkadeWaitForLightningPayment', getEncoding('@wdk-core/arkadeWaitForLightningPayment-response')]
+     ])
+     this._rpc = new RPC(stream, async (req) => {
+       const command = methods.get(req.command)
+@@ -195,6 +231,42 @@ class HRPC {
+     return this._callSync('@wdk-core/dispose', args)
+   }
+ 
++  async arkadeGetBoardingAddress (args) {
++    return this._call('@wdk-core/arkadeGetBoardingAddress', args)
++  }
++
++  async arkadeCreateLightningInvoice (args) {
++    return this._call('@wdk-core/arkadeCreateLightningInvoice', args)
++  }
++
++  async arkadeGetPendingLightningReceives (args) {
++    return this._call('@wdk-core/arkadeGetPendingLightningReceives', args)
++  }
++
++  async arkadeGetPendingLightningSends (args) {
++    return this._call('@wdk-core/arkadeGetPendingLightningSends', args)
++  }
++
++  async arkadeGetSwapHistory (args) {
++    return this._call('@wdk-core/arkadeGetSwapHistory', args)
++  }
++
++  async arkadeGetLightningLimits (args) {
++    return this._call('@wdk-core/arkadeGetLightningLimits', args)
++  }
++
++  async arkadeGetLightningFees (args) {
++    return this._call('@wdk-core/arkadeGetLightningFees', args)
++  }
++
++  async arkadeGetTransactionHistory (args) {
++    return this._call('@wdk-core/arkadeGetTransactionHistory', args)
++  }
++
++  async arkadeWaitForLightningPayment (args) {
++    return this._call('@wdk-core/arkadeWaitForLightningPayment', args)
++  }
++
+   onLog (responseFn) {
+     this._handlers['@wdk-core/log'] = responseFn
+   }
+@@ -255,6 +327,42 @@ class HRPC {
+     this._handlers['@wdk-core/dispose'] = responseFn
+   }
+ 
++  onArkadeGetBoardingAddress (responseFn) {
++    this._handlers['@wdk-core/arkadeGetBoardingAddress'] = responseFn
++  }
++
++  onArkadeCreateLightningInvoice (responseFn) {
++    this._handlers['@wdk-core/arkadeCreateLightningInvoice'] = responseFn
++  }
++
++  onArkadeGetPendingLightningReceives (responseFn) {
++    this._handlers['@wdk-core/arkadeGetPendingLightningReceives'] = responseFn
++  }
++
++  onArkadeGetPendingLightningSends (responseFn) {
++    this._handlers['@wdk-core/arkadeGetPendingLightningSends'] = responseFn
++  }
++
++  onArkadeGetSwapHistory (responseFn) {
++    this._handlers['@wdk-core/arkadeGetSwapHistory'] = responseFn
++  }
++
++  onArkadeGetLightningLimits (responseFn) {
++    this._handlers['@wdk-core/arkadeGetLightningLimits'] = responseFn
++  }
++
++  onArkadeGetLightningFees (responseFn) {
++    this._handlers['@wdk-core/arkadeGetLightningFees'] = responseFn
++  }
++
++  onArkadeGetTransactionHistory (responseFn) {
++    this._handlers['@wdk-core/arkadeGetTransactionHistory'] = responseFn
++  }
++
++  onArkadeWaitForLightningPayment (responseFn) {
++    this._handlers['@wdk-core/arkadeWaitForLightningPayment'] = responseFn
++  }
++
+   _requestIsStream (command) {
+     return [
+     ].includes(command)
+diff --git a/spec/hrpc/messages.js b/spec/hrpc/messages.js
+index 4a9a5b1..180276f 100644
+--- a/spec/hrpc/messages.js
++++ b/spec/hrpc/messages.js
+@@ -1,11 +1,11 @@
+ // This file is autogenerated by the hyperschema compiler
+-// Schema Version: 1
++// Schema Version: 2
+ /* eslint-disable camelcase */
+ /* eslint-disable quotes */
+ 
+ const { c } = require('hyperschema/runtime')
+ 
+-const VERSION = 1
++const VERSION = 2
+ 
+ // eslint-disable-next-line no-unused-vars
+ let version = VERSION
+@@ -728,6 +728,265 @@ const encoding38 = {
+   }
+ }
+ 
++// @wdk-core/arkadeGetBoardingAddress-request
++const encoding39 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++  },
++  encode (state, m) {
++    c.uint.encode(state, m.accountIndex)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++
++    return {
++      accountIndex: r0
++    }
++  }
++}
++
++// @wdk-core/arkadeGetBoardingAddress-response
++const encoding40 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.address) c.string.preencode(state, m.address)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.address) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.address) c.string.encode(state, m.address)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      address: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeCreateLightningInvoice-request
++const encoding41 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++    c.uint.preencode(state, m.amount)
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.description) c.string.preencode(state, m.description)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.description) ? 1 : 0
++
++    c.uint.encode(state, m.accountIndex)
++    c.uint.encode(state, m.amount)
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.description) c.string.encode(state, m.description)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++    const r1 = c.uint.decode(state)
++    const flags = c.uint.decode(state)
++
++    return {
++      accountIndex: r0,
++      amount: r1,
++      description: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeCreateLightningInvoice-response
++const encoding42 = {
++  preencode (state, m) {
++    state.end++ // max flag is 2 so always one byte
++
++    if (version >= 2 && m.invoice) c.string.preencode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.preencode(state, m.paymentHash)
++  },
++  encode (state, m) {
++    const flags =
++      ((version >= 2 && m.invoice) ? 1 : 0) |
++      ((version >= 2 && m.paymentHash) ? 2 : 0)
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.invoice) c.string.encode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.encode(state, m.paymentHash)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      invoice: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null,
++      paymentHash: (version >= 2 && (flags & 2) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetPendingLightningReceives-request
++const encoding43 = encoding39
++
++// @wdk-core/arkadeGetPendingLightningReceives-response
++const encoding44 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.swaps) c.string.preencode(state, m.swaps)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.swaps) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.swaps) c.string.encode(state, m.swaps)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      swaps: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetPendingLightningSends-request
++const encoding45 = encoding39
++
++// @wdk-core/arkadeGetPendingLightningSends-response
++const encoding46 = encoding44
++
++// @wdk-core/arkadeGetSwapHistory-request
++const encoding47 = encoding39
++
++// @wdk-core/arkadeGetSwapHistory-response
++const encoding48 = encoding44
++
++// @wdk-core/arkadeGetLightningLimits-request
++const encoding49 = encoding39
++
++// @wdk-core/arkadeGetLightningLimits-response
++const encoding50 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.limits) c.string.preencode(state, m.limits)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.limits) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.limits) c.string.encode(state, m.limits)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      limits: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetLightningFees-request
++const encoding51 = encoding39
++
++// @wdk-core/arkadeGetLightningFees-response
++const encoding52 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.fees) c.string.preencode(state, m.fees)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.fees) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.fees) c.string.encode(state, m.fees)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      fees: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetTransactionHistory-request
++const encoding53 = encoding39
++
++// @wdk-core/arkadeGetTransactionHistory-response
++const encoding54 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.transactions) c.string.preencode(state, m.transactions)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.transactions) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.transactions) c.string.encode(state, m.transactions)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      transactions: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeWaitForLightningPayment-request
++const encoding55 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++    c.string.preencode(state, m.invoice)
++  },
++  encode (state, m) {
++    c.uint.encode(state, m.accountIndex)
++    c.string.encode(state, m.invoice)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++    const r1 = c.string.decode(state)
++
++    return {
++      accountIndex: r0,
++      invoice: r1
++    }
++  }
++}
++
++// @wdk-core/arkadeWaitForLightningPayment-response
++const encoding56 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.txid) c.string.preencode(state, m.txid)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.txid) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.txid) c.string.encode(state, m.txid)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      txid: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
+ function setVersion (v) {
+   version = v
+ }
+@@ -790,6 +1049,24 @@ function getEncoding (name) {
+     case '@wdk-core/getTransactionReceipt-request': return encoding36
+     case '@wdk-core/getTransactionReceipt-response': return encoding37
+     case '@wdk-core/dispose-request': return encoding38
++    case '@wdk-core/arkadeGetBoardingAddress-request': return encoding39
++    case '@wdk-core/arkadeGetBoardingAddress-response': return encoding40
++    case '@wdk-core/arkadeCreateLightningInvoice-request': return encoding41
++    case '@wdk-core/arkadeCreateLightningInvoice-response': return encoding42
++    case '@wdk-core/arkadeGetPendingLightningReceives-request': return encoding43
++    case '@wdk-core/arkadeGetPendingLightningReceives-response': return encoding44
++    case '@wdk-core/arkadeGetPendingLightningSends-request': return encoding45
++    case '@wdk-core/arkadeGetPendingLightningSends-response': return encoding46
++    case '@wdk-core/arkadeGetSwapHistory-request': return encoding47
++    case '@wdk-core/arkadeGetSwapHistory-response': return encoding48
++    case '@wdk-core/arkadeGetLightningLimits-request': return encoding49
++    case '@wdk-core/arkadeGetLightningLimits-response': return encoding50
++    case '@wdk-core/arkadeGetLightningFees-request': return encoding51
++    case '@wdk-core/arkadeGetLightningFees-response': return encoding52
++    case '@wdk-core/arkadeGetTransactionHistory-request': return encoding53
++    case '@wdk-core/arkadeGetTransactionHistory-response': return encoding54
++    case '@wdk-core/arkadeWaitForLightningPayment-request': return encoding55
++    case '@wdk-core/arkadeWaitForLightningPayment-response': return encoding56
+     default: throw new Error('Encoder not found ' + name)
+   }
+ }
+diff --git a/spec/schema/index.js b/spec/schema/index.js
+index 4a9a5b1..180276f 100644
+--- a/spec/schema/index.js
++++ b/spec/schema/index.js
+@@ -1,11 +1,11 @@
+ // This file is autogenerated by the hyperschema compiler
+-// Schema Version: 1
++// Schema Version: 2
+ /* eslint-disable camelcase */
+ /* eslint-disable quotes */
+ 
+ const { c } = require('hyperschema/runtime')
+ 
+-const VERSION = 1
++const VERSION = 2
+ 
+ // eslint-disable-next-line no-unused-vars
+ let version = VERSION
+@@ -728,6 +728,265 @@ const encoding38 = {
+   }
+ }
+ 
++// @wdk-core/arkadeGetBoardingAddress-request
++const encoding39 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++  },
++  encode (state, m) {
++    c.uint.encode(state, m.accountIndex)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++
++    return {
++      accountIndex: r0
++    }
++  }
++}
++
++// @wdk-core/arkadeGetBoardingAddress-response
++const encoding40 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.address) c.string.preencode(state, m.address)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.address) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.address) c.string.encode(state, m.address)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      address: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeCreateLightningInvoice-request
++const encoding41 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++    c.uint.preencode(state, m.amount)
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.description) c.string.preencode(state, m.description)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.description) ? 1 : 0
++
++    c.uint.encode(state, m.accountIndex)
++    c.uint.encode(state, m.amount)
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.description) c.string.encode(state, m.description)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++    const r1 = c.uint.decode(state)
++    const flags = c.uint.decode(state)
++
++    return {
++      accountIndex: r0,
++      amount: r1,
++      description: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeCreateLightningInvoice-response
++const encoding42 = {
++  preencode (state, m) {
++    state.end++ // max flag is 2 so always one byte
++
++    if (version >= 2 && m.invoice) c.string.preencode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.preencode(state, m.paymentHash)
++  },
++  encode (state, m) {
++    const flags =
++      ((version >= 2 && m.invoice) ? 1 : 0) |
++      ((version >= 2 && m.paymentHash) ? 2 : 0)
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.invoice) c.string.encode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.encode(state, m.paymentHash)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      invoice: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null,
++      paymentHash: (version >= 2 && (flags & 2) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetPendingLightningReceives-request
++const encoding43 = encoding39
++
++// @wdk-core/arkadeGetPendingLightningReceives-response
++const encoding44 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.swaps) c.string.preencode(state, m.swaps)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.swaps) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.swaps) c.string.encode(state, m.swaps)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      swaps: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetPendingLightningSends-request
++const encoding45 = encoding39
++
++// @wdk-core/arkadeGetPendingLightningSends-response
++const encoding46 = encoding44
++
++// @wdk-core/arkadeGetSwapHistory-request
++const encoding47 = encoding39
++
++// @wdk-core/arkadeGetSwapHistory-response
++const encoding48 = encoding44
++
++// @wdk-core/arkadeGetLightningLimits-request
++const encoding49 = encoding39
++
++// @wdk-core/arkadeGetLightningLimits-response
++const encoding50 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.limits) c.string.preencode(state, m.limits)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.limits) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.limits) c.string.encode(state, m.limits)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      limits: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetLightningFees-request
++const encoding51 = encoding39
++
++// @wdk-core/arkadeGetLightningFees-response
++const encoding52 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.fees) c.string.preencode(state, m.fees)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.fees) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.fees) c.string.encode(state, m.fees)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      fees: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetTransactionHistory-request
++const encoding53 = encoding39
++
++// @wdk-core/arkadeGetTransactionHistory-response
++const encoding54 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.transactions) c.string.preencode(state, m.transactions)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.transactions) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.transactions) c.string.encode(state, m.transactions)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      transactions: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeWaitForLightningPayment-request
++const encoding55 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++    c.string.preencode(state, m.invoice)
++  },
++  encode (state, m) {
++    c.uint.encode(state, m.accountIndex)
++    c.string.encode(state, m.invoice)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++    const r1 = c.string.decode(state)
++
++    return {
++      accountIndex: r0,
++      invoice: r1
++    }
++  }
++}
++
++// @wdk-core/arkadeWaitForLightningPayment-response
++const encoding56 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.txid) c.string.preencode(state, m.txid)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.txid) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.txid) c.string.encode(state, m.txid)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      txid: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
+ function setVersion (v) {
+   version = v
+ }
+@@ -790,6 +1049,24 @@ function getEncoding (name) {
+     case '@wdk-core/getTransactionReceipt-request': return encoding36
+     case '@wdk-core/getTransactionReceipt-response': return encoding37
+     case '@wdk-core/dispose-request': return encoding38
++    case '@wdk-core/arkadeGetBoardingAddress-request': return encoding39
++    case '@wdk-core/arkadeGetBoardingAddress-response': return encoding40
++    case '@wdk-core/arkadeCreateLightningInvoice-request': return encoding41
++    case '@wdk-core/arkadeCreateLightningInvoice-response': return encoding42
++    case '@wdk-core/arkadeGetPendingLightningReceives-request': return encoding43
++    case '@wdk-core/arkadeGetPendingLightningReceives-response': return encoding44
++    case '@wdk-core/arkadeGetPendingLightningSends-request': return encoding45
++    case '@wdk-core/arkadeGetPendingLightningSends-response': return encoding46
++    case '@wdk-core/arkadeGetSwapHistory-request': return encoding47
++    case '@wdk-core/arkadeGetSwapHistory-response': return encoding48
++    case '@wdk-core/arkadeGetLightningLimits-request': return encoding49
++    case '@wdk-core/arkadeGetLightningLimits-response': return encoding50
++    case '@wdk-core/arkadeGetLightningFees-request': return encoding51
++    case '@wdk-core/arkadeGetLightningFees-response': return encoding52
++    case '@wdk-core/arkadeGetTransactionHistory-request': return encoding53
++    case '@wdk-core/arkadeGetTransactionHistory-response': return encoding54
++    case '@wdk-core/arkadeWaitForLightningPayment-request': return encoding55
++    case '@wdk-core/arkadeWaitForLightningPayment-response': return encoding56
+     default: throw new Error('Encoder not found ' + name)
+   }
+ }
+diff --git a/spec/schema/schema.json b/spec/schema/schema.json
+index 340edf0..69009b3 100644
+--- a/spec/schema/schema.json
++++ b/spec/schema/schema.json
+@@ -1,5 +1,5 @@
+ {
+-  "version": 1,
++  "version": 2,
+   "schema": [
+     {
+       "name": "log-type-enum",
+@@ -755,6 +755,272 @@
+       "compact": false,
+       "flagsPosition": -1,
+       "fields": []
++    },
++    {
++      "name": "arkadeGetBoardingAddress-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetBoardingAddress-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "address",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeCreateLightningInvoice-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 2,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        },
++        {
++          "name": "amount",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        },
++        {
++          "name": "description",
++          "required": false,
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeCreateLightningInvoice-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "invoice",
++          "type": "string",
++          "version": 2
++        },
++        {
++          "name": "paymentHash",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetPendingLightningReceives-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetPendingLightningReceives-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "swaps",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetPendingLightningSends-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetPendingLightningSends-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "swaps",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetSwapHistory-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetSwapHistory-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "swaps",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetLightningLimits-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetLightningLimits-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "limits",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetLightningFees-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetLightningFees-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "fees",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetTransactionHistory-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetTransactionHistory-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "transactions",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeWaitForLightningPayment-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        },
++        {
++          "name": "invoice",
++          "required": true,
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeWaitForLightningPayment-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "txid",
++          "type": "string",
++          "version": 2
++        }
++      ]
+     }
+   ]
+-}
++}
+\ No newline at end of file
+diff --git a/src/schema/schema.js b/src/schema/schema.js
+index 066f296..f61172f 100644
+--- a/src/schema/schema.js
++++ b/src/schema/schema.js
+@@ -346,6 +346,148 @@ schemaNs.register({
+   fields: []
+ })
+ 
++/**
++ * ============================================================================
++ * Arkade-specific routes
++ *
++ * These cover the parts of WalletAccountArkade that don't fit the generic
++ * getAddress / sendTransaction surface (boarding addresses, Lightning swaps,
++ * pending swap state). Each request carries an accountIndex; complex
++ * responses are encoded as JSON strings the same way abstractedSendTransaction
++ * does, so we don't have to mirror upstream PendingSwap shapes here.
++ * ============================================================================
++ */
++
++// arkadeGetBoardingAddress
++schemaNs.register({
++  name: 'arkadeGetBoardingAddress-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetBoardingAddress-response',
++  fields: [
++    { name: 'address', type: 'string' }
++  ]
++})
++
++// arkadeCreateLightningInvoice
++schemaNs.register({
++  name: 'arkadeCreateLightningInvoice-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true },
++    { name: 'amount', type: 'uint', required: true },
++    { name: 'description', type: 'string', required: false }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeCreateLightningInvoice-response',
++  fields: [
++    { name: 'invoice', type: 'string' },
++    { name: 'paymentHash', type: 'string' }
++  ]
++})
++
++// arkadeGetPendingLightningReceives
++schemaNs.register({
++  name: 'arkadeGetPendingLightningReceives-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetPendingLightningReceives-response',
++  fields: [
++    { name: 'swaps', type: 'string' }
++  ]
++})
++
++// arkadeGetPendingLightningSends
++schemaNs.register({
++  name: 'arkadeGetPendingLightningSends-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetPendingLightningSends-response',
++  fields: [
++    { name: 'swaps', type: 'string' }
++  ]
++})
++
++// arkadeGetSwapHistory
++schemaNs.register({
++  name: 'arkadeGetSwapHistory-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetSwapHistory-response',
++  fields: [
++    { name: 'swaps', type: 'string' }
++  ]
++})
++
++// arkadeGetLightningLimits
++schemaNs.register({
++  name: 'arkadeGetLightningLimits-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetLightningLimits-response',
++  fields: [
++    { name: 'limits', type: 'string' }
++  ]
++})
++
++// arkadeGetLightningFees
++schemaNs.register({
++  name: 'arkadeGetLightningFees-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetLightningFees-response',
++  fields: [
++    { name: 'fees', type: 'string' }
++  ]
++})
++
++// arkadeGetTransactionHistory
++schemaNs.register({
++  name: 'arkadeGetTransactionHistory-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetTransactionHistory-response',
++  fields: [
++    { name: 'transactions', type: 'string' }
++  ]
++})
++
++// arkadeWaitForLightningPayment
++schemaNs.register({
++  name: 'arkadeWaitForLightningPayment-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true },
++    { name: 'invoice', type: 'string', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeWaitForLightningPayment-response',
++  fields: [
++    { name: 'txid', type: 'string' }
++  ]
++})
++
+ Hyperschema.toDisk(schema)
+ 
+ // Load and build interface
+@@ -434,5 +576,55 @@ ns.register({
+   name: 'dispose',
+   request: { name: '@wdk-core/dispose-request', send: true }
+ })
++
++// ============================================================================
++// Arkade-specific routes
++// ============================================================================
++ns.register({
++  name: 'arkadeGetBoardingAddress',
++  request: { name: '@wdk-core/arkadeGetBoardingAddress-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetBoardingAddress-response', stream: false }
++})
++ns.register({
++  name: 'arkadeCreateLightningInvoice',
++  request: { name: '@wdk-core/arkadeCreateLightningInvoice-request', stream: false },
++  response: { name: '@wdk-core/arkadeCreateLightningInvoice-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetPendingLightningReceives',
++  request: { name: '@wdk-core/arkadeGetPendingLightningReceives-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetPendingLightningReceives-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetPendingLightningSends',
++  request: { name: '@wdk-core/arkadeGetPendingLightningSends-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetPendingLightningSends-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetSwapHistory',
++  request: { name: '@wdk-core/arkadeGetSwapHistory-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetSwapHistory-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetLightningLimits',
++  request: { name: '@wdk-core/arkadeGetLightningLimits-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetLightningLimits-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetLightningFees',
++  request: { name: '@wdk-core/arkadeGetLightningFees-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetLightningFees-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetTransactionHistory',
++  request: { name: '@wdk-core/arkadeGetTransactionHistory-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetTransactionHistory-response', stream: false }
++})
++ns.register({
++  name: 'arkadeWaitForLightningPayment',
++  request: { name: '@wdk-core/arkadeWaitForLightningPayment-request', stream: false },
++  response: { name: '@wdk-core/arkadeWaitForLightningPayment-response', stream: false }
++})
++
+ // Save interface to disk
+ HRPCBuilder.toDisk(builder)
+diff --git a/src/wdk-core/wdk-manager.js b/src/wdk-core/wdk-manager.js
+index ab55aea..74983cd 100644
+--- a/src/wdk-core/wdk-manager.js
++++ b/src/wdk-core/wdk-manager.js
+@@ -32,6 +32,8 @@
+ 
+ /** @typedef {import('@wdk/wallet-btc').BtcWalletConfig} BtcWalletConfig */
+ 
++/** @typedef {import('@arkade-os/wdk').ArkadeWalletConfig} ArkadeWalletConfig */
++
+ /** @typedef {import('@wdk/wallet-solana').SolanaWalletConfig} SolanaWalletConfig */
+ 
+ /** @typedef {string | Uint8Array} Seed */
+@@ -44,6 +46,7 @@
+  * @property {Seed} ton - The ton's wallet seed phrase.
+  * @property {Seed} tron - The tron's wallet seed phrase.
+  * @property {Seed} bitcoin - The bitcoin's wallet seed phrase.
++ * @property {Seed} arkade - The arkade (Ark protocol) wallet seed phrase.
+  * @property {Seed} solana - The solana's wallet seed phrase.
+  */
+ 
+@@ -55,6 +58,7 @@
+  * @property {TonWalletConfig | TonGaslessWalletConfig} ton - The ton blockchain configuration.
+  * @property {TronWalletConfig | TronGasfreeWalletConfig} tron - The tron blockchain configuration.
+  * @property {BtcWalletConfig} bitcoin - The bitcoin blockchain configuration.
++ * @property {ArkadeWalletConfig} arkade - The arkade (Ark protocol) blockchain configuration.
+  * @property {SolanaWalletConfig} solana - The solana blockchain configuration.
+  */
+ 
+@@ -84,6 +88,7 @@ const Blockchain = {
+   Ton: 'ton',
+   Tron: 'tron',
+   Bitcoin: 'bitcoin',
++  Arkade: 'arkade',
+   Solana: 'solana'
+ }
+ 
+@@ -420,6 +425,111 @@ class WdkManager {
+     return await account.getTransactionReceipt(hash)
+   }
+ 
++  // ==========================================================================
++  // Arkade-specific delegations
++  //
++  // Each method resolves the arkade account for the given index and forwards
++  // to the matching method on WalletAccountArkade. These exist because the
++  // generic getAddress / sendTransaction routes don't cover Arkade-only
++  // surfaces (boarding addresses, Lightning invoices, swap state).
++  // ==========================================================================
++
++  /**
++   * Returns the on-chain BTC boarding address for an Arkade account.
++   * @param {number} accountIndex
++   * @returns {Promise<string>}
++   */
++  async arkadeGetBoardingAddress (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getBoardingAddress()
++  }
++
++  /**
++   * Creates a Lightning invoice for an Arkade account via the Boltz swap provider.
++   * Requires `swapProviderUrl` in the arkade config.
++   * @param {number} accountIndex
++   * @param {number} amount - sats
++   * @param {string} [description]
++   * @returns {Promise<{ invoice: string; paymentHash: string }>}
++   */
++  async arkadeCreateLightningInvoice (accountIndex, amount, description) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.createLightningInvoice(amount, description)
++  }
++
++  /**
++   * Pending Lightning receives (reverse swaps awaiting settlement).
++   * @param {number} accountIndex
++   * @returns {Promise<unknown[]>}
++   */
++  async arkadeGetPendingLightningReceives (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getPendingLightningReceives()
++  }
++
++  /**
++   * Pending Lightning sends (submarine swaps awaiting settlement).
++   * @param {number} accountIndex
++   * @returns {Promise<unknown[]>}
++   */
++  async arkadeGetPendingLightningSends (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getPendingLightningSends()
++  }
++
++  /**
++   * Full swap history (reverse + submarine + chain).
++   * @param {number} accountIndex
++   * @returns {Promise<unknown[]>}
++   */
++  async arkadeGetSwapHistory (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getSwapHistory()
++  }
++
++  /**
++   * Lightning swap min/max limits from the swap provider.
++   * @param {number} accountIndex
++   * @returns {Promise<unknown>}
++   */
++  async arkadeGetLightningLimits (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getLightningLimits()
++  }
++
++  /**
++   * Lightning swap fee schedule from the swap provider.
++   * @param {number} accountIndex
++   * @returns {Promise<unknown>}
++   */
++  async arkadeGetLightningFees (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getLightningFees()
++  }
++
++  /**
++   * Arkade transaction history (ArkTransaction[]). Used by the RN provider as
++   * the source of truth for arkade-keyed entries since the WDK indexer at
++   * wdk-api.tether.io does not understand the arkade chain.
++   * @param {number} accountIndex
++   * @returns {Promise<unknown[]>}
++   */
++  async arkadeGetTransactionHistory (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getTransactionHistory()
++  }
++
++  /**
++   * Wait for an incoming Lightning payment to settle and claim the resulting VTXO.
++   * @param {number} accountIndex
++   * @param {string} invoice - BOLT11 invoice previously created via arkadeCreateLightningInvoice
++   * @returns {Promise<{ txid: string }>}
++   */
++  async arkadeWaitForLightningPayment (accountIndex, invoice) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.waitForLightningPayment(invoice)
++  }
++
+   /**
+      * Returns an evm transaction to approve the interaction transaction.
+      *
+@@ -484,6 +594,10 @@ class WdkManager {
+         const { default: WalletManagerBtc } = await import('@wdk/wallet-btc')
+ 
+         this._wallets.bitcoin = new WalletManagerBtc(seed, config.bitcoin)
++      } else if (blockchain === 'arkade') {
++        const { default: WalletManagerArkade } = await import('@arkade-os/wdk')
++
++        this._wallets.arkade = new WalletManagerArkade(seed, config.arkade)
+       } else if (blockchain === 'solana') {
+         const { default: WalletManagerSolana } = await import('@wdk/wallet-solana')
+ 
+diff --git a/src/wdk-worklet.js b/src/wdk-worklet.js
+index 630ec9d..1b43358 100644
+--- a/src/wdk-worklet.js
++++ b/src/wdk-worklet.js
+@@ -156,3 +156,97 @@ rpc.onDispose(() => {
+     throw new Error(rpcException.stringifyError(error))
+   }
+ })
++
++/*****************
++ *
++ * ARKADE
++ *
++ *****************/
++
++rpc.onArkadeGetBoardingAddress(async payload => {
++  try {
++    const address = await wdk.arkadeGetBoardingAddress(payload.accountIndex)
++    return { address }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeCreateLightningInvoice(async payload => {
++  try {
++    const result = await wdk.arkadeCreateLightningInvoice(
++      payload.accountIndex,
++      Number(payload.amount),
++      payload.description
++    )
++    return { invoice: result.invoice, paymentHash: result.paymentHash }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetPendingLightningReceives(async payload => {
++  try {
++    const swaps = await wdk.arkadeGetPendingLightningReceives(payload.accountIndex)
++    return { swaps: JSON.stringify(swaps) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetPendingLightningSends(async payload => {
++  try {
++    const swaps = await wdk.arkadeGetPendingLightningSends(payload.accountIndex)
++    return { swaps: JSON.stringify(swaps) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetSwapHistory(async payload => {
++  try {
++    const swaps = await wdk.arkadeGetSwapHistory(payload.accountIndex)
++    return { swaps: JSON.stringify(swaps) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetLightningLimits(async payload => {
++  try {
++    const limits = await wdk.arkadeGetLightningLimits(payload.accountIndex)
++    return { limits: JSON.stringify(limits) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetLightningFees(async payload => {
++  try {
++    const fees = await wdk.arkadeGetLightningFees(payload.accountIndex)
++    return { fees: JSON.stringify(fees) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetTransactionHistory(async payload => {
++  try {
++    const transactions = await wdk.arkadeGetTransactionHistory(payload.accountIndex)
++    return { transactions: JSON.stringify(transactions) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeWaitForLightningPayment(async payload => {
++  try {
++    const result = await wdk.arkadeWaitForLightningPayment(
++      payload.accountIndex,
++      payload.invoice
++    )
++    return { txid: result.txid }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
