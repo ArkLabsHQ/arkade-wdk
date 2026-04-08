@@ -1,7 +1,7 @@
 import WalletManager from '@tetherto/wdk-wallet';
 import { RestArkProvider, SingleKey, Wallet } from '@arkade-os/sdk';
 import { HDKey } from '@scure/bip32';
-import { ArkadeSwaps } from '@arkade-os/boltz-swap';
+import { ArkadeSwaps, BoltzSwapProvider } from '@arkade-os/boltz-swap';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
 
 const WALLET_CREATE_TIMEOUT_MS = 30_000;
@@ -93,8 +93,17 @@ class WalletManagerArkade extends WalletManager {
       /** @type {ArkadeSwaps | null} */
       let swaps = null;
       if (this.config.swapProviderUrl) {
+        // Resolve the network from the same arkInfo we cached at construction
+        // time so the swap provider speaks to the matching Boltz endpoint.
+        const info = await this.info;
+        const network = /** @type {import('@arkade-os/sdk').NetworkName} */ (info.network);
+        const swapProvider = new BoltzSwapProvider({
+          apiUrl: this.config.swapProviderUrl,
+          network,
+        });
         swaps = await ArkadeSwaps.create({
           wallet,
+          swapProvider,
           swapManager: { autoStart: true, pollInterval: 5_000 },
         });
       }
@@ -150,10 +159,20 @@ class WalletManagerArkade extends WalletManager {
     return account;
   }
 
-  /** @returns {Promise<import('@tetherto/wdk').FeeRates>} */
-  getFeeRates() {
+  /**
+   * Returns the current Ark fee rate in sat/vB.
+   *
+   * Ark has no mempool fee tiers — `txFeeRate` from `arkInfo.fees` is the
+   * single rate negotiated with the Ark server, so `normal` and `fast` are
+   * always equal. The split is preserved to match the WDK `FeeRates` shape.
+   *
+   * @returns {Promise<import('@tetherto/wdk').FeeRates>}
+   */
+  async getFeeRates() {
     this.disposeCheck();
-    return Promise.resolve({ normal: 0n, fast: 0n });
+    const info = await this.info;
+    const rate = BigInt(Math.ceil(parseFloat(info.fees.txFeeRate)));
+    return { normal: rate, fast: rate };
   }
 
   async dispose() {

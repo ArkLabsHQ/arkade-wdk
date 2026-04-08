@@ -122,17 +122,87 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<{ invoice: string; paymentHash: string }>}
    */
   async createLightningInvoice(amount, description) {
+    const swaps = this._requireSwaps();
+    const response = await swaps.createLightningInvoice({ amount, description });
+    return { invoice: response.invoice, paymentHash: response.paymentHash };
+  }
+
+  /**
+   * Wait for an incoming Lightning payment to settle and claim the resulting VTXO.
+   * The invoice must have been created via {@link createLightningInvoice} on this
+   * account so the matching pending reverse swap is in storage. The BOLT11
+   * invoice is stored on `swap.response.invoice`, not at the top level.
+   * @param {string} invoice - BOLT11 invoice previously created via createLightningInvoice
+   * @returns {Promise<{ txid: string }>} The claim transaction id
+   */
+  async waitForLightningPayment(invoice) {
+    const swaps = this._requireSwaps();
+    const pending = await swaps.getPendingReverseSwaps();
+    const swap = pending.find((s) => s.response?.invoice === invoice);
+    if (!swap) {
+      throw new Error(`No pending reverse swap found for invoice ${invoice}`);
+    }
+    return swaps.waitAndClaim(swap);
+  }
+
+  // ==========================================
+  // Lightning Lifecycle Queries
+  // ==========================================
+
+  /**
+   * List pending Lightning receives (reverse swaps awaiting settlement).
+   * @returns {Promise<import('@arkade-os/boltz-swap').PendingReverseSwap[]>}
+   */
+  async getPendingLightningReceives() {
+    return this._requireSwaps().getPendingReverseSwaps();
+  }
+
+  /**
+   * List pending Lightning sends (submarine swaps awaiting settlement).
+   * @returns {Promise<import('@arkade-os/boltz-swap').PendingSubmarineSwap[]>}
+   */
+  async getPendingLightningSends() {
+    return this._requireSwaps().getPendingSubmarineSwaps();
+  }
+
+  /**
+   * Full swap history (reverse + submarine + chain), newest first.
+   * @returns {Promise<(
+   *   import('@arkade-os/boltz-swap').PendingReverseSwap |
+   *   import('@arkade-os/boltz-swap').PendingSubmarineSwap |
+   *   import('@arkade-os/boltz-swap').PendingChainSwap
+   * )[]>}
+   */
+  async getSwapHistory() {
+    return this._requireSwaps().getSwapHistory();
+  }
+
+  /**
+   * Lightning swap min/max limits from the swap provider.
+   * @returns {Promise<import('@arkade-os/boltz-swap').LimitsResponse>}
+   */
+  async getLightningLimits() {
+    return this._requireSwaps().getLimits();
+  }
+
+  /**
+   * Lightning swap fee schedule from the swap provider.
+   * @returns {Promise<import('@arkade-os/boltz-swap').FeesResponse>}
+   */
+  async getLightningFees() {
+    return this._requireSwaps().getFees();
+  }
+
+  /**
+   * @private
+   * @returns {import('@arkade-os/boltz-swap').ArkadeSwaps}
+   */
+  _requireSwaps() {
     if (!this.arkadeSwaps) {
       throw new Error(
         'Lightning support not configured. Provide swapProviderUrl in wallet config.'
       );
     }
-
-    const response = await this.arkadeSwaps.createLightningInvoice({
-      amount,
-      description,
-    });
-
-    return { invoice: response.invoice, paymentHash: response.paymentHash };
+    return this.arkadeSwaps;
   }
 }
