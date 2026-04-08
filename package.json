@@ -37,7 +37,8 @@
     "@scure/bip32": "^2.0.1",
     "@tetherto/wdk-wallet": "^1.0.0-beta.5",
     "bare-node-runtime": "^1.1.4",
-    "light-bolt11-decoder": "^3.2.0"
+    "light-bolt11-decoder": "^3.2.0",
+    "sodium-universal": "^5.0.1"
   },
   "devDependencies": {
     "@tetherto/wdk": "^1.0.0-beta.4",

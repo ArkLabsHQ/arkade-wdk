@@ -1,4 +1,5 @@
 import { BIP322 } from '@arkade-os/sdk';
+import { sodium_memzero } from 'sodium-universal';
 import { calculateOffchainFee } from './lib/fees.js';
 import { quoteSend, send } from './lib/send.js';
 import { WalletAccountReadOnlyArkade } from './wallet-account-read-only-arkade.js';
@@ -100,8 +101,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
 
   dispose() {
     if (this.keyPair.privateKey) {
-      globalThis.crypto.getRandomValues(this.keyPair.privateKey);
-      this.keyPair.privateKey.fill(0);
+      sodium_memzero(this.keyPair.privateKey);
     }
     void this.arkadeSwaps?.dispose();
     if (typeof super.dispose === 'function') super.dispose();
