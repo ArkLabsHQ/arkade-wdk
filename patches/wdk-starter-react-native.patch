@@ -1,3 +1,26 @@
+diff --git a/.env.example b/.env.example
+index fe78808..786e17d 100644
+--- a/.env.example
++++ b/.env.example
+@@ -1,4 +1,15 @@
+ EXPO_PUBLIC_WDK_INDEXER_BASE_URL=https://wdk-api.tether.io
+ EXPO_PUBLIC_WDK_INDEXER_API_KEY=PUT_WDK_API_KEY_HERE
+ EXPO_PUBLIC_TRON_API_KEY=PUT_HERE
+-EXPO_PUBLIC_TRON_API_SECRET=PUT_HERE
+\ No newline at end of file
++EXPO_PUBLIC_TRON_API_SECRET=PUT_HERE
++# --- Arkade ---
++# REST endpoint of the Ark server the wallet talks to. Override locally for
++# regtest / mutinynet (e.g. http://192.168.1.10:7070).
++EXPO_PUBLIC_ARKADE_SERVER_URL=https://arkade.computer
++# Boltz swap provider. Required only if you want to use Lightning send /
++# receive — without it the receive Lightning flow will throw and the send
++# flow falls back to the no-swap-provider error path.
++EXPO_PUBLIC_ARKADE_SWAP_PROVIDER_URL=https://api.ark.boltz.exchange
++# Esplora REST endpoint used by the RN-side balance workaround for
++# on-chain BTC boarding deposits. Override for regtest / mutinynet.
++EXPO_PUBLIC_ESPLORA_URL=https://blockstream.info/api
+\ No newline at end of file
 diff --git a/metro.config.js b/metro.config.js
 index dba8528..8b09d8b 100644
 --- a/metro.config.js
@@ -6392,3 +6415,194 @@ index 8025f1b..5ced777 100644
        : [];
  
      // Sort transactions by timestamp (newest first) and calculate fiat values
+diff --git a/src/app/receive/select-network.tsx b/src/app/receive/select-network.tsx
+index ac8d02c..3ec4a64 100644
+--- a/src/app/receive/select-network.tsx
++++ b/src/app/receive/select-network.tsx
+@@ -24,6 +24,8 @@ const NETWORK_DESCRIPTIONS = {
+   [NetworkType.TRON]: 'Tron Network',
+   [NetworkType.SOLANA]: 'Solana Network',
+   [NetworkType.SEGWIT]: 'Native Bitcoin Network',
++  [NetworkType.ARKADE]: 'Arkade (Ark protocol — instant, low-fee BTC)',
++  [NetworkType.ARKADE_BOARDING]: 'Bitcoin on-chain → Arkade (boarding)',
+   [NetworkType.LIGHTNING]: 'Lightning Network',
+ };
+ 
+@@ -52,7 +54,10 @@ export default function ReceiveSelectNetworkScreen() {
+       return {
+         ...network,
+         address,
+-        hasAddress: Boolean(address),
++        // Lightning has no static address but is still selectable — the
++        // receive details screen mints an invoice on demand. Other
++        // addresslessReceive networks would behave the same way.
++        hasAddress: Boolean(address) || Boolean(network.addresslessReceive),
+         description: NETWORK_DESCRIPTIONS[network.id as NetworkType],
+       };
+     });
+diff --git a/src/config/assets.ts b/src/config/assets.ts
+index 7a86eaf..a7eb6f5 100644
+--- a/src/config/assets.ts
++++ b/src/config/assets.ts
+@@ -26,7 +26,11 @@ export const assetConfig: Record<string, AssetConfig> = {
+     symbol: 'BTC',
+     icon: require('../../assets/images/tokens/bitcoin-btc-logo.png'),
+     color: '#ffffff',
+-    supportedNetworks: [NetworkType.SEGWIT],
++    // Phase 3 adds ARKADE (offchain Ark address). Phase 4 adds LIGHTNING
++    // (swap-backed invoices). Phase 5 adds ARKADE_BOARDING (on-chain BTC
++    // deposits into Ark). Each appears as its own row in the receive /
++    // send network selectors.
++    supportedNetworks: [NetworkType.SEGWIT, NetworkType.ARKADE],
+   },
+   usdt: {
+     name: 'USD₮',
+diff --git a/src/config/get-chains-config.ts b/src/config/get-chains-config.ts
+index 0a8e71a..bbd194f 100644
+--- a/src/config/get-chains-config.ts
++++ b/src/config/get-chains-config.ts
+@@ -62,6 +62,14 @@ const getChainsConfig = () => {
+       host: 'api.ordimint.com',
+       port: 50001,
+     },
++    arkade: {
++      // arkServerUrl is the only required field. swapProviderUrl + esploraUrl
++      // are optional and unlock Lightning send/receive (Phase 4) and
++      // boarding-balance display (Phase 5) respectively.
++      arkServerUrl: process.env.EXPO_PUBLIC_ARKADE_SERVER_URL!,
++      swapProviderUrl: process.env.EXPO_PUBLIC_ARKADE_SWAP_PROVIDER_URL,
++      esploraUrl: process.env.EXPO_PUBLIC_ESPLORA_URL,
++    },
+     tron: {
+       chainId: 3448148188,
+       provider: 'https://trongrid.io',
+diff --git a/src/config/networks.ts b/src/config/networks.ts
+index 1ae6c16..2fb1043 100644
+--- a/src/config/networks.ts
++++ b/src/config/networks.ts
+@@ -7,6 +7,12 @@ export interface Network {
+   gasColor: string;
+   icon: string | any;
+   color: string;
++  /**
++   * If true, the receive flow can route to this network even when no static
++   * address is present in the wallet's address map. Used for Lightning,
++   * which mints invoices on demand instead of exposing a stable address.
++   */
++  addresslessReceive?: boolean;
+ }
+ 
+ export const networkConfigs: Record<NetworkType, Network> = {
+@@ -66,6 +72,28 @@ export const networkConfigs: Record<NetworkType, Network> = {
+     icon: require('../../assets/images/chains/bitcoin-btc-logo.png'),
+     color: '#F7931A',
+   },
++  [NetworkType.ARKADE]: {
++    id: 'arkade',
++    name: 'Arkade',
++    gasLevel: 'Low',
++    gasColor: '#34C759',
++    // Reuse the bitcoin logo until a dedicated Arkade asset lands —
++    // Ark is a Bitcoin-protocol layer, so the icon mismatch is cosmetic.
++    icon: require('../../assets/images/chains/bitcoin-btc-logo.png'),
++    color: '#F7931A',
++  },
++  [NetworkType.ARKADE_BOARDING]: {
++    // The boarding entry exists because networkConfigs is typed as
++    // Record<NetworkType, Network> and the provider's NetworkType enum
++    // includes ARKADE_BOARDING. The receive UI for it lands in Phase 5;
++    // this Phase-3 entry is config-only.
++    id: 'arkade-boarding',
++    name: 'Bitcoin (Boarding)',
++    gasLevel: 'Normal',
++    gasColor: '#FF9500',
++    icon: require('../../assets/images/chains/bitcoin-btc-logo.png'),
++    color: '#F7931A',
++  },
+   [NetworkType.LIGHTNING]: {
+     id: 'lightning',
+     name: 'Lightning',
+@@ -73,5 +101,8 @@ export const networkConfigs: Record<NetworkType, Network> = {
+     gasColor: '#34C759',
+     icon: require('../../assets/images/chains/lightning-logo.png'),
+     color: '#F7CA3E',
++    // No static Lightning address — the receive flow mints invoices on
++    // demand via createLightningInvoice in Phase 4.
++    addresslessReceive: true,
+   },
+ };
+diff --git a/src/utils/gas-fee-calculator.ts b/src/utils/gas-fee-calculator.ts
+index 3a08372..cdbad42 100644
+--- a/src/utils/gas-fee-calculator.ts
++++ b/src/utils/gas-fee-calculator.ts
+@@ -9,6 +9,13 @@ const QUOTE_RECIPIENTS = {
+   [AssetTicker.BTC]: {
+     networks: {
+       [NetworkType.SEGWIT]: 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9',
++      // Same SegWit address — Arkade quotes route through the library's
++      // send.js auto-detect, which falls back to the on-chain BTC fee
++      // calculator when the destination isn't an Ark address. The actual
++      // recipient never matters for a quote (no transaction is broadcast),
++      // and we don't ship a sentinel Ark address until Phase 4 when the
++      // user can paste real ones.
++      [NetworkType.ARKADE]: 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9',
+     },
+   },
+   [AssetTicker.USDT]: {
+@@ -31,19 +38,27 @@ const QUOTE_RECIPIENTS = {
+   },
+ };
+ 
+-// Network type mapping
++// Network type mapping. Throws on unknown ids — the previous fallback
++// silently routed everything to ETHEREUM, which masked bugs in the network
++// selectors and made fee quotes look correct against the wrong chain.
+ export const getNetworkType = (networkId: string): NetworkType => {
+   const networkMap: Record<string, NetworkType> = {
+     ethereum: NetworkType.ETHEREUM,
+     polygon: NetworkType.POLYGON,
+     arbitrum: NetworkType.ARBITRUM,
+     bitcoin: NetworkType.SEGWIT,
++    arkade: NetworkType.ARKADE,
++    'arkade-boarding': NetworkType.ARKADE_BOARDING,
+     lightning: NetworkType.LIGHTNING,
+     ton: NetworkType.TON,
+     tron: NetworkType.TRON,
+     solana: NetworkType.SOLANA,
+   };
+-  return networkMap[networkId] || NetworkType.ETHEREUM;
++  const found = networkMap[networkId];
++  if (!found) {
++    throw new Error(`Unknown network id: ${networkId}`);
++  }
++  return found;
+ };
+ 
+ // Asset ticker mapping
+@@ -71,7 +86,13 @@ export const calculateGasFee = async (
+     // @ts-expect-error
+     const quoteRecipient = QUOTE_RECIPIENTS[assetTicker].networks[networkType];
+ 
+-    if (!amount && networkType === NetworkType.SEGWIT) {
++    const isBitcoinAsset =
++      networkType === NetworkType.SEGWIT ||
++      networkType === NetworkType.ARKADE ||
++      networkType === NetworkType.ARKADE_BOARDING ||
++      networkType === NetworkType.LIGHTNING;
++
++    if (!amount && isBitcoinAsset) {
+       return {
+         fee: undefined,
+         error: 'Insufficient balance for fee calculation',
+@@ -91,7 +112,10 @@ export const calculateGasFee = async (
+     console.error('Gas fee pre-calculation failed:', error);
+     const networkType = getNetworkType(networkId);
+     const isBitcoinNetwork =
+-      networkType === NetworkType.SEGWIT || networkType === NetworkType.LIGHTNING;
++      networkType === NetworkType.SEGWIT ||
++      networkType === NetworkType.ARKADE ||
++      networkType === NetworkType.ARKADE_BOARDING ||
++      networkType === NetworkType.LIGHTNING;
+ 
+     if (
+       isBitcoinNetwork &&
