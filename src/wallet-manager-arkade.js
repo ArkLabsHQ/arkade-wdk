@@ -35,7 +35,7 @@ class WalletManagerArkade extends WalletManager {
     /** @private */
     this.disposed = false;
 
-    /** @private @type {{ [path: string]: Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps | null }> }} */
+    /** @private @type {{ [path: string]: Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps | null }> | undefined }} */
     this._walletPromises = {};
   }
 
@@ -166,6 +166,7 @@ class WalletManagerArkade extends WalletManager {
     this._walletPromises = {};
 
     for (const wp of walletPromises) {
+      if (!wp) continue;
       try {
         const { wallet } = await wp;
         await wallet.dispose();

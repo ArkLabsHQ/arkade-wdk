@@ -17,7 +17,9 @@ const validSeedPhrase =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 // Stub arkProvider so constructing WalletManagerArkade never fires a real fetch
-const stubArkProvider = { getInfo: () => Promise.resolve({ network: 'testnet', fees: { txFeeRate: '1' } }) };
+const stubArkProvider = {
+  getInfo: () => Promise.resolve({ network: 'testnet', fees: { txFeeRate: '1' } }),
+};
 
 describe('WDK Integration', () => {
   it('should create WdkManager instance with valid seed phrase', () => {
@@ -58,9 +60,7 @@ describe('WDK Integration', () => {
 describe('Asset Support', () => {
   it('getTokenBalance returns 0n for unknown asset', async () => {
     const mockWallet = {
-      getBalance: mock.fn(() =>
-        Promise.resolve({ total: 100000, assets: [] })
-      ),
+      getBalance: mock.fn(() => Promise.resolve({ total: 100000, assets: [] })),
     };
 
     const account = new WalletAccountReadOnlyArkade(
@@ -144,23 +144,13 @@ describe('Asset Support', () => {
 
 describe('Base class conformance', () => {
   it('read-only account extends WalletAccountReadOnly', () => {
-    const account = new WalletAccountReadOnlyArkade(
-      'ark1testaddress',
-      {},
-      {},
-      Promise.resolve({})
-    );
+    const account = new WalletAccountReadOnlyArkade('ark1testaddress', {}, {}, Promise.resolve({}));
 
     assert.ok(account instanceof WalletAccountReadOnly);
   });
 
   it('getAddress() returns address set at construction time', async () => {
-    const account = new WalletAccountReadOnlyArkade(
-      'ark1myaddress',
-      {},
-      {},
-      Promise.resolve({})
-    );
+    const account = new WalletAccountReadOnlyArkade('ark1myaddress', {}, {}, Promise.resolve({}));
 
     assert.equal(await account.getAddress(), 'ark1myaddress');
   });

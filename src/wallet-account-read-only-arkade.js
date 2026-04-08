@@ -75,7 +75,7 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
   }
 
   /**
-   * @param {import('@tetherto/wdk-wallet').Transaction} _tx
+   * @param {import('@tetherto/wdk-wallet').Transaction} tx
    * @returns {Promise<Omit<import('@tetherto/wdk-wallet').TransactionResult, 'hash'>>}
    */
   async quoteSendTransaction(tx) {

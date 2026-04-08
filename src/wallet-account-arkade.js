@@ -104,6 +104,9 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
       sodium_memzero(this.keyPair.privateKey);
     }
     void this.arkadeSwaps?.dispose();
+    // Forward-compat: WalletAccountReadOnly currently has no dispose(),
+    // call it if a future base class adds one.
+    // @ts-expect-error super.dispose is not declared on the base class
     if (typeof super.dispose === 'function') super.dispose();
   }
 
@@ -120,7 +123,9 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    */
   async createLightningInvoice(amount, description) {
     if (!this.arkadeSwaps) {
-      throw new Error('Lightning support not configured. Provide swapProviderUrl in wallet config.');
+      throw new Error(
+        'Lightning support not configured. Provide swapProviderUrl in wallet config.'
+      );
     }
 
     const response = await this.arkadeSwaps.createLightningInvoice({
