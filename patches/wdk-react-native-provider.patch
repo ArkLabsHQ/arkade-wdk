@@ -13,3 +13,47 @@ index fd6fc94..ea59d93 100644
    },
    "keywords": [
      "react-native",
+diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
+index 5ae8528..0d790d1 100644
+--- a/src/services/wdk-service/index.ts
++++ b/src/services/wdk-service/index.ts
+@@ -375,6 +375,7 @@ class WDKService {
+       throw new Error('WDK Manager not initialized');
+     }
+ 
++    const ADDRESS_RESOLUTION_TIMEOUT_MS = 10000;
+     const addressPromises = [];
+     const networkAddresses: Partial<Record<NetworkType, string>> = {};
+     const addressesArr = [];
+@@ -382,9 +383,28 @@ class WDKService {
+     for (const asset of enabledAssets) {
+       for (const networkType of Object.keys(AssetAddressMap[asset])) {
+         addressesArr.push({ [networkType]: null });
+-        addressPromises.push(
+-          this.getAssetAddress(networkType as NetworkType, index)
+-        );
++        // Race each per-network address fetch against a hard timeout.
++        // Without this, a single unreachable RPC / bundler (e.g. the
++        // Ethereum provider behind the ERC-4337 abstracted-address flow)
++        // makes the enclosing Promise.allSettled hang indefinitely and
++        // blocks wallet creation. On timeout the entry resolves to null,
++        // matching the existing failure handling below.
++        let timeoutId: ReturnType<typeof setTimeout>;
++        const raced = Promise.race([
++          this.getAssetAddress(networkType as NetworkType, index),
++          new Promise((_, reject) => {
++            timeoutId = setTimeout(
++              () =>
++                reject(
++                  new Error(
++                    `${asset}/${networkType} address resolution timed out after ${ADDRESS_RESOLUTION_TIMEOUT_MS}ms`
++                  )
++                ),
++              ADDRESS_RESOLUTION_TIMEOUT_MS
++            );
++          }),
++        ]).finally(() => clearTimeout(timeoutId));
++        addressPromises.push(raced);
+       }
+     }
+ 
