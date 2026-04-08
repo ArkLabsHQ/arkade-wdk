@@ -87,6 +87,13 @@ run('npm install --ignore-scripts', pearWrkDir);
 // because npm link's internal install can prune other deps and replace
 // the symlink with a snapshot if any later command runs npm install.
 linkPackage(PROJECT_ROOT, pearWrkDir);
+// Link the bare-type-jsshim package into pear-wrk-wdk's node_modules.
+// pack.imports.json maps `bare-type` → `bare-type-jsshim`, which is
+// our pure-JS replacement for the native bare-type addon. Without this
+// shim, the worklet bundle includes bare-type's binding.js which tries
+// to load libbare-type.so at runtime — a library react-native-bare-kit
+// doesn't ship, so the worklet crashes on first use of @arkade-os/wdk.
+linkPackage(join(pearWrkDir, 'shims', 'bare-type-jsshim'), pearWrkDir);
 // Now generate the mobile bundle — the @arkade-os/wdk symlink is in place.
 run('npm run gen:mobile-bundle', pearWrkDir);
 

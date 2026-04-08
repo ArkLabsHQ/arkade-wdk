@@ -23,6 +23,17 @@ index 3931ba9..e8d61c6 100644
  export { default as HRPC } from './spec/hrpc'
  
  // Export spec/schema
+diff --git a/pack.imports.json b/pack.imports.json
+index bcaef0c..9007586 100644
+--- a/pack.imports.json
++++ b/pack.imports.json
+@@ -1,3 +1,4 @@
+ {
+-  "http": "bare-http1"
++  "http": "bare-http1",
++  "bare-type": "bare-type-jsshim"
+ }
+\ No newline at end of file
 diff --git a/package-lock.json b/package-lock.json
 index 1ba00ef..07a906d 100644
 --- a/package-lock.json
@@ -123,6 +134,286 @@ index 83a4a5c..63bd445 100644
      "gen:schema": "node src/schema/schema.js",
      "postinstall": "npm run gen:mobile-bundle"
    },
+diff --git a/shims/bare-type-jsshim/index.js b/shims/bare-type-jsshim/index.js
+new file mode 100644
+index 0000000..efc6435
+--- /dev/null
++++ b/shims/bare-type-jsshim/index.js
+@@ -0,0 +1,261 @@
++// Pure-JS shim for the `bare-type` package, used by bare-pack via
++// pack.imports.json. The upstream package uses a native addon
++// (libbare-type.so) that react-native-bare-kit doesn't ship, so the
++// worklet would otherwise fail at runtime with ADDON_NOT_FOUND when
++// any transitive dep (e.g. bare-utils → node:util/types) walks the
++// type-predicate path.
++//
++// The native version returns a packed numeric type code; the JS shim
++// captures the value and answers `is*` queries via standard typeof /
++// instanceof / Symbol.toStringTag checks. Predicates that can only be
++// answered by a native runtime (Proxy, External, ModuleNamespace) are
++// stubbed to `false`, which matches what bare-utils consumers do —
++// they treat unknown types as "not that".
++'use strict'
++
++class Type {
++  constructor(value) {
++    this._value = value
++    this._typeof = typeof value
++  }
++
++  isUndefined() {
++    return this._typeof === 'undefined'
++  }
++
++  isNull() {
++    return this._value === null
++  }
++
++  isBoolean() {
++    return this._typeof === 'boolean'
++  }
++
++  isNumber() {
++    return this._typeof === 'number'
++  }
++
++  isInt32() {
++    return (
++      this._typeof === 'number' &&
++      Number.isInteger(this._value) &&
++      this._value >= -0x80000000 &&
++      this._value <= 0x7fffffff
++    )
++  }
++
++  isUint32() {
++    return (
++      this._typeof === 'number' &&
++      Number.isInteger(this._value) &&
++      this._value >= 0 &&
++      this._value <= 0xffffffff
++    )
++  }
++
++  isString() {
++    return this._typeof === 'string'
++  }
++
++  isSymbol() {
++    return this._typeof === 'symbol'
++  }
++
++  isObject() {
++    return this._typeof === 'object' && this._value !== null
++  }
++
++  isArray() {
++    return Array.isArray(this._value)
++  }
++
++  isArguments() {
++    return Object.prototype.toString.call(this._value) === '[object Arguments]'
++  }
++
++  isDate() {
++    return this._value instanceof Date
++  }
++
++  isRegExp() {
++    return this._value instanceof RegExp
++  }
++
++  isError() {
++    return this._value instanceof Error
++  }
++
++  isPromise() {
++    return (
++      this._value !== null &&
++      typeof this._value === 'object' &&
++      typeof this._value.then === 'function'
++    )
++  }
++
++  isProxy() {
++    // Detecting a Proxy from JS is impossible without the native runtime.
++    return false
++  }
++
++  isGenerator() {
++    return (
++      this._value !== null &&
++      typeof this._value === 'object' &&
++      typeof this._value.next === 'function' &&
++      typeof this._value.return === 'function' &&
++      typeof this._value.throw === 'function'
++    )
++  }
++
++  isMap() {
++    return this._value instanceof Map
++  }
++
++  isSet() {
++    return this._value instanceof Set
++  }
++
++  isWeakMap() {
++    return this._value instanceof WeakMap
++  }
++
++  isWeakSet() {
++    return this._value instanceof WeakSet
++  }
++
++  isWeakRef() {
++    return typeof WeakRef !== 'undefined' && this._value instanceof WeakRef
++  }
++
++  isArrayBuffer() {
++    return this._value instanceof ArrayBuffer
++  }
++
++  isSharedArrayBuffer() {
++    return (
++      typeof SharedArrayBuffer !== 'undefined' &&
++      this._value instanceof SharedArrayBuffer
++    )
++  }
++
++  isTypedArray() {
++    return ArrayBuffer.isView(this._value) && !(this._value instanceof DataView)
++  }
++
++  isInt8Array() {
++    return this._value instanceof Int8Array
++  }
++
++  isUint8Array() {
++    return this._value instanceof Uint8Array && !(this._value instanceof Uint8ClampedArray)
++  }
++
++  isUint8ClampedArray() {
++    return this._value instanceof Uint8ClampedArray
++  }
++
++  isInt16Array() {
++    return this._value instanceof Int16Array
++  }
++
++  isUint16Array() {
++    return this._value instanceof Uint16Array
++  }
++
++  isInt32Array() {
++    return this._value instanceof Int32Array
++  }
++
++  isUint32Array() {
++    return this._value instanceof Uint32Array
++  }
++
++  isFloat16Array() {
++    return typeof Float16Array !== 'undefined' && this._value instanceof Float16Array
++  }
++
++  isFloat32Array() {
++    return this._value instanceof Float32Array
++  }
++
++  isFloat64Array() {
++    return this._value instanceof Float64Array
++  }
++
++  isBigInt64Array() {
++    return typeof BigInt64Array !== 'undefined' && this._value instanceof BigInt64Array
++  }
++
++  isBigUint64Array() {
++    return typeof BigUint64Array !== 'undefined' && this._value instanceof BigUint64Array
++  }
++
++  isDataView() {
++    return this._value instanceof DataView
++  }
++
++  isModuleNamespace() {
++    return false
++  }
++
++  isFunction() {
++    return this._typeof === 'function'
++  }
++
++  isAsyncFunction() {
++    return (
++      this._typeof === 'function' &&
++      this._value.constructor &&
++      this._value.constructor.name === 'AsyncFunction'
++    )
++  }
++
++  isGeneratorFunction() {
++    return (
++      this._typeof === 'function' &&
++      this._value.constructor &&
++      this._value.constructor.name === 'GeneratorFunction'
++    )
++  }
++
++  isExternal() {
++    return false
++  }
++
++  isBigInt() {
++    return this._typeof === 'bigint'
++  }
++}
++
++module.exports = exports = function type(value) {
++  return new Type(value)
++}
++
++// Object tagging — bare-type uses these to associate opaque tags with
++// objects, e.g. for cross-realm equality. The JS shim uses a WeakMap so
++// tags survive as long as the object is alive but don't pin GC.
++const tags = new WeakMap()
++
++exports.createTag = function createTag(...components) {
++  const tag = new Uint32Array(4)
++  for (let i = 0; i < 4; i++) tag[i] = components[i] || 0
++  return tag
++}
++
++exports.addTag = function addTag(object, tag) {
++  let list = tags.get(object)
++  if (!list) {
++    list = []
++    tags.set(object, list)
++  }
++  list.push(tag)
++}
++
++exports.checkTag = function checkTag(object, tag) {
++  const list = tags.get(object)
++  if (!list) return false
++  return list.some(
++    (t) => t.length === tag.length && t.every((v, i) => v === tag[i])
++  )
++}
+diff --git a/shims/bare-type-jsshim/package.json b/shims/bare-type-jsshim/package.json
+new file mode 100644
+index 0000000..13033c1
+--- /dev/null
++++ b/shims/bare-type-jsshim/package.json
+@@ -0,0 +1,7 @@
++{
++  "name": "bare-type-jsshim",
++  "version": "1.0.0",
++  "description": "Pure-JS replacement for bare-type, used by bare-pack via pack.imports.json so the worklet bundle doesn't need libbare-type.so at runtime.",
++  "main": "./index.js",
++  "license": "Apache-2.0"
++}
 diff --git a/spec/hrpc/hrpc.json b/spec/hrpc/hrpc.json
 index 23079ea..7ebced9 100644
 --- a/spec/hrpc/hrpc.json
