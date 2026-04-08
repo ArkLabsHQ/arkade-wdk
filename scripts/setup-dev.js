@@ -78,21 +78,35 @@ run('npm install');
 // Setup pear-wrk-wdk submodule
 console.log('\n4. Setting up pear-wrk-wdk...');
 const pearWrkDir = join(PROJECT_ROOT, 'packages', 'pear-wrk-wdk');
-// Install dependencies (postinstall generates mobile bundle)
-run('npm install', pearWrkDir);
-// Link @arkade-os/wdk for Arkade blockchain support
-run(`npm link ${PROJECT_ROOT}`, pearWrkDir);
+// Install own deps without running postinstall — postinstall is
+// gen:mobile-bundle, and bare-pack can't resolve @arkade-os/wdk until
+// we link it in the next step (the worklet's wdk-manager.js does
+// `await import('@arkade-os/wdk')` for the arkade branch).
+run('npm install --ignore-scripts', pearWrkDir);
+// Link @arkade-os/wdk via direct fs symlink rather than `npm link`,
+// because npm link's internal install can prune other deps and replace
+// the symlink with a snapshot if any later command runs npm install.
+linkPackage(PROJECT_ROOT, pearWrkDir);
+// Now generate the mobile bundle — the @arkade-os/wdk symlink is in place.
+run('npm run gen:mobile-bundle', pearWrkDir);
 
 // Setup wdk-react-native-provider submodule
 console.log('\n5. Setting up wdk-react-native-provider...');
 const providerDir = join(PROJECT_ROOT, 'packages', 'wdk-react-native-provider');
-// Install without running scripts (prepare would fail without @arkade-os/wdk linked)
+// Install own deps without running scripts (prepare would fail without
+// @arkade-os/wdk and @tetherto/pear-wrk-wdk linked).
 run('npm install --ignore-scripts', providerDir);
-// Link @arkade-os/wdk and @tetherto/pear-wrk-wdk BEFORE building
-run(`npm link ${PROJECT_ROOT} ${pearWrkDir}`, providerDir);
-// Reinstall deps that npm link may have removed
-run('npm install --ignore-scripts', providerDir);
-// Now build (prepare script)
+// Link both packages via direct fs symlinks. Same reason as step 4:
+// the previous version of this script used `npm link` here AND a
+// follow-up `npm install --ignore-scripts` "to reinstall deps that
+// npm link may have removed", which silently overwrote the symlink
+// with a snapshot of pear-wrk-wdk and made the worklet bundle stale.
+linkPackage(PROJECT_ROOT, providerDir);
+linkPackage(pearWrkDir, providerDir);
+// Build (prepare runs bob build + gen:secret-manager-bundle + gen:worker-bundle).
+// gen:worker-bundle reads from node_modules/@tetherto/pear-wrk-wdk/src/wdk-worklet.js
+// — that's now a symlink to the live submodule, so the bundle will pick up
+// any local pear-wrk-wdk edits.
 run('npm run prepare', providerDir);
 // Remove duplicate copies of peer-dep packages so the example app's
 // instance is used at runtime (avoids "Invalid hook call" from duplicate React)
