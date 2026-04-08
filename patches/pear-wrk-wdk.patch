@@ -1,3 +1,28 @@
+diff --git a/index.js b/index.js
+index 3931ba9..e8d61c6 100644
+--- a/index.js
++++ b/index.js
+@@ -25,9 +25,18 @@
+ 
+ /** @typedef {import('./src/wdk-core/wdk-manager.js').TransferConfig} TransferConfig */
+ 
+-export { WdkManager, Blockchain } from './src/wdk-core/wdk-manager.js'
++// Note: WdkManager and Blockchain intentionally NOT re-exported from this
++// entry point. They live in src/wdk-core/wdk-manager.js, which runs INSIDE
++// the Bare worklet — it dynamically imports per-chain wallet packages like
++// @arkade-os/wdk that bring native deps (sodium-universal, bare-node-runtime)
++// not designed for the React Native JS thread. Re-exporting them from
++// index.js made Metro statically follow that file from the RN side and
++// fail trying to resolve those native deps. The worklet imports WdkManager
++// directly via require('../src/wdk-core/wdk-manager') in wdk-worklet.js,
++// so this only affects RN-side consumers — none of which actually use
++// WdkManager (they only need HRPC).
+ 
+-// Export spec/hrpc
++// Export spec/hrpc — this is what the React Native provider imports.
+ export { default as HRPC } from './spec/hrpc'
+ 
+ // Export spec/schema
 diff --git a/package-lock.json b/package-lock.json
 index 1ba00ef..07a906d 100644
 --- a/package-lock.json
