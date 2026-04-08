@@ -13,11 +13,237 @@ index fd6fc94..ea59d93 100644
    },
    "keywords": [
      "react-native",
+diff --git a/src/contexts/types.ts b/src/contexts/types.ts
+index aa13609..dc7a3f5 100644
+--- a/src/contexts/types.ts
++++ b/src/contexts/types.ts
+@@ -37,6 +37,31 @@ export interface WalletContextType extends WalletContextState {
+   refreshWalletBalance: () => Promise<void>;
+   refreshTransactions: () => Promise<void>;
+   unlockWallet: () => Promise<boolean | undefined>;
++
++  // ==========================================
++  // Arkade-specific surface (Phase 2.9)
++  //
++  // These delegate to WDKService and through to the worklet's arkade* RPC
++  // routes. Complex shapes are returned as `unknown` — UI consumers narrow
++  // them with their own types since the upstream PendingSwap shape is large
++  // and the provider intentionally doesn't import @arkade-os/boltz-swap on
++  // the RN side.
++  // ==========================================
++  getBoardingAddress: (index?: number) => Promise<string>;
++  createLightningInvoice: (
++    amount: number,
++    description?: string,
++    index?: number
++  ) => Promise<{ invoice: string; paymentHash: string }>;
++  getPendingLightningReceives: (index?: number) => Promise<unknown[]>;
++  getPendingLightningSends: (index?: number) => Promise<unknown[]>;
++  getSwapHistory: (index?: number) => Promise<unknown[]>;
++  getLightningLimits: (index?: number) => Promise<unknown>;
++  getLightningFees: (index?: number) => Promise<unknown>;
++  waitForLightningPayment: (
++    invoice: string,
++    index?: number
++  ) => Promise<{ txid: string }>;
+ }
+ 
+ // Provider configuration
+diff --git a/src/contexts/wallet-context.tsx b/src/contexts/wallet-context.tsx
+index 4c3dff5..2a7d990 100644
+--- a/src/contexts/wallet-context.tsx
++++ b/src/contexts/wallet-context.tsx
+@@ -384,6 +384,9 @@ export function WalletProvider({
+     dispatch({ type: 'SET_TRANSACTIONS', payload: transactionMap });
+   };
+ 
++  // Arkade methods are pass-throughs to the WDKService singleton; the context
++  // value re-exposes them so consumers can use the useWallet() hook without
++  // needing to know about the underlying service.
+   const value: WalletContextType = {
+     ...state,
+     createWallet,
+@@ -392,6 +395,18 @@ export function WalletProvider({
+     refreshWalletBalance,
+     refreshTransactions,
+     unlockWallet,
++    getBoardingAddress: (index) => WDKService.getBoardingAddress(index),
++    createLightningInvoice: (amount, description, index) =>
++      WDKService.createLightningInvoice(amount, description, index),
++    getPendingLightningReceives: (index) =>
++      WDKService.getPendingLightningReceives(index),
++    getPendingLightningSends: (index) =>
++      WDKService.getPendingLightningSends(index),
++    getSwapHistory: (index) => WDKService.getSwapHistory(index),
++    getLightningLimits: (index) => WDKService.getLightningLimits(index),
++    getLightningFees: (index) => WDKService.getLightningFees(index),
++    waitForLightningPayment: (invoice, index) =>
++      WDKService.waitForLightningPayment(invoice, index),
+   };
+ 
+   return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..abbb194 100644
+index 5ae8528..dde325f 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
-@@ -375,6 +375,7 @@ class WDKService {
+@@ -13,6 +13,7 @@ import {
+   AssetBalanceMap,
+   AssetTicker,
+   NetworkType,
++  isArkadeNetwork,
+ } from './types';
+ import { wdkEncryptionSalt } from './wdk-encryption-salt';
+ import {
+@@ -22,6 +23,107 @@ import {
+   WdkSecretManagerStorage,
+ } from './wdk-secret-manager-storage';
+ 
++// ============================================================================
++// Inline bech32m decoder for Ark addresses (Phase 2b)
++//
++// The provider's RN-side code can't import @arkade-os/sdk's ArkAddress.decode
++// because pulling in the SDK on the React Native JS thread brings sodium-
++// universal, bare-node-runtime, and friends — none of which are RN-compatible.
++// The README's "Temporary Workarounds" section calls for an inline bech32m
++// decoder so the balance workaround stays self-contained until the SDK's
++// Esplora URL becomes configurable. ~80 lines, no deps.
++//
++// Reference: BIP-350. Ark addresses encode 65 bytes:
++//   1 byte version || 32 bytes serverPubKey || 32 bytes vtxoTaprootKey
++// The pkScript queried by the Ark indexer is `OP_1 OP_PUSHBYTES_32 <vtxo>`
++// = `5120 || hex(vtxoTaprootKey)`.
++// ============================================================================
++/* eslint-disable no-bitwise -- bech32m is bit-packed by definition */
++const BECH32M_CHARSET = 'qpzry9x8gf2tvdw0s3jn54khce6mua7l';
++const BECH32M_CONST = 0x2bc830a3;
++
++function bech32mPolymod(values: number[]): number {
++  const GEN = [0x3b6a57b2, 0x26508e6d, 0x1ea119fa, 0x3d4233dd, 0x2a1462b3];
++  let chk = 1;
++  for (const v of values) {
++    const top = chk >>> 25;
++    chk = ((chk & 0x1ffffff) << 5) ^ v;
++    for (let i = 0; i < 5; i++) {
++      if ((top >>> i) & 1) chk ^= GEN[i]!;
++    }
++  }
++  return chk;
++}
++
++function bech32mHrpExpand(hrp: string): number[] {
++  const out: number[] = [];
++  for (let i = 0; i < hrp.length; i++) out.push(hrp.charCodeAt(i) >>> 5);
++  out.push(0);
++  for (let i = 0; i < hrp.length; i++) out.push(hrp.charCodeAt(i) & 31);
++  return out;
++}
++
++function bech32mDecode(addr: string): { hrp: string; words: number[] } {
++  const lower = addr.toLowerCase();
++  if (lower.length > 1023) throw new Error('Ark address too long');
++  const sep = lower.lastIndexOf('1');
++  if (sep < 1 || sep + 7 > lower.length) {
++    throw new Error('Ark address: invalid bech32m structure');
++  }
++  const hrp = lower.substring(0, sep);
++  const data: number[] = [];
++  for (let i = sep + 1; i < lower.length; i++) {
++    const idx = BECH32M_CHARSET.indexOf(lower.charAt(i));
++    if (idx === -1) throw new Error('Ark address: invalid bech32m character');
++    data.push(idx);
++  }
++  if (bech32mPolymod([...bech32mHrpExpand(hrp), ...data]) !== BECH32M_CONST) {
++    throw new Error('Ark address: bech32m checksum mismatch');
++  }
++  return { hrp, words: data.slice(0, data.length - 6) };
++}
++
++function bech32mFromWords(words: number[]): number[] {
++  let acc = 0;
++  let bits = 0;
++  const out: number[] = [];
++  for (const v of words) {
++    if (v < 0 || v > 31) throw new Error('Ark address: invalid 5-bit value');
++    acc = (acc << 5) | v;
++    bits += 5;
++    while (bits >= 8) {
++      bits -= 8;
++      out.push((acc >>> bits) & 0xff);
++    }
++  }
++  if (bits >= 5 || (acc << (8 - bits)) & 0xff) {
++    throw new Error('Ark address: invalid bech32m padding');
++  }
++  return out;
++}
++
++/**
++ * Decode an Ark address (bech32m) into the BTC pkScript that the Ark indexer
++ * expects in its `scripts=` query parameter.
++ *
++ * @internal — exported only for tests.
++ */
++export function arkAddressToPkScript(address: string): string {
++  const { words } = bech32mDecode(address);
++  const data = bech32mFromWords(words);
++  if (data.length !== 65) {
++    throw new Error(
++      `Ark address: expected 65-byte payload (1+32+32), got ${data.length}`
++    );
++  }
++  const vtxoTaprootKey = data.slice(33, 65);
++  const hex = vtxoTaprootKey
++    .map((b) => b.toString(16).padStart(2, '0'))
++    .join('');
++  return `5120${hex}`; // OP_1 (0x51) + OP_PUSHBYTES_32 (0x20) + 32-byte witness program
++}
++/* eslint-enable no-bitwise */
++
+ export const SMART_CONTRACT_BALANCE_ADDRESSES = {
+   [AssetTicker.USDT]: {
+     ethereum: '0xdAC17F958D2ee523a2206206994597C13D831ec7',
+@@ -41,6 +143,12 @@ const toNetwork = (n: NetworkType): string => {
+   switch (n) {
+     case NetworkType.SEGWIT:
+       return 'bitcoin';
++    case NetworkType.ARKADE:
++    case NetworkType.ARKADE_BOARDING:
++    case NetworkType.LIGHTNING:
++      // All three variants share one underlying Arkade account on the
++      // worklet side; the variant only chooses which method to call.
++      return 'arkade';
+     case NetworkType.ETHEREUM:
+       return 'ethereum';
+     case NetworkType.TON:
+@@ -359,6 +467,27 @@ class WDKService {
+         network: toNetwork(network),
+         accountIndex: index,
+       });
++    } else if (network === NetworkType.ARKADE) {
++      // Off-chain Ark address — generic getAddress route works because the
++      // worklet's _getWalletManager dispatches 'arkade' into WalletManagerArkade.
++      return await this.wdkManager.getAddress({
++        network: 'arkade',
++        accountIndex: index,
++      });
++    } else if (network === NetworkType.ARKADE_BOARDING) {
++      // On-chain BTC boarding address — needs a dedicated RPC route because
++      // the WalletAccountReadOnlyArkade exposes it as getBoardingAddress(),
++      // not as the default getAddress().
++      return await this.wdkManager.arkadeGetBoardingAddress({
++        accountIndex: index,
++      });
++    } else if (network === NetworkType.LIGHTNING) {
++      // Lightning has no static address — invoices are minted on demand by
++      // the receive flow via createLightningInvoice. Returning an empty
++      // string lets the UI keep an entry in the address map; the receive
++      // network picker uses an addresslessReceive flag (set by the example
++      // app on the Network config) to keep the row selectable.
++      return { address: '' };
+     } else {
+       return await this.wdkManager.getAbstractedAddress({
+         network: toNetwork(network),
+@@ -375,6 +504,7 @@ class WDKService {
        throw new Error('WDK Manager not initialized');
      }
  
@@ -25,7 +251,7 @@ index 5ae8528..abbb194 100644
      const addressPromises = [];
      const networkAddresses: Partial<Record<NetworkType, string>> = {};
      const addressesArr = [];
-@@ -382,9 +383,28 @@ class WDKService {
+@@ -382,9 +512,28 @@ class WDKService {
      for (const asset of enabledAssets) {
        for (const networkType of Object.keys(AssetAddressMap[asset])) {
          addressesArr.push({ [networkType]: null });
@@ -57,7 +283,7 @@ index 5ae8528..abbb194 100644
        }
      }
  
-@@ -395,18 +415,22 @@ class WDKService {
+@@ -395,18 +544,22 @@ class WDKService {
          // @ts-expect-error
          networkAddresses[key] = (addresses[i] as any).value.address;
        } else {
@@ -86,3 +312,522 @@ index 5ae8528..abbb194 100644
  
      return networkAddresses;
    }
+@@ -432,6 +585,23 @@ class WDKService {
+           },
+         });
+ 
++        return Number(quote.fee) / this.getDenominationValue(AssetTicker.BTC);
++      } else if (isArkadeNetwork(network)) {
++        // All three Arkade variants share one route — the library's
++        // send.js:detectTransactionType auto-routes Ark / BOLT11 / BTC / BIP21
++        // based on the destination string (after the Phase 0 BIP21 propagation
++        // fix), so the provider doesn't need to branch on variant here.
++        const value = new Decimal(amount)
++          .mul(this.getDenominationValue(AssetTicker.BTC))
++          .toNumber();
++        const quote = await this.wdkManager.quoteSendTransaction({
++          network: 'arkade',
++          accountIndex: index,
++          options: {
++            to: recipientAddress,
++            value: value.toString(),
++          },
++        });
+         return Number(quote.fee) / this.getDenominationValue(AssetTicker.BTC);
+       } else if (
+         [
+@@ -520,6 +690,21 @@ class WDKService {
+       });
+ 
+       return response;
++    } else if (isArkadeNetwork(network)) {
++      // Same shared-route trick as quoteSendByNetwork: dispatch all Arkade
++      // variants through 'arkade' and let send.js auto-route.
++      const sendParams = {
++        to: recipientAddress,
++        value: new Decimal(amount)
++          .mul(this.getDenominationValue(AssetTicker.BTC))
++          .round()
++          .toString(),
++      };
++      return await this.wdkManager.sendTransaction({
++        network: 'arkade',
++        accountIndex: index,
++        options: sendParams,
++      });
+     } else if (
+       [
+         NetworkType.ETHEREUM,
+@@ -571,6 +756,152 @@ class WDKService {
+     }
+   }
+ 
++  // ==========================================================================
++  // Arkade-specific methods (Phase 2.7)
++  //
++  // Each method calls the matching arkade* HRPC route on the worklet and parses
++  // any JSON-encoded payloads. The complex shapes (PendingReverseSwap,
++  // PendingSubmarineSwap, FeesResponse, LimitsResponse, ArkTransaction) are
++  // returned as `unknown` from the worklet — consumers cast or pass them
++  // through to UI code that knows the shapes.
++  // ==========================================================================
++
++  /**
++   * Returns the on-chain BTC boarding address for an Arkade account.
++   * Used by the receive flow when the user picks "Bitcoin (Boarding)".
++   */
++  async getBoardingAddress(index: number = 0): Promise<string> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    const result = await this.wdkManager.arkadeGetBoardingAddress({
++      accountIndex: index,
++    });
++    return result.address;
++  }
++
++  /**
++   * Creates a Lightning invoice for an Arkade account via Boltz.
++   * Requires `swapProviderUrl` in the arkade chain config.
++   */
++  async createLightningInvoice(
++    amount: number,
++    description?: string,
++    index: number = 0
++  ): Promise<{ invoice: string; paymentHash: string }> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    return await this.wdkManager.arkadeCreateLightningInvoice({
++      accountIndex: index,
++      amount,
++      description,
++    });
++  }
++
++  /** Pending Lightning receives (reverse swaps awaiting settlement). */
++  async getPendingLightningReceives(index: number = 0): Promise<unknown[]> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    const result = await this.wdkManager.arkadeGetPendingLightningReceives({
++      accountIndex: index,
++    });
++    return JSON.parse(result.swaps || '[]');
++  }
++
++  /** Pending Lightning sends (submarine swaps awaiting settlement). */
++  async getPendingLightningSends(index: number = 0): Promise<unknown[]> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    const result = await this.wdkManager.arkadeGetPendingLightningSends({
++      accountIndex: index,
++    });
++    return JSON.parse(result.swaps || '[]');
++  }
++
++  /** Full swap history (reverse + submarine + chain), newest first. */
++  async getSwapHistory(index: number = 0): Promise<unknown[]> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    const result = await this.wdkManager.arkadeGetSwapHistory({
++      accountIndex: index,
++    });
++    return JSON.parse(result.swaps || '[]');
++  }
++
++  /** Lightning swap min/max limits from the swap provider. */
++  async getLightningLimits(index: number = 0): Promise<unknown> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    const result = await this.wdkManager.arkadeGetLightningLimits({
++      accountIndex: index,
++    });
++    return JSON.parse(result.limits || '{}');
++  }
++
++  /** Lightning swap fee schedule from the swap provider. */
++  async getLightningFees(index: number = 0): Promise<unknown> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    const result = await this.wdkManager.arkadeGetLightningFees({
++      accountIndex: index,
++    });
++    return JSON.parse(result.fees || '{}');
++  }
++
++  /**
++   * Wait for an incoming Lightning payment to settle and claim the resulting
++   * VTXO. The invoice must have been created via createLightningInvoice on
++   * the same account.
++   */
++  async waitForLightningPayment(
++    invoice: string,
++    index: number = 0
++  ): Promise<{ txid: string }> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    return await this.wdkManager.arkadeWaitForLightningPayment({
++      accountIndex: index,
++      invoice,
++    });
++  }
++
++  /**
++   * Arkade transaction history (ArkTransaction[] from the SDK). Used by
++   * resolveWalletTransactions for the arkade-keyed entries — the WDK indexer
++   * at wdk-api.tether.io does not understand the arkade chain.
++   */
++  async getArkadeTransactionHistory(index: number = 0): Promise<Transaction[]> {
++    if (!this.wdkManager) throw new Error('WDK Manager not initialized');
++    const result = await this.wdkManager.arkadeGetTransactionHistory({
++      accountIndex: index,
++    });
++    const arkTxs = JSON.parse(result.transactions || '[]') as Array<{
++      key?: {
++        boardingTxid?: string;
++        redeemTxid?: string;
++        commitmentTxid?: string;
++      };
++      amount: number | string;
++      type?: string;
++      createdAt?: number | string;
++      settled?: boolean;
++    }>;
++    // Map the SDK's ArkTransaction shape onto the provider's Transaction
++    // interface. Several fields don't have a direct equivalent (block number,
++    // gas/log indices, ETH-style from/to) so we leave them empty.
++    return arkTxs.map((tx) => {
++      const hash =
++        tx.key?.redeemTxid ||
++        tx.key?.boardingTxid ||
++        tx.key?.commitmentTxid ||
++        '';
++      return {
++        blockchain: 'arkade',
++        blockNumber: 0,
++        transactionHash: hash,
++        transferIndex: 0,
++        token: 'btc',
++        amount: String(tx.amount),
++        timestamp: Number(tx.createdAt ?? 0),
++        transactionIndex: 0,
++        logIndex: 0,
++        from: '',
++        to: '',
++      };
++    });
++  }
++
+   async createWallet(params: {
+     walletName: string;
+     prf: Buffer | string;
+@@ -637,6 +968,14 @@ class WDKService {
+     const transactionMap: Record<string, Transaction[]> = {};
+     const payloadKeys: string[] = []; // Track the keys in order to match with response array
+ 
++    // Arkade transactions go through the worklet's arkadeGetTransactionHistory
++    // route (one call per enabled BTC asset, not per network type), since the
++    // SDK returns ArkTransaction[] for the whole account regardless of which
++    // sub-NetworkType the consumer is asking about. We populate the map for
++    // ARKADE/LIGHTNING/ARKADE_BOARDING by mirroring the same list under each
++    // key — the receive/send screens then filter as needed.
++    let arkadeTransactions: Transaction[] | null = null;
++
+     enabledAssets.forEach((asset) => {
+       const networks = AssetBalanceMap[asset];
+       if (!networks) return;
+@@ -645,6 +984,10 @@ class WDKService {
+         const key = `${networkType}_${asset}`;
+         transactionMap[key] = [];
+ 
++        // Skip arkade variants — they'll be filled in below from the
++        // arkadeGetTransactionHistory call.
++        if (isArkadeNetwork(networkType as NetworkType)) return;
++
+         const address = networkAddresses[networkType as NetworkType];
+ 
+         if (address) {
+@@ -659,6 +1002,34 @@ class WDKService {
+       });
+     });
+ 
++    // Fetch the Arkade transaction history once if BTC has any arkade variant
++    // enabled. The history is the same regardless of which variant we ask for.
++    const btcNetworks = AssetBalanceMap[AssetTicker.BTC];
++    const hasArkadeVariant = (
++      Object.keys(btcNetworks ?? {}) as NetworkType[]
++    ).some((n) => isArkadeNetwork(n));
++    if (enabledAssets.includes(AssetTicker.BTC) && hasArkadeVariant) {
++      try {
++        arkadeTransactions = await this.getArkadeTransactionHistory();
++      } catch (err) {
++        console.warn('[arkade] Failed to fetch transaction history:', err);
++        arkadeTransactions = [];
++      }
++      // Mirror the same list under each enabled arkade variant key.
++      for (const networkType of Object.keys(
++        btcNetworks ?? {}
++      ) as NetworkType[]) {
++        if (!isArkadeNetwork(networkType)) continue;
++        transactionMap[`${networkType}_${AssetTicker.BTC}`] =
++          arkadeTransactions;
++      }
++    }
++
++    // Short-circuit the WDK indexer call if every enabled entry was arkade.
++    if (payload.length === 0) {
++      return transactionMap;
++    }
++
+     const requestOptions = {
+       method: 'POST',
+       headers: headers,
+@@ -699,6 +1070,10 @@ class WDKService {
+       }
+     >
+   > {
++    // Split arkade-keyed entries off the indexer batch path — the WDK
++    // indexer at wdk-api.tether.io doesn't understand the arkade chain, so
++    // those balances come from the RN-side REST workaround in
++    // resolveArkadeBalances. The two sub-results are merged below.
+     const headers = new Headers();
+     headers.append('accept', 'application/json');
+     headers.append('x-api-key', this.getIndexerApiKey());
+@@ -715,6 +1090,9 @@ class WDKService {
+       if (!networks) return;
+ 
+       Object.keys(networks).forEach((networkType) => {
++        // Skip arkade variants — they go through resolveArkadeBalances.
++        if (isArkadeNetwork(networkType as NetworkType)) return;
++
+         const address = networkAddresses[networkType as NetworkType];
+         if (address) {
+           payload.push({
+@@ -726,6 +1104,23 @@ class WDKService {
+       });
+     });
+ 
++    const [indexerMap, arkadeMap] = await Promise.all([
++      payload.length > 0 ? this._fetchIndexerBalances(payload, headers) : {},
++      this.resolveArkadeBalances(enabledAssets, networkAddresses),
++    ]);
++
++    return { ...indexerMap, ...arkadeMap };
++  }
++
++  /**
++   * @private
++   * The original WDK indexer batch call, factored out so resolveWalletBalances
++   * can short-circuit it when no non-arkade entries are enabled.
++   */
++  private async _fetchIndexerBalances(
++    payload: { blockchain: string; token: AssetTicker; address: string }[],
++    headers: Headers
++  ): Promise<Record<string, { balance: number; asset: AssetTicker }>> {
+     const requestOptions = {
+       method: 'POST',
+       headers: headers,
+@@ -743,7 +1138,7 @@ class WDKService {
+ 
+     const data = await response.json();
+ 
+-    const balanceMap = Object.entries(
++    return Object.entries(
+       data as Record<
+         string,
+         { tokenBalance: { amount: number; blockchain: string; token: string } }
+@@ -759,8 +1154,121 @@ class WDKService {
+       },
+       {} as Record<string, { balance: number; asset: AssetTicker }>
+     );
++  }
++
++  /**
++   * RN-side balance workaround for Arkade NetworkTypes (Phase 2b).
++   *
++   * The SDK's bundled Esplora URL hardcodes localhost which is unreachable
++   * from a phone, so the standard `getAddressBalance` HRPC path doesn't
++   * work. Per the README "Temporary Workarounds" section, we hit the Ark
++   * indexer and Esplora REST endpoints directly from RN until that's
++   * fixed upstream.
++   *
++   * - ARKADE / LIGHTNING balances come from
++   *   `${arkServerUrl}/v1/indexer/vtxos?scripts=<pkScript>&spendableOnly=true`
++   *   (sum of spendable VTXO amounts)
++   * - ARKADE_BOARDING balance comes from
++   *   `${esploraUrl}/address/<addr>/utxo` (sum of UTXO values)
++   *
++   * Lightning has no separate balance — it shares the offchain VTXO total
++   * with ARKADE, so this method emits the same value for both keys.
++   */
++  async resolveArkadeBalances(
++    enabledAssets: AssetTicker[],
++    networkAddresses: Partial<Record<NetworkType, string>>
++  ): Promise<Record<string, { balance: number; asset: AssetTicker }>> {
++    const result: Record<string, { balance: number; asset: AssetTicker }> = {};
++
++    const arkadeConfig = this.config?.chains?.arkade;
++    const arkServerUrl = arkadeConfig?.arkServerUrl;
++    const esploraUrl = arkadeConfig?.esploraUrl;
++
++    for (const asset of enabledAssets) {
++      const networks = AssetBalanceMap[asset];
++      if (!networks) continue;
++
++      // Off-chain (ARKADE + LIGHTNING share the VTXO balance)
++      const arkAddress = networkAddresses[NetworkType.ARKADE];
++      if (NetworkType.ARKADE in networks && arkAddress && arkServerUrl) {
++        try {
++          const pkScript = arkAddressToPkScript(arkAddress);
++          const url = `${arkServerUrl}/v1/indexer/vtxos?scripts=${pkScript}&spendableOnly=true`;
++          const res = await fetch(url, {
++            headers: { accept: 'application/json' },
++          });
++          if (!res.ok) {
++            throw new Error(`Ark indexer returned ${res.status} for ${url}`);
++          }
++          const body = (await res.json()) as {
++            vtxos?: { value?: number | string }[];
++          };
++          const sats = (body.vtxos ?? []).reduce(
++            (acc, v) => acc + Number(v.value ?? 0),
++            0
++          );
++          const btc = sats / this.getDenominationValue(AssetTicker.BTC);
++          result[`${NetworkType.ARKADE}_${asset}`] = { balance: btc, asset };
++          if (NetworkType.LIGHTNING in networks) {
++            // Lightning shares the offchain VTXO balance — both sub-balances
++            // mirror until/unless we add a separate "in-flight Lightning"
++            // sub-account.
++            result[`${NetworkType.LIGHTNING}_${asset}`] = {
++              balance: btc,
++              asset,
++            };
++          }
++        } catch (err) {
++          console.warn(
++            `[arkade] Failed to fetch offchain balance for ${arkAddress}:`,
++            err
++          );
++          result[`${NetworkType.ARKADE}_${asset}`] = { balance: 0, asset };
++          if (NetworkType.LIGHTNING in networks) {
++            result[`${NetworkType.LIGHTNING}_${asset}`] = {
++              balance: 0,
++              asset,
++            };
++          }
++        }
++      }
++
++      // Boarding (on-chain BTC waiting to enter Ark)
++      const boardingAddress = networkAddresses[NetworkType.ARKADE_BOARDING];
++      if (
++        NetworkType.ARKADE_BOARDING in networks &&
++        boardingAddress &&
++        esploraUrl
++      ) {
++        try {
++          const url = `${esploraUrl}/address/${boardingAddress}/utxo`;
++          const res = await fetch(url, {
++            headers: { accept: 'application/json' },
++          });
++          if (!res.ok) {
++            throw new Error(`Esplora returned ${res.status} for ${url}`);
++          }
++          const utxos = (await res.json()) as { value?: number | string }[];
++          const sats = utxos.reduce((acc, u) => acc + Number(u.value ?? 0), 0);
++          const btc = sats / this.getDenominationValue(AssetTicker.BTC);
++          result[`${NetworkType.ARKADE_BOARDING}_${asset}`] = {
++            balance: btc,
++            asset,
++          };
++        } catch (err) {
++          console.warn(
++            `[arkade] Failed to fetch boarding balance for ${boardingAddress}:`,
++            err
++          );
++          result[`${NetworkType.ARKADE_BOARDING}_${asset}`] = {
++            balance: 0,
++            asset,
++          };
++        }
++      }
++    }
+ 
+-    return balanceMap;
++    return result;
+   }
+ }
+ 
+diff --git a/src/services/wdk-service/types.ts b/src/services/wdk-service/types.ts
+index 6663b0e..281c6d1 100644
+--- a/src/services/wdk-service/types.ts
++++ b/src/services/wdk-service/types.ts
+@@ -7,6 +7,8 @@ export enum AssetTicker {
+ export enum NetworkType {
+   SEGWIT = 'bitcoin',
+   LIGHTNING = 'lightning',
++  ARKADE = 'arkade',
++  ARKADE_BOARDING = 'arkade-boarding',
+   ETHEREUM = 'ethereum',
+   SOLANA = 'solana',
+   TRON = 'tron',
+@@ -15,9 +17,25 @@ export enum NetworkType {
+   ARBITRUM = 'arbitrum',
+ }
+ 
++// Arkade variants — each maps a single BTC asset to a different "mode" on the
++// same underlying Arkade account: ARKADE = offchain Ark address, ARKADE_BOARDING
++// = on-chain BTC boarding deposit, LIGHTNING = swap-backed Lightning invoice.
++// All three resolve to the same worklet chain key ('arkade').
++export const ARKADE_NETWORK_TYPES = [
++  NetworkType.ARKADE,
++  NetworkType.ARKADE_BOARDING,
++  NetworkType.LIGHTNING,
++] as const;
++
++export const isArkadeNetwork = (n: NetworkType): boolean =>
++  (ARKADE_NETWORK_TYPES as readonly NetworkType[]).includes(n);
++
+ export const AssetAddressMap = {
+   [AssetTicker.BTC]: {
+     [NetworkType.SEGWIT]: 'bitcoin',
++    [NetworkType.ARKADE]: 'arkade',
++    [NetworkType.ARKADE_BOARDING]: 'arkade',
++    [NetworkType.LIGHTNING]: 'arkade',
+   },
+   [AssetTicker.USDT]: {
+     [NetworkType.ETHEREUM]: 'ethereum',
+@@ -33,6 +51,9 @@ export const AssetAddressMap = {
+ export const AssetBalanceMap = {
+   [AssetTicker.BTC]: {
+     [NetworkType.SEGWIT]: 'bitcoin',
++    [NetworkType.ARKADE]: 'arkade',
++    [NetworkType.ARKADE_BOARDING]: 'arkade',
++    [NetworkType.LIGHTNING]: 'arkade',
+   },
+   [AssetTicker.USDT]: {
+     [NetworkType.ETHEREUM]: 'ethereum',
+@@ -113,6 +134,25 @@ export interface BitcoinChainConfig {
+   port: number;
+ }
+ 
++/**
++ * Configuration for the Arkade chain (Ark protocol).
++ *
++ * `arkServerUrl` is the only required field — it's the REST endpoint of the
++ * Ark server the wallet talks to. `swapProviderUrl` enables Lightning send/
++ * receive via a Boltz instance; without it, Lightning receive throws and
++ * Lightning send falls back to "no swap provider configured".
++ *
++ * `esploraUrl` is the REST endpoint used by the RN-side balance workaround
++ * to read the on-chain BTC boarding balance. The SDK's bundled Esplora URL
++ * defaults to localhost which is unreachable from a phone — until that's
++ * fixed, the provider hits this URL directly. See README "Temporary Workarounds".
++ */
++export interface ArkadeChainConfig {
++  arkServerUrl: string;
++  swapProviderUrl?: string;
++  esploraUrl?: string;
++}
++
+ export interface TronChainConfig {
+   chainId: number;
+   provider: string;
+@@ -133,5 +173,6 @@ export interface ChainsConfig {
+   polygon?: EVMChainConfig;
+   ton?: TONChainConfig;
+   bitcoin?: BitcoinChainConfig;
++  arkade?: ArkadeChainConfig;
+   tron?: TronChainConfig;
+ }
