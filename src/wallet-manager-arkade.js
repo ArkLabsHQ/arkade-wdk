@@ -27,9 +27,15 @@ class WalletManagerArkade extends WalletManager {
     );
 
     /** @private @type {Promise<import('@arkade-os/sdk').ArkInfo>} */
+    // Retry once on failure. The previous code re-threw from the catch handler
+    // which orphaned the original rejected promise as unhandled — Bare's
+    // uncaught-rejection handler would then call abort() and crash the app.
+    // Returning the retry result from catch keeps a single promise chain with
+    // no orphaned rejections. If BOTH attempts fail, the promise rejects and
+    // callers (getAccount, getFeeRates) surface the error normally.
     this.info = this.arkProvider.getInfo().catch((/** @type {unknown} */ reason) => {
-      this.info = this.arkProvider.getInfo();
-      throw new Error(`Failed to fetch Arkade network info: ${String(reason)}`);
+      console.warn(`Arkade network info fetch failed, retrying: ${String(reason)}`);
+      return this.arkProvider.getInfo();
     });
 
     /** @private */
