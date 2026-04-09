@@ -83,7 +83,7 @@ index 4c3dff5..2a7d990 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..7e47f42 100644
+index 5ae8528..1bde425 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -413,7 +413,7 @@ index 5ae8528..7e47f42 100644
      } else if (
        [
          NetworkType.ETHEREUM,
-@@ -571,6 +787,83 @@ class WDKService {
+@@ -571,6 +787,85 @@ class WDKService {
      }
    }
  
@@ -485,7 +485,9 @@ index 5ae8528..7e47f42 100644
 +      transactionHash: tx.key?.redeemTxid || tx.key?.boardingTxid || tx.key?.commitmentTxid || '',
 +      transferIndex: 0,
 +      token: 'btc',
-+      amount: String(tx.amount ?? 0),
++      // SDK returns amount in sats; the UI displays whatever is in this
++      // field with "BTC" label, so convert to BTC.
++      amount: String(Number(tx.amount ?? 0) / 100000000),
 +      timestamp: Number(tx.createdAt ?? 0),
 +      transactionIndex: 0,
 +      logIndex: 0,
@@ -497,7 +499,7 @@ index 5ae8528..7e47f42 100644
    async createWallet(params: {
      walletName: string;
      prf: Buffer | string;
-@@ -613,6 +906,8 @@ class WDKService {
+@@ -613,6 +908,8 @@ class WDKService {
        data: wallet,
      });
  
@@ -506,7 +508,7 @@ index 5ae8528..7e47f42 100644
      return wallet;
    }
  
-@@ -637,6 +932,14 @@ class WDKService {
+@@ -637,6 +934,14 @@ class WDKService {
      const transactionMap: Record<string, Transaction[]> = {};
      const payloadKeys: string[] = []; // Track the keys in order to match with response array
  
@@ -521,7 +523,7 @@ index 5ae8528..7e47f42 100644
      enabledAssets.forEach((asset) => {
        const networks = AssetBalanceMap[asset];
        if (!networks) return;
-@@ -645,6 +948,10 @@ class WDKService {
+@@ -645,6 +950,10 @@ class WDKService {
          const key = `${networkType}_${asset}`;
          transactionMap[key] = [];
  
@@ -532,7 +534,7 @@ index 5ae8528..7e47f42 100644
          const address = networkAddresses[networkType as NetworkType];
  
          if (address) {
-@@ -659,6 +966,34 @@ class WDKService {
+@@ -659,6 +968,31 @@ class WDKService {
        });
      });
  
@@ -549,14 +551,11 @@ index 5ae8528..7e47f42 100644
 +        console.warn('[arkade] Failed to fetch transaction history:', err);
 +        arkadeTransactions = [];
 +      }
-+      // Mirror the same list under each enabled arkade variant key.
-+      for (const networkType of Object.keys(
-+        btcNetworks ?? {}
-+      ) as NetworkType[]) {
-+        if (!isArkadeNetwork(networkType)) continue;
-+        transactionMap[`${networkType}_${AssetTicker.BTC}`] =
-+          arkadeTransactions;
-+      }
++      // Only put transactions under the ARKADE key — mirroring under all
++      // three variants (ARKADE, ARKADE_BOARDING, LIGHTNING) caused 3x
++      // duplication in the activity screen.
++      transactionMap[`${NetworkType.ARKADE}_${AssetTicker.BTC}`] =
++        arkadeTransactions;
 +    }
 +
 +    // Short-circuit the WDK indexer call if every enabled entry was arkade.
@@ -567,7 +566,7 @@ index 5ae8528..7e47f42 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -699,6 +1034,10 @@ class WDKService {
+@@ -699,6 +1033,10 @@ class WDKService {
        }
      >
    > {
@@ -578,7 +577,7 @@ index 5ae8528..7e47f42 100644
      const headers = new Headers();
      headers.append('accept', 'application/json');
      headers.append('x-api-key', this.getIndexerApiKey());
-@@ -715,6 +1054,9 @@ class WDKService {
+@@ -715,6 +1053,9 @@ class WDKService {
        if (!networks) return;
  
        Object.keys(networks).forEach((networkType) => {
@@ -588,7 +587,7 @@ index 5ae8528..7e47f42 100644
          const address = networkAddresses[networkType as NetworkType];
          if (address) {
            payload.push({
-@@ -726,6 +1068,23 @@ class WDKService {
+@@ -726,6 +1067,23 @@ class WDKService {
        });
      });
  
@@ -612,7 +611,7 @@ index 5ae8528..7e47f42 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -743,14 +1102,22 @@ class WDKService {
+@@ -743,14 +1101,22 @@ class WDKService {
  
      const data = await response.json();
  
@@ -637,7 +636,7 @@ index 5ae8528..7e47f42 100644
          allBalances[`${obj.blockchain}_${obj.token}`] = {
            balance: parseFloat(obj.amount),
            asset: obj.token as AssetTicker,
-@@ -759,8 +1126,46 @@ class WDKService {
+@@ -759,8 +1125,46 @@ class WDKService {
        },
        {} as Record<string, { balance: number; asset: AssetTicker }>
      );
