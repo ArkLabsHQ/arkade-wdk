@@ -83,7 +83,7 @@ index 4c3dff5..2a7d990 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..1bde425 100644
+index 5ae8528..e120532 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -413,7 +413,7 @@ index 5ae8528..1bde425 100644
      } else if (
        [
          NetworkType.ETHEREUM,
-@@ -571,6 +787,85 @@ class WDKService {
+@@ -571,6 +787,91 @@ class WDKService {
      }
    }
  
@@ -479,27 +479,33 @@ index 5ae8528..1bde425 100644
 +  async getArkadeTransactionHistory(_index: number = 0): Promise<Transaction[]> {
 +    if (!this.arkadeAccount) return [];
 +    const arkTxs = await this.arkadeAccount.getTransactionHistory();
-+    return (arkTxs || []).map((tx: any) => ({
-+      blockchain: 'arkade',
-+      blockNumber: 0,
-+      transactionHash: tx.key?.redeemTxid || tx.key?.boardingTxid || tx.key?.commitmentTxid || '',
-+      transferIndex: 0,
-+      token: 'btc',
-+      // SDK returns amount in sats; the UI displays whatever is in this
-+      // field with "BTC" label, so convert to BTC.
-+      amount: String(Number(tx.amount ?? 0) / 100000000),
-+      timestamp: Number(tx.createdAt ?? 0),
-+      transactionIndex: 0,
-+      logIndex: 0,
-+      from: '',
-+      to: '',
-+    }));
++    const walletAddr = (await this.arkadeAccount.getAddress()) || 'arkade-self';
++    return (arkTxs || []).map((tx: any) => {
++      const isSent = tx.type === 'SENT';
++      return {
++        blockchain: 'arkade',
++        blockNumber: 0,
++        transactionHash: tx.key?.arkTxid || tx.key?.boardingTxid || tx.key?.commitmentTxid || '',
++        transferIndex: 0,
++        token: 'btc',
++        // SDK returns amount in sats; convert to BTC with full precision.
++        amount: (Number(tx.amount ?? 0) / 100000000).toFixed(8),
++        timestamp: Number(tx.createdAt ?? 0),
++        transactionIndex: 0,
++        logIndex: 0,
++        // The activity screen determines direction by checking if tx.from
++        // matches one of the wallet's own addresses. Setting from/to based
++        // on the SDK's tx.type makes the UI show the correct arrow + label.
++        from: isSent ? walletAddr : 'external',
++        to: isSent ? 'external' : walletAddr,
++      };
++    });
 +  }
 +
    async createWallet(params: {
      walletName: string;
      prf: Buffer | string;
-@@ -613,6 +908,8 @@ class WDKService {
+@@ -613,6 +914,8 @@ class WDKService {
        data: wallet,
      });
  
@@ -508,7 +514,7 @@ index 5ae8528..1bde425 100644
      return wallet;
    }
  
-@@ -637,6 +934,14 @@ class WDKService {
+@@ -637,6 +940,14 @@ class WDKService {
      const transactionMap: Record<string, Transaction[]> = {};
      const payloadKeys: string[] = []; // Track the keys in order to match with response array
  
@@ -523,7 +529,7 @@ index 5ae8528..1bde425 100644
      enabledAssets.forEach((asset) => {
        const networks = AssetBalanceMap[asset];
        if (!networks) return;
-@@ -645,6 +950,10 @@ class WDKService {
+@@ -645,6 +956,10 @@ class WDKService {
          const key = `${networkType}_${asset}`;
          transactionMap[key] = [];
  
@@ -534,7 +540,7 @@ index 5ae8528..1bde425 100644
          const address = networkAddresses[networkType as NetworkType];
  
          if (address) {
-@@ -659,6 +968,31 @@ class WDKService {
+@@ -659,6 +974,31 @@ class WDKService {
        });
      });
  
@@ -566,7 +572,7 @@ index 5ae8528..1bde425 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -699,6 +1033,10 @@ class WDKService {
+@@ -699,6 +1039,10 @@ class WDKService {
        }
      >
    > {
@@ -577,7 +583,7 @@ index 5ae8528..1bde425 100644
      const headers = new Headers();
      headers.append('accept', 'application/json');
      headers.append('x-api-key', this.getIndexerApiKey());
-@@ -715,6 +1053,9 @@ class WDKService {
+@@ -715,6 +1059,9 @@ class WDKService {
        if (!networks) return;
  
        Object.keys(networks).forEach((networkType) => {
@@ -587,7 +593,7 @@ index 5ae8528..1bde425 100644
          const address = networkAddresses[networkType as NetworkType];
          if (address) {
            payload.push({
-@@ -726,6 +1067,23 @@ class WDKService {
+@@ -726,6 +1073,23 @@ class WDKService {
        });
      });
  
@@ -611,7 +617,7 @@ index 5ae8528..1bde425 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -743,14 +1101,22 @@ class WDKService {
+@@ -743,14 +1107,22 @@ class WDKService {
  
      const data = await response.json();
  
@@ -636,7 +642,7 @@ index 5ae8528..1bde425 100644
          allBalances[`${obj.blockchain}_${obj.token}`] = {
            balance: parseFloat(obj.amount),
            asset: obj.token as AssetTicker,
-@@ -759,8 +1125,46 @@ class WDKService {
+@@ -759,8 +1131,46 @@ class WDKService {
        },
        {} as Record<string, { balance: number; asset: AssetTicker }>
      );
