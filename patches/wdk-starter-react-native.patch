@@ -6872,6 +6872,27 @@ index 1ae6c16..2fb1043 100644
 +    addresslessReceive: true,
    },
  };
+diff --git a/src/utils/format-token-amount.ts b/src/utils/format-token-amount.ts
+index 34120d4..a5d146d 100644
+--- a/src/utils/format-token-amount.ts
++++ b/src/utils/format-token-amount.ts
+@@ -7,7 +7,15 @@ const formatTokenAmount = (amount: number, token: AssetTicker, includeSymbol: bo
+ 
+   if (amount === 0) return `0.00${includeSymbol ? ` ${symbol}` : ''}`;
+ 
+-  let decimals = Math.max(Math.ceil(Math.abs(Math.log10(amount))), 2);
++  // Use enough decimal places to show significant digits without rounding.
++  // -floor(log10(x)) gives the position of the first significant digit;
++  // +1 ensures the last digit isn't rounded away. Cap at 8 for BTC
++  // (satoshi precision) and 6 for stablecoins.
++  const maxDecimals = token === AssetTicker.BTC ? 8 : 6;
++  let decimals = Math.min(
++    Math.max(-Math.floor(Math.log10(Math.abs(amount))) + 1, 2),
++    maxDecimals
++  );
+ 
+   const formattedAmount = formatAmount(amount, {
+     minimumFractionDigits: 0,
 diff --git a/src/utils/gas-fee-calculator.ts b/src/utils/gas-fee-calculator.ts
 index 3a08372..a95c8e4 100644
 --- a/src/utils/gas-fee-calculator.ts
