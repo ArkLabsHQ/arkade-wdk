@@ -6860,6 +6860,29 @@ index ae693d1..7999f36 100644
            const network = networkConfigs[networkType];
  
            const balance = balances.list?.find(
+diff --git a/src/app/token-details.tsx b/src/app/token-details.tsx
+index 43f4274..5090008 100644
+--- a/src/app/token-details.tsx
++++ b/src/app/token-details.tsx
+@@ -49,11 +49,16 @@ export default function TokenDetailsScreen() {
+       // Filter balances for this specific token
+       const tokenBalances = balances.list.filter(balance => balance.denomination === tokenSymbol);
+ 
+-      // Calculate total balance and network breakdown with fiat values
++      // Calculate total balance and network breakdown with fiat values.
++      // Lightning and Boarding share the same pool of sats as Arkade —
++      // skip them when summing the total to avoid double/triple counting.
++      const SKIP_IN_TOTAL = new Set([NetworkType.LIGHTNING, NetworkType.ARKADE_BOARDING]);
+       let totalBalance = 0;
+       const networkBalancesPromises = tokenBalances.map(async balance => {
+         const amount = parseFloat(balance.value);
+-        totalBalance += amount;
++        if (!SKIP_IN_TOTAL.has(balance.networkType)) {
++          totalBalance += amount;
++        }
+ 
+         // Calculate fiat value using pricing service
+         const usdValue = await pricingService.getFiatValue(
 diff --git a/src/config/assets.ts b/src/config/assets.ts
 index 7a86eaf..4400f85 100644
 --- a/src/config/assets.ts
