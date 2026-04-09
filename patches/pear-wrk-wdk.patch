@@ -2129,7 +2129,7 @@ index 066f296..f61172f 100644
  // Save interface to disk
  HRPCBuilder.toDisk(builder)
 diff --git a/src/wdk-core/wdk-manager.js b/src/wdk-core/wdk-manager.js
-index ab55aea..74983cd 100644
+index ab55aea..99a6d1f 100644
 --- a/src/wdk-core/wdk-manager.js
 +++ b/src/wdk-core/wdk-manager.js
 @@ -32,6 +32,8 @@
@@ -2277,11 +2277,17 @@ index ab55aea..74983cd 100644
    /**
       * Returns an evm transaction to approve the interaction transaction.
       *
-@@ -484,6 +594,10 @@ class WdkManager {
+@@ -484,6 +594,16 @@ class WdkManager {
          const { default: WalletManagerBtc } = await import('@wdk/wallet-btc')
  
          this._wallets.bitcoin = new WalletManagerBtc(seed, config.bitcoin)
 +      } else if (blockchain === 'arkade') {
++        if (!config.arkade || !config.arkade.arkServerUrl) {
++          throw new Error(
++            'Arkade chain config missing or arkServerUrl not set. ' +
++            'Set EXPO_PUBLIC_ARKADE_SERVER_URL in your .env file.'
++          )
++        }
 +        const { default: WalletManagerArkade } = await import('@arkade-os/wdk')
 +
 +        this._wallets.arkade = new WalletManagerArkade(seed, config.arkade)
