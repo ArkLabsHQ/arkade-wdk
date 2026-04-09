@@ -6471,24 +6471,225 @@ index 8025f1b..5ced777 100644
  
      // Sort transactions by timestamp (newest first) and calculate fiat values
 diff --git a/src/app/receive/details.tsx b/src/app/receive/details.tsx
-index 0ac6e1c..17fa9e2 100644
+index 0ac6e1c..369de80 100644
 --- a/src/app/receive/details.tsx
 +++ b/src/app/receive/details.tsx
-@@ -68,6 +68,13 @@ export default function ReceiveQRCodeScreen() {
+@@ -1,10 +1,11 @@
+ import { QRCode } from '@tetherto/wdk-uikit-react-native';
+ import { useLocalSearchParams } from 'expo-router';
+ import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
++import { useWallet } from '@tetherto/wdk-react-native-provider';
+ import * as Clipboard from 'expo-clipboard';
+ import { ArrowLeft, Copy, Share, X } from 'lucide-react-native';
+-import React, { useCallback } from 'react';
+-import { Share as RNShare, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
++import React, { useCallback, useState } from 'react';
++import { Share as RNShare, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { toast } from 'sonner-native';
+ import { colors } from '@/constants/colors';
+@@ -13,13 +14,44 @@ export default function ReceiveQRCodeScreen() {
+   const insets = useSafeAreaInsets();
+   const router = useDebouncedNavigation();
+   const params = useLocalSearchParams();
++  const { createLightningInvoice } = useWallet();
+ 
+-  const { tokenName, networkName, address } = params as {
++  const { tokenName, networkName, address, addresslessReceive } = params as {
+     tokenName: string;
+     networkName: string;
+     address: string;
++    addresslessReceive?: string;
+   };
+ 
++  const isLightning = addresslessReceive === 'true';
++
++  // Lightning invoice state
++  const [invoiceAmount, setInvoiceAmount] = useState('');
++  const [invoiceDescription, setInvoiceDescription] = useState('');
++  const [generatedInvoice, setGeneratedInvoice] = useState('');
++  const [isGenerating, setIsGenerating] = useState(false);
++
++  const handleCreateInvoice = useCallback(async () => {
++    const sats = parseInt(invoiceAmount, 10);
++    if (!sats || sats <= 0) {
++      toast.error('Enter a valid amount in sats');
++      return;
++    }
++    setIsGenerating(true);
++    try {
++      const result = await createLightningInvoice(sats, invoiceDescription || undefined);
++      setGeneratedInvoice(result.invoice);
++      toast.success('Invoice created');
++    } catch (err: any) {
++      toast.error(err?.message || 'Failed to create invoice');
++    } finally {
++      setIsGenerating(false);
++    }
++  }, [invoiceAmount, invoiceDescription, createLightningInvoice]);
++
++  // For Lightning, show either the form or the generated invoice
++  const displayAddress = isLightning ? generatedInvoice : address;
++
+   const handleBack = useCallback(() => {
+     router.back();
+   }, [router]);
+@@ -30,25 +62,31 @@ export default function ReceiveQRCodeScreen() {
+   }, [router]);
+ 
+   const handleCopyAddress = useCallback(async () => {
++    const text = displayAddress;
++    if (!text) return;
+     try {
+-      await Clipboard.setStringAsync(address);
+-      toast.success('Address copied to clipboard');
++      await Clipboard.setStringAsync(text);
++      toast.success('Copied to clipboard');
+     } catch (error) {
+-      console.error('Error copying address:', error);
+-      toast.error('Failed to copy address');
++      console.error('Error copying:', error);
++      toast.error('Failed to copy');
+     }
+-  }, [address]);
++  }, [displayAddress]);
+ 
+   const handleShareAddress = useCallback(async () => {
++    const text = displayAddress;
++    if (!text) return;
+     try {
+       await RNShare.share({
+-        message: `${tokenName} Address (${networkName}): ${address}`,
+-        title: `${tokenName} Receive Address`,
++        message: isLightning
++          ? `Lightning Invoice: ${text}`
++          : `${tokenName} Address (${networkName}): ${text}`,
++        title: isLightning ? 'Lightning Invoice' : `${tokenName} Receive Address`,
+       });
+     } catch (error) {
+-      console.error('Error sharing address:', error);
++      console.error('Error sharing:', error);
+     }
+-  }, [address, tokenName, networkName]);
++  }, [displayAddress, tokenName, networkName, isLightning]);
+ 
+   return (
+     <View style={[styles.container, { paddingTop: insets.top }]}>
+@@ -68,43 +106,83 @@ export default function ReceiveQRCodeScreen() {
            <Text style={styles.title}>
              You&apos;re about to receive {tokenName} on {networkName}
            </Text>
+-        </View>
+-
+-        <QRCode
+-          value={address}
+-          label="Scan QR code"
+-          size={200}
+-          color={colors.primary}
+-          containerStyle={styles.qrSection}
+-        />
+-
+-        <View style={styles.addressSection}>
+-          <View style={styles.addressContainer}>
+-            <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
+-              {address}
 +          {networkName === 'Bitcoin (Boarding)' && (
 +            <Text style={styles.boardingHint}>
 +              Send on-chain BTC to this address. It will become available as
 +              Arkade balance after the next server round (usually within a few
 +              minutes).
-+            </Text>
+             </Text>
+-          </View>
+-
+-          <View style={styles.buttonsContainer}>
+-            <TouchableOpacity
+-              style={[styles.actionButton, styles.copyButton]}
+-              onPress={handleCopyAddress}
+-              activeOpacity={0.7}
+-            >
+-              <Copy size={20} color={colors.white} />
+-              <Text style={styles.actionButtonText}>Copy</Text>
+-            </TouchableOpacity>
 +          )}
-         </View>
++        </View>
  
-         <QRCode
-@@ -153,6 +160,12 @@ const styles = StyleSheet.create({
++        {/* Lightning: show invoice form until an invoice is generated */}
++        {isLightning && !generatedInvoice ? (
++          <View style={styles.addressSection}>
++            <TextInput
++              style={styles.lightningInput}
++              placeholder="Amount (sats)"
++              placeholderTextColor={colors.textTertiary}
++              keyboardType="numeric"
++              value={invoiceAmount}
++              onChangeText={setInvoiceAmount}
++            />
++            <TextInput
++              style={[styles.lightningInput, { marginTop: 12 }]}
++              placeholder="Description (optional)"
++              placeholderTextColor={colors.textTertiary}
++              value={invoiceDescription}
++              onChangeText={setInvoiceDescription}
++            />
+             <TouchableOpacity
+-              style={[styles.actionButton, styles.shareButton]}
+-              onPress={handleShareAddress}
++              style={[styles.actionButton, styles.copyButton, { marginTop: 24, width: '100%' }]}
++              onPress={handleCreateInvoice}
++              disabled={isGenerating}
+               activeOpacity={0.7}
+             >
+-              <Share size={20} color={colors.white} />
+-              <Text style={styles.actionButtonText}>Share</Text>
++              <Text style={styles.actionButtonText}>
++                {isGenerating ? 'Creating...' : 'Create Invoice'}
++              </Text>
+             </TouchableOpacity>
+           </View>
+-        </View>
++        ) : (
++          <>
++            <QRCode
++              value={displayAddress || 'empty'}
++              label={isLightning ? 'Lightning Invoice' : 'Scan QR code'}
++              size={200}
++              color={colors.primary}
++              containerStyle={styles.qrSection}
++            />
++
++            <View style={styles.addressSection}>
++              <View style={styles.addressContainer}>
++                <Text style={styles.addressText} numberOfLines={isLightning ? 3 : 1} ellipsizeMode="middle">
++                  {displayAddress}
++                </Text>
++              </View>
++
++              <View style={styles.buttonsContainer}>
++                <TouchableOpacity
++                  style={[styles.actionButton, styles.copyButton]}
++                  onPress={handleCopyAddress}
++                  activeOpacity={0.7}
++                >
++                  <Copy size={20} color={colors.white} />
++                  <Text style={styles.actionButtonText}>Copy</Text>
++                </TouchableOpacity>
++
++                <TouchableOpacity
++                  style={[styles.actionButton, styles.shareButton]}
++                  onPress={handleShareAddress}
++                  activeOpacity={0.7}
++                >
++                  <Share size={20} color={colors.white} />
++                  <Text style={styles.actionButtonText}>Share</Text>
++                </TouchableOpacity>
++              </View>
++            </View>
++          </>
++        )}
+       </View>
+     </View>
+   );
+@@ -153,6 +231,23 @@ const styles = StyleSheet.create({
      lineHeight: 28,
      textAlign: 'left',
    },
@@ -6498,11 +6699,22 @@ index 0ac6e1c..17fa9e2 100644
 +    lineHeight: 20,
 +    marginTop: 8,
 +  },
++  lightningInput: {
++    backgroundColor: colors.card,
++    borderRadius: 12,
++    paddingHorizontal: 16,
++    paddingVertical: 14,
++    fontSize: 16,
++    color: colors.text,
++    borderWidth: 1,
++    borderColor: colors.border,
++    width: '100%',
++  },
    qrSection: {
      marginBottom: 40,
    },
 diff --git a/src/app/receive/select-network.tsx b/src/app/receive/select-network.tsx
-index ac8d02c..3ec4a64 100644
+index ac8d02c..2126d40 100644
 --- a/src/app/receive/select-network.tsx
 +++ b/src/app/receive/select-network.tsx
 @@ -24,6 +24,8 @@ const NETWORK_DESCRIPTIONS = {
@@ -6526,8 +6738,20 @@ index ac8d02c..3ec4a64 100644
          description: NETWORK_DESCRIPTIONS[network.id as NetworkType],
        };
      });
+@@ -72,7 +77,10 @@ export default function ReceiveSelectNetworkScreen() {
+           tokenName,
+           networkId: network.id,
+           networkName: network.name,
+-          address: network.address,
++          address: network.address || '',
++          // Lightning has no static address — the details screen shows
++          // an invoice creation form when this flag is set.
++          addresslessReceive: network.addresslessReceive ? 'true' : '',
+         },
+       });
+     },
 diff --git a/src/config/assets.ts b/src/config/assets.ts
-index 7a86eaf..b02cdc4 100644
+index 7a86eaf..4400f85 100644
 --- a/src/config/assets.ts
 +++ b/src/config/assets.ts
 @@ -26,7 +26,11 @@ export const assetConfig: Record<string, AssetConfig> = {
@@ -6539,7 +6763,7 @@ index 7a86eaf..b02cdc4 100644
 +    // (swap-backed invoices). Phase 5 adds ARKADE_BOARDING (on-chain BTC
 +    // deposits into Ark). Each appears as its own row in the receive /
 +    // send network selectors.
-+    supportedNetworks: [NetworkType.SEGWIT, NetworkType.ARKADE, NetworkType.ARKADE_BOARDING],
++    supportedNetworks: [NetworkType.SEGWIT, NetworkType.ARKADE, NetworkType.ARKADE_BOARDING, NetworkType.LIGHTNING],
    },
    usdt: {
      name: 'USD₮',

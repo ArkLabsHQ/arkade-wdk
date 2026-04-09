@@ -123,11 +123,18 @@ class WalletManagerArkade extends WalletManager {
           apiUrl: this.config.swapProviderUrl,
           network,
         });
-        swaps = await ArkadeSwaps.create({
+        /** @type {import('@arkade-os/boltz-swap').ArkadeSwapsCreateConfig} */
+        const swapsConfig = {
           wallet,
           swapProvider,
           swapManager: { autoStart: true, pollInterval: 5_000 },
-        });
+        };
+        // Forward swapRepository from config if provided (e.g. a SQLite-
+        // backed repo passed by the RN-side initArkadeWallet).
+        if (this.config.swapRepository) {
+          swapsConfig.swapRepository = this.config.swapRepository;
+        }
+        swaps = await ArkadeSwaps.create(swapsConfig);
       }
 
       return { wallet, keyPair, swaps };
