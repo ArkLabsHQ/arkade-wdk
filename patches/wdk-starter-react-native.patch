@@ -6471,7 +6471,7 @@ index 8025f1b..5ced777 100644
  
      // Sort transactions by timestamp (newest first) and calculate fiat values
 diff --git a/src/app/receive/details.tsx b/src/app/receive/details.tsx
-index 0ac6e1c..564ddb1 100644
+index 0ac6e1c..cf5e22e 100644
 --- a/src/app/receive/details.tsx
 +++ b/src/app/receive/details.tsx
 @@ -1,25 +1,82 @@
@@ -6648,7 +6648,7 @@ index 0ac6e1c..564ddb1 100644
              <TouchableOpacity
 -              style={[styles.actionButton, styles.shareButton]}
 -              onPress={handleShareAddress}
-+              style={[styles.actionButton, styles.copyButton, { marginTop: 32, width: '100%' }]}
++              style={[styles.actionButton, styles.copyButton, { marginTop: 32, width: '100%', flex: 0 }]}
 +              onPress={handleClose}
                activeOpacity={0.7}
              >
@@ -6691,7 +6691,7 @@ index 0ac6e1c..564ddb1 100644
 +                  onChangeText={setInvoiceDescription}
 +                />
 +                <TouchableOpacity
-+                  style={[styles.actionButton, styles.copyButton, { marginTop: 24, width: '100%' }]}
++                  style={[styles.actionButton, styles.copyButton, { marginTop: 24, width: '100%', flex: 0 }]}
 +                  onPress={handleCreateInvoice}
 +                  disabled={isGenerating}
 +                  activeOpacity={0.7}
