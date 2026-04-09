@@ -83,7 +83,7 @@ index 4c3dff5..2a7d990 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..a664c5f 100644
+index 5ae8528..7e47f42 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -240,7 +240,7 @@ index 5ae8528..a664c5f 100644
  
        // Note: We keep this.wdkManager and this.secretManager references intact
        // as the worklets are still running and can be reused
-@@ -205,6 +321,49 @@ class WDKService {
+@@ -205,6 +321,54 @@ class WDKService {
      }
    }
  
@@ -270,8 +270,13 @@ index 5ae8528..a664c5f 100644
 +        all: (sql: string, params?: any[]) => db.getAllAsync(sql, params ?? []),
 +      };
 +      const indexerUrl = arkadeConfig.indexerUrl || arkadeConfig.arkServerUrl;
++      // Strip swapProviderUrl — ArkadeSwaps.create() defaults to
++      // IndexedDbSwapRepository which isn't available on RN. Lightning
++      // swaps need a RN-compatible swap storage solution; until then,
++      // skip swap creation entirely so the core wallet works.
++      const { swapProviderUrl: _skip, ...arkadeConfigNoSwaps } = arkadeConfig;
 +      this.arkadeManager = new WalletManagerArkade(seedPhrase, {
-+        ...arkadeConfig,
++        ...arkadeConfigNoSwaps,
 +        arkProvider: new ExpoArkProvider(arkadeConfig.arkServerUrl),
 +        indexerProvider: new ExpoIndexerProvider(indexerUrl),
 +        storage: {
@@ -290,7 +295,7 @@ index 5ae8528..a664c5f 100644
    // WDK API Methods
    async createSeed(params: {
      prf: Buffer | ArrayBuffer | string;
-@@ -359,6 +518,14 @@ class WDKService {
+@@ -359,6 +523,14 @@ class WDKService {
          network: toNetwork(network),
          accountIndex: index,
        });
@@ -305,7 +310,7 @@ index 5ae8528..a664c5f 100644
      } else {
        return await this.wdkManager.getAbstractedAddress({
          network: toNetwork(network),
-@@ -375,6 +542,7 @@ class WDKService {
+@@ -375,6 +547,7 @@ class WDKService {
        throw new Error('WDK Manager not initialized');
      }
  
@@ -313,7 +318,7 @@ index 5ae8528..a664c5f 100644
      const addressPromises = [];
      const networkAddresses: Partial<Record<NetworkType, string>> = {};
      const addressesArr = [];
-@@ -382,9 +550,28 @@ class WDKService {
+@@ -382,9 +555,28 @@ class WDKService {
      for (const asset of enabledAssets) {
        for (const networkType of Object.keys(AssetAddressMap[asset])) {
          addressesArr.push({ [networkType]: null });
@@ -345,7 +350,7 @@ index 5ae8528..a664c5f 100644
        }
      }
  
-@@ -395,18 +582,22 @@ class WDKService {
+@@ -395,18 +587,22 @@ class WDKService {
          // @ts-expect-error
          networkAddresses[key] = (addresses[i] as any).value.address;
        } else {
@@ -374,7 +379,7 @@ index 5ae8528..a664c5f 100644
  
      return networkAddresses;
    }
-@@ -432,6 +623,16 @@ class WDKService {
+@@ -432,6 +628,16 @@ class WDKService {
            },
          });
  
@@ -391,7 +396,7 @@ index 5ae8528..a664c5f 100644
          return Number(quote.fee) / this.getDenominationValue(AssetTicker.BTC);
        } else if (
          [
-@@ -520,6 +721,16 @@ class WDKService {
+@@ -520,6 +726,16 @@ class WDKService {
        });
  
        return response;
@@ -408,7 +413,7 @@ index 5ae8528..a664c5f 100644
      } else if (
        [
          NetworkType.ETHEREUM,
-@@ -571,6 +782,83 @@ class WDKService {
+@@ -571,6 +787,83 @@ class WDKService {
      }
    }
  
@@ -492,7 +497,7 @@ index 5ae8528..a664c5f 100644
    async createWallet(params: {
      walletName: string;
      prf: Buffer | string;
-@@ -613,6 +901,8 @@ class WDKService {
+@@ -613,6 +906,8 @@ class WDKService {
        data: wallet,
      });
  
@@ -501,7 +506,7 @@ index 5ae8528..a664c5f 100644
      return wallet;
    }
  
-@@ -637,6 +927,14 @@ class WDKService {
+@@ -637,6 +932,14 @@ class WDKService {
      const transactionMap: Record<string, Transaction[]> = {};
      const payloadKeys: string[] = []; // Track the keys in order to match with response array
  
@@ -516,7 +521,7 @@ index 5ae8528..a664c5f 100644
      enabledAssets.forEach((asset) => {
        const networks = AssetBalanceMap[asset];
        if (!networks) return;
-@@ -645,6 +943,10 @@ class WDKService {
+@@ -645,6 +948,10 @@ class WDKService {
          const key = `${networkType}_${asset}`;
          transactionMap[key] = [];
  
@@ -527,7 +532,7 @@ index 5ae8528..a664c5f 100644
          const address = networkAddresses[networkType as NetworkType];
  
          if (address) {
-@@ -659,6 +961,34 @@ class WDKService {
+@@ -659,6 +966,34 @@ class WDKService {
        });
      });
  
@@ -562,7 +567,7 @@ index 5ae8528..a664c5f 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -699,6 +1029,10 @@ class WDKService {
+@@ -699,6 +1034,10 @@ class WDKService {
        }
      >
    > {
@@ -573,7 +578,7 @@ index 5ae8528..a664c5f 100644
      const headers = new Headers();
      headers.append('accept', 'application/json');
      headers.append('x-api-key', this.getIndexerApiKey());
-@@ -715,6 +1049,9 @@ class WDKService {
+@@ -715,6 +1054,9 @@ class WDKService {
        if (!networks) return;
  
        Object.keys(networks).forEach((networkType) => {
@@ -583,7 +588,7 @@ index 5ae8528..a664c5f 100644
          const address = networkAddresses[networkType as NetworkType];
          if (address) {
            payload.push({
-@@ -726,6 +1063,23 @@ class WDKService {
+@@ -726,6 +1068,23 @@ class WDKService {
        });
      });
  
@@ -607,7 +612,7 @@ index 5ae8528..a664c5f 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -743,14 +1097,22 @@ class WDKService {
+@@ -743,14 +1102,22 @@ class WDKService {
  
      const data = await response.json();
  
@@ -632,7 +637,7 @@ index 5ae8528..a664c5f 100644
          allBalances[`${obj.blockchain}_${obj.token}`] = {
            balance: parseFloat(obj.amount),
            asset: obj.token as AssetTicker,
-@@ -759,8 +1121,46 @@ class WDKService {
+@@ -759,8 +1126,46 @@ class WDKService {
        },
        {} as Record<string, { balance: number; asset: AssetTicker }>
      );
