@@ -24,14 +24,16 @@ index 3931ba9..e8d61c6 100644
  
  // Export spec/schema
 diff --git a/pack.imports.json b/pack.imports.json
-index bcaef0c..9007586 100644
+index bcaef0c..1c63751 100644
 --- a/pack.imports.json
 +++ b/pack.imports.json
-@@ -1,3 +1,4 @@
+@@ -1,3 +1,6 @@
  {
 -  "http": "bare-http1"
 +  "http": "bare-http1",
-+  "bare-type": "bare-type-jsshim"
++  "bare-type": "bare-type-jsshim",
++  "bare-performance": "bare-performance-jsshim",
++  "bare-performance/global": "bare-performance-jsshim/global"
  }
 \ No newline at end of file
 diff --git a/package-lock.json b/package-lock.json
@@ -134,6 +136,248 @@ index 83a4a5c..63bd445 100644
      "gen:schema": "node src/schema/schema.js",
      "postinstall": "npm run gen:mobile-bundle"
    },
+diff --git a/shims/bare-performance-jsshim/global.js b/shims/bare-performance-jsshim/global.js
+new file mode 100644
+index 0000000..5ba967f
+--- /dev/null
++++ b/shims/bare-performance-jsshim/global.js
+@@ -0,0 +1,12 @@
++// Mirrors bare-performance/global.js — sets up the global performance API
++// using the JS shim instead of the native addon.
++'use strict'
++
++const performance = require('.')
++
++global.performance = performance
++global.PerformanceEntry = performance.PerformanceEntry
++global.PerformanceMark = performance.PerformanceMark
++global.PerformanceMeasure = performance.PerformanceMeasure
++global.PerformanceObserver = performance.PerformanceObserver
++global.PerformanceObserverEntryList = performance.PerformanceObserverEntryList
+diff --git a/shims/bare-performance-jsshim/index.js b/shims/bare-performance-jsshim/index.js
+new file mode 100644
+index 0000000..0f75627
+--- /dev/null
++++ b/shims/bare-performance-jsshim/index.js
+@@ -0,0 +1,205 @@
++// Pure-JS shim for bare-performance. The upstream package uses a native addon
++// (libbare-performance.so) for high-resolution timing and histogram stats.
++// react-native-bare-kit doesn't ship the matching version, and downgrading
++// breaks the dep tree. This shim replaces the native binding with Date-based
++// fallbacks — precise enough for the Arkade wallet's use case (diagnostics,
++// not microsecond-accuracy benchmarks).
++'use strict'
++
++const TIME_ORIGIN = Date.now()
++
++exports.now = function now () {
++  return Date.now() - TIME_ORIGIN
++}
++
++exports.eventLoopUtilization = function eventLoopUtilization () {
++  return { idle: 0, active: 0, utilization: 0 }
++}
++
++exports.idleTime = function idleTime () {
++  return 0
++}
++
++exports.metricsInfo = function metricsInfo () {
++  return {}
++}
++
++exports.timeOrigin = TIME_ORIGIN
++
++exports.performance = exports
++
++class PerformanceNodeTiming {
++  get idleTime () { return 0 }
++  get uvMetricsInfo () { return {} }
++}
++
++exports.nodeTiming = new PerformanceNodeTiming()
++
++// --- Performance Timeline (mark / measure / observer) ---
++
++const observerType = { UNDEFINED: 1, SINGLE: 2, MULTIPLE: 3 }
++
++class InvalidModificationError extends Error {
++  get name () { return 'InvalidModificationError' }
++}
++
++const globalObservers = new Set()
++const globalPendingObservers = new Set()
++let globalBuffer = []
++let pending = false
++
++class PerformanceEntry {
++  constructor (name, type, start, duration) {
++    this._name = name; this._type = type; this._start = start; this._duration = duration
++  }
++  get name () { return this._name }
++  get entryType () { return this._type }
++  get startTime () { return this._start }
++  get duration () { return this._duration }
++}
++exports.PerformanceEntry = PerformanceEntry
++
++class PerformanceMark extends PerformanceEntry {
++  constructor (name, opts = {}) {
++    const { startTime = exports.now(), detail = null } = opts
++    super(name, 'mark', startTime, 0)
++    this._detail = detail
++  }
++  get detail () { return this._detail }
++}
++exports.PerformanceMark = PerformanceMark
++
++class PerformanceMeasure extends PerformanceEntry {
++  constructor (name, startTime, duration, opts = {}) {
++    const { detail = null } = opts
++    super(name, 'measure', startTime, duration)
++    this._detail = detail
++  }
++  get detail () { return this._detail }
++}
++exports.PerformanceMeasure = PerformanceMeasure
++
++class PerformanceObserverEntryList {
++  constructor (entryList) { this._list = entryList }
++  getEntries () { return this._list }
++  getEntriesByType (type) { return this._list.filter(e => e.entryType === type) }
++  getEntriesByName (name) { return this._list.filter(e => e.name === name) }
++}
++exports.PerformanceObserverEntryList = PerformanceObserverEntryList
++
++class PerformanceObserver {
++  constructor (cb) {
++    this._entryTypes = new Set()
++    this._type = observerType.UNDEFINED
++    this._buffer = []
++    this._cb = cb
++  }
++  static get supportedEntryTypes () { return ['mark', 'measure'] }
++  observe (opts = {}) {
++    if ((!opts.entryTypes && !opts.type) || (opts.entryTypes && opts.type)) {
++      throw new TypeError('opts.entryTypes OR opts.type must be specified')
++    }
++    if ((this._type === observerType.MULTIPLE && opts.type) || (this._type === observerType.SINGLE && opts.entryTypes)) {
++      throw new InvalidModificationError('Cannot change the PerformanceObserver type')
++    }
++    if (this._type === observerType.UNDEFINED) {
++      this._type = opts.entryTypes ? observerType.MULTIPLE : observerType.SINGLE
++    }
++    this._entryTypes.clear()
++    const types = opts.entryTypes || [opts.type]
++    for (const t of types) {
++      if (PerformanceObserver.supportedEntryTypes.includes(t)) this._entryTypes.add(t)
++    }
++    if (this._entryTypes.size > 0) globalObservers.add(this)
++    else this.disconnect()
++  }
++  takeRecords () { const buf = this._buffer; this._buffer = []; return buf }
++  disconnect () { globalObservers.delete(this); this._entryTypes.clear(); this._type = observerType.UNDEFINED }
++}
++exports.PerformanceObserver = PerformanceObserver
++
++function processEntry (entry) {
++  for (const observer of globalObservers) {
++    if (observer._entryTypes.has(entry.entryType)) {
++      observer._buffer.push(entry)
++      globalPendingObservers.add(observer)
++      processPendingObservers()
++    }
++  }
++}
++
++function processPendingObservers () {
++  if (pending) return
++  pending = true
++  setTimeout(() => {
++    pending = false
++    const observers = Array.from(globalPendingObservers.values())
++    globalPendingObservers.clear()
++    for (const observer of observers) {
++      observer._cb(new PerformanceObserverEntryList(observer.takeRecords()), observer)
++    }
++  }, 0)
++}
++
++exports.mark = function mark (name, opts) {
++  const m = new PerformanceMark(name, opts)
++  processEntry(m)
++  globalBuffer.push(m)
++  return m
++}
++
++exports.clearMarks = function clearMarks (name) {
++  globalBuffer = name
++    ? globalBuffer.filter(e => !(e.name === name && e.entryType === 'mark'))
++    : globalBuffer.filter(e => e.entryType !== 'mark')
++}
++
++exports.measure = function measure (name, start, end) {
++  const startTime = typeof start === 'number' ? start : 0
++  const endTime = typeof end === 'number' ? end : exports.now()
++  const m = new PerformanceMeasure(name, startTime, endTime - startTime)
++  processEntry(m)
++  globalBuffer.push(m)
++  return m
++}
++
++exports.clearMeasures = function clearMeasures (name) {
++  globalBuffer = name
++    ? globalBuffer.filter(e => !(e.name === name && e.entryType === 'measure'))
++    : globalBuffer.filter(e => e.entryType !== 'measure')
++}
++
++exports.getEntries = function getEntries () { return new PerformanceObserverEntryList(globalBuffer).getEntries() }
++exports.getEntriesByName = function getEntriesByName (name) { return new PerformanceObserverEntryList(globalBuffer).getEntriesByName(name) }
++exports.getEntriesByType = function getEntriesByType (type) { return new PerformanceObserverEntryList(globalBuffer).getEntriesByType(type) }
++
++// Histogram — stub. The native binding provides nanosecond-precision HDR
++// histograms; this JS stub records nothing and returns zeroes. Good enough
++// for the Arkade wallet (nobody calls createHistogram / monitorEventLoopDelay
++// in the hot path).
++class Histogram {
++  get max () { return 0 }
++  get min () { return 0 }
++  get mean () { return 0 }
++  get percentiles () { return new Map() }
++  get stddev () { return 0 }
++  get count () { return 0 }
++  get exceeds () { return 0 }
++  percentile () { return 0 }
++  reset () {}
++}
++
++class RecordableHistogram extends Histogram {
++  add () {}
++  record () {}
++}
++
++exports.createHistogram = function createHistogram () { return new RecordableHistogram() }
++
++class IntervalHistogram extends Histogram {
++  enable () { return true }
++  disable () { return true }
++  [Symbol.dispose] () { this.disable() }
++}
++
++exports.monitorEventLoopDelay = function monitorEventLoopDelay () { return new IntervalHistogram() }
+diff --git a/shims/bare-performance-jsshim/package.json b/shims/bare-performance-jsshim/package.json
+new file mode 100644
+index 0000000..09a403a
+--- /dev/null
++++ b/shims/bare-performance-jsshim/package.json
+@@ -0,0 +1,7 @@
++{
++  "name": "bare-performance-jsshim",
++  "version": "1.0.0",
++  "description": "Pure-JS replacement for bare-performance, used by bare-pack via pack.imports.json so the worklet doesn't need libbare-performance.so at runtime.",
++  "main": "./index.js",
++  "license": "Apache-2.0"
++}
 diff --git a/shims/bare-type-jsshim/index.js b/shims/bare-type-jsshim/index.js
 new file mode 100644
 index 0000000..efc6435
