@@ -89,10 +89,22 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
 
   /** @returns {Promise<WalletAccountReadOnlyArkade>} */
   toReadOnlyAccount() {
+    /** @type {import('@arkade-os/sdk').IReadonlyWallet} */
+    const readonlyWallet = {
+      identity: this.wallet.identity,
+      getAddress: () => this.wallet.getAddress(),
+      getBoardingAddress: () => this.wallet.getBoardingAddress(),
+      getBalance: () => this.wallet.getBalance(),
+      getVtxos: (/** @type {import('@arkade-os/sdk').GetVtxosFilter} */ filter) => this.wallet.getVtxos(filter),
+      getBoardingUtxos: () => this.wallet.getBoardingUtxos(),
+      getTransactionHistory: () => this.wallet.getTransactionHistory(),
+      getContractManager: () => this.wallet.getContractManager(),
+      assetManager: this.wallet.assetManager,
+    };
     return Promise.resolve(
       new WalletAccountReadOnlyArkade(
         /** @type {string} */ (this._address),
-        this.wallet,
+        readonlyWallet,
         this.indexerProvider,
         this.arkInfo
       )
