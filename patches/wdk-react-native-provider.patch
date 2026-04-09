@@ -50,10 +50,31 @@ index aa13609..dc7a3f5 100644
  
  // Provider configuration
 diff --git a/src/contexts/wallet-context.tsx b/src/contexts/wallet-context.tsx
-index 4c3dff5..2a7d990 100644
+index 4c3dff5..dd8018d 100644
 --- a/src/contexts/wallet-context.tsx
 +++ b/src/contexts/wallet-context.tsx
-@@ -384,6 +384,9 @@ export function WalletProvider({
+@@ -64,6 +64,20 @@ export function WalletProvider({
+     // eslint-disable-next-line react-hooks/exhaustive-deps
+   }, [state.wallet?.enabledAssets, state.addresses]);
+ 
++  // Subscribe to Arkade incoming-funds notifications so balance and
++  // transactions refresh automatically when VTXOs arrive — no manual
++  // pull-to-refresh needed. The SDK uses SSE via ExpoArkProvider.
++  useEffect(() => {
++    const unsub = WDKService.onArkadeBalanceChange(() => {
++      if (state.wallet?.enabledAssets && state.addresses) {
++        fetchBalances({ forceUpdate: true });
++        fetchTransactions({ forceUpdate: true });
++      }
++    });
++    return unsub;
++    // eslint-disable-next-line react-hooks/exhaustive-deps
++  }, [state.wallet?.enabledAssets, state.addresses]);
++
+   // Save wallet to storage whenever wallet changes
+   useEffect(() => {
+     if (state.isInitialized && state.wallet) {
+@@ -384,6 +398,9 @@ export function WalletProvider({
      dispatch({ type: 'SET_TRANSACTIONS', payload: transactionMap });
    };
  
@@ -63,7 +84,7 @@ index 4c3dff5..2a7d990 100644
    const value: WalletContextType = {
      ...state,
      createWallet,
-@@ -392,6 +395,18 @@ export function WalletProvider({
+@@ -392,6 +409,18 @@ export function WalletProvider({
      refreshWalletBalance,
      refreshTransactions,
      unlockWallet,
@@ -83,7 +104,7 @@ index 4c3dff5..2a7d990 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..0f438b0 100644
+index 5ae8528..c131843 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -215,23 +236,56 @@ index 5ae8528..0f438b0 100644
      case NetworkType.ETHEREUM:
        return 'ethereum';
      case NetworkType.TON:
-@@ -79,6 +187,9 @@ class WDKService {
+@@ -79,9 +187,38 @@ class WDKService {
    private wdkManager: WdkManager | null = null;
    private secretManager: any | null = null;
    private config: WDKServiceConfig | undefined;
 +  // Arkade wallet running on the RN side (not in the Bare worklet).
 +  private arkadeAccount: any = null;
 +  private arkadeManager: any = null;
++  private arkadeUnsubIncoming: (() => void) | null = null;
++  private arkadeBalanceListeners: Array<() => void> = [];
  
    private constructor() {}
  
-@@ -193,8 +304,13 @@ class WDKService {
++  /**
++   * Register a callback that fires when the Arkade wallet detects incoming
++   * funds (new VTXOs). The wallet-context uses this to auto-refresh balance
++   * and transactions without manual pull-to-refresh.
++   */
++  onArkadeBalanceChange(cb: () => void): () => void {
++    this.arkadeBalanceListeners.push(cb);
++    return () => {
++      this.arkadeBalanceListeners = this.arkadeBalanceListeners.filter(
++        (l) => l !== cb
++      );
++    };
++  }
++
++  private notifyArkadeBalanceListeners() {
++    for (const cb of this.arkadeBalanceListeners) {
++      try {
++        cb();
++      } catch (_e) {
++        /* listener errors shouldn't crash the service */
++      }
++    }
++  }
++
+   static getInstance(): WDKService {
+     if (!WDKService.instance) {
+       WDKService.instance = new WDKService();
+@@ -193,8 +330,17 @@ class WDKService {
        // 3. Clear all keychain storage (entropy, seed, salt)
        await WdkSecretManagerStorage.resetAllData();
  
 -      // 4. Reset internal state (but keep worklets alive)
 +      // 4. Reset internal state
        this.walletManagerCache.clear();
++      if (this.arkadeUnsubIncoming) {
++        try { this.arkadeUnsubIncoming(); } catch (_e) { /* best-effort */ }
++        this.arkadeUnsubIncoming = null;
++      }
 +      if (this.arkadeManager) {
 +        try { await this.arkadeManager.dispose(); } catch (_e) { /* best-effort */ }
 +        this.arkadeManager = null;
@@ -240,7 +294,7 @@ index 5ae8528..0f438b0 100644
  
        // Note: We keep this.wdkManager and this.secretManager references intact
        // as the worklets are still running and can be reused
-@@ -205,6 +321,98 @@ class WDKService {
+@@ -205,6 +351,109 @@ class WDKService {
      }
    }
  
@@ -329,6 +383,17 @@ index 5ae8528..0f438b0 100644
 +        },
 +      });
 +      this.arkadeAccount = await this.arkadeManager.getAccount(0);
++
++      // Subscribe to incoming funds — the SDK uses SSE (via ExpoArkProvider)
++      // to detect new VTXOs in real-time. When funds arrive, fire the
++      // balance listeners so the wallet-context auto-refreshes.
++      try {
++        this.arkadeUnsubIncoming = await this.arkadeAccount.wallet.notifyIncomingFunds(
++          () => this.notifyArkadeBalanceListeners()
++        );
++      } catch (subErr) {
++        console.warn('[arkade] Could not subscribe to incoming funds:', subErr);
++      }
 +    } catch (error) {
 +      console.error('[arkade] Failed to initialize wallet on RN side:', error);
 +      this.arkadeManager = null;
@@ -339,7 +404,7 @@ index 5ae8528..0f438b0 100644
    // WDK API Methods
    async createSeed(params: {
      prf: Buffer | ArrayBuffer | string;
-@@ -359,6 +567,14 @@ class WDKService {
+@@ -359,6 +608,14 @@ class WDKService {
          network: toNetwork(network),
          accountIndex: index,
        });
@@ -354,7 +419,7 @@ index 5ae8528..0f438b0 100644
      } else {
        return await this.wdkManager.getAbstractedAddress({
          network: toNetwork(network),
-@@ -375,6 +591,7 @@ class WDKService {
+@@ -375,6 +632,7 @@ class WDKService {
        throw new Error('WDK Manager not initialized');
      }
  
@@ -362,7 +427,7 @@ index 5ae8528..0f438b0 100644
      const addressPromises = [];
      const networkAddresses: Partial<Record<NetworkType, string>> = {};
      const addressesArr = [];
-@@ -382,9 +599,28 @@ class WDKService {
+@@ -382,9 +640,28 @@ class WDKService {
      for (const asset of enabledAssets) {
        for (const networkType of Object.keys(AssetAddressMap[asset])) {
          addressesArr.push({ [networkType]: null });
@@ -394,7 +459,7 @@ index 5ae8528..0f438b0 100644
        }
      }
  
-@@ -395,18 +631,22 @@ class WDKService {
+@@ -395,18 +672,22 @@ class WDKService {
          // @ts-expect-error
          networkAddresses[key] = (addresses[i] as any).value.address;
        } else {
@@ -423,7 +488,7 @@ index 5ae8528..0f438b0 100644
  
      return networkAddresses;
    }
-@@ -432,6 +672,16 @@ class WDKService {
+@@ -432,6 +713,16 @@ class WDKService {
            },
          });
  
@@ -440,7 +505,7 @@ index 5ae8528..0f438b0 100644
          return Number(quote.fee) / this.getDenominationValue(AssetTicker.BTC);
        } else if (
          [
-@@ -520,6 +770,16 @@ class WDKService {
+@@ -520,6 +811,16 @@ class WDKService {
        });
  
        return response;
@@ -457,7 +522,7 @@ index 5ae8528..0f438b0 100644
      } else if (
        [
          NetworkType.ETHEREUM,
-@@ -571,6 +831,91 @@ class WDKService {
+@@ -571,6 +872,91 @@ class WDKService {
      }
    }
  
@@ -549,7 +614,7 @@ index 5ae8528..0f438b0 100644
    async createWallet(params: {
      walletName: string;
      prf: Buffer | string;
-@@ -613,6 +958,8 @@ class WDKService {
+@@ -613,6 +999,8 @@ class WDKService {
        data: wallet,
      });
  
@@ -558,7 +623,7 @@ index 5ae8528..0f438b0 100644
      return wallet;
    }
  
-@@ -637,6 +984,14 @@ class WDKService {
+@@ -637,6 +1025,14 @@ class WDKService {
      const transactionMap: Record<string, Transaction[]> = {};
      const payloadKeys: string[] = []; // Track the keys in order to match with response array
  
@@ -573,7 +638,7 @@ index 5ae8528..0f438b0 100644
      enabledAssets.forEach((asset) => {
        const networks = AssetBalanceMap[asset];
        if (!networks) return;
-@@ -645,6 +1000,10 @@ class WDKService {
+@@ -645,6 +1041,10 @@ class WDKService {
          const key = `${networkType}_${asset}`;
          transactionMap[key] = [];
  
@@ -584,7 +649,7 @@ index 5ae8528..0f438b0 100644
          const address = networkAddresses[networkType as NetworkType];
  
          if (address) {
-@@ -659,6 +1018,31 @@ class WDKService {
+@@ -659,6 +1059,31 @@ class WDKService {
        });
      });
  
@@ -616,7 +681,7 @@ index 5ae8528..0f438b0 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -699,6 +1083,10 @@ class WDKService {
+@@ -699,6 +1124,10 @@ class WDKService {
        }
      >
    > {
@@ -627,7 +692,7 @@ index 5ae8528..0f438b0 100644
      const headers = new Headers();
      headers.append('accept', 'application/json');
      headers.append('x-api-key', this.getIndexerApiKey());
-@@ -715,6 +1103,9 @@ class WDKService {
+@@ -715,6 +1144,9 @@ class WDKService {
        if (!networks) return;
  
        Object.keys(networks).forEach((networkType) => {
@@ -637,7 +702,7 @@ index 5ae8528..0f438b0 100644
          const address = networkAddresses[networkType as NetworkType];
          if (address) {
            payload.push({
-@@ -726,6 +1117,23 @@ class WDKService {
+@@ -726,6 +1158,23 @@ class WDKService {
        });
      });
  
@@ -661,7 +726,7 @@ index 5ae8528..0f438b0 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -743,14 +1151,22 @@ class WDKService {
+@@ -743,14 +1192,22 @@ class WDKService {
  
      const data = await response.json();
  
@@ -686,12 +751,13 @@ index 5ae8528..0f438b0 100644
          allBalances[`${obj.blockchain}_${obj.token}`] = {
            balance: parseFloat(obj.amount),
            asset: obj.token as AssetTicker,
-@@ -759,8 +1175,46 @@ class WDKService {
+@@ -759,8 +1216,46 @@ class WDKService {
        },
        {} as Record<string, { balance: number; asset: AssetTicker }>
      );
 +  }
-+
+ 
+-    return balanceMap;
 +  /**
 +   * Resolve Arkade balances via the RN-side wallet. Now that the wallet runs
 +   * on the RN side with Expo providers, we just call wallet.getBalance()
@@ -703,8 +769,7 @@ index 5ae8528..0f438b0 100644
 +  ): Promise<Record<string, { balance: number; asset: AssetTicker }>> {
 +    const result: Record<string, { balance: number; asset: AssetTicker }> = {};
 +    if (!this.arkadeAccount) return result;
- 
--    return balanceMap;
++
 +    for (const asset of enabledAssets) {
 +      const networks = AssetBalanceMap[asset];
 +      if (!networks || !(NetworkType.ARKADE in networks)) continue;
