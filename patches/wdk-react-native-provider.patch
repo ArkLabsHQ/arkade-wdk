@@ -83,7 +83,7 @@ index 4c3dff5..2a7d990 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..dde325f 100644
+index 5ae8528..3a4f1d1 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -617,7 +617,7 @@ index 5ae8528..dde325f 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -743,7 +1138,7 @@ class WDKService {
+@@ -743,14 +1138,22 @@ class WDKService {
  
      const data = await response.json();
  
@@ -626,7 +626,23 @@ index 5ae8528..dde325f 100644
        data as Record<
          string,
          { tokenBalance: { amount: number; blockchain: string; token: string } }
-@@ -759,8 +1154,121 @@ class WDKService {
+       >
+     ).reduce(
+       (allBalances, [_, value]) => {
+-        const obj = (value as any).tokenBalance;
++        // The WDK indexer returns one entry per payload item, but entries
++        // can come back with `tokenBalance: null` (or be missing entirely)
++        // when the underlying address/blockchain query failed server-side.
++        // Skipping malformed entries here keeps the rest of the wallet
++        // usable instead of crashing the whole balance refresh.
++        const obj = (value as any)?.tokenBalance;
++        if (!obj || !obj.blockchain || !obj.token) {
++          return allBalances;
++        }
+         allBalances[`${obj.blockchain}_${obj.token}`] = {
+           balance: parseFloat(obj.amount),
+           asset: obj.token as AssetTicker,
+@@ -759,8 +1162,121 @@ class WDKService {
        },
        {} as Record<string, { balance: number; asset: AssetTicker }>
      );
