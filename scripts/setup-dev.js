@@ -5,7 +5,7 @@
  */
 
 import { execSync } from 'child_process';
-import { mkdirSync, readFileSync, rmSync, symlinkSync } from 'fs';
+import { mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -74,6 +74,22 @@ applyPatch(join(patchDir, 'wdk-starter-react-native.patch'), join(PROJECT_ROOT, 
 // Install dependencies for main package
 console.log('\n3. Installing arkade-wdk dependencies...');
 run('npm install');
+
+// Patch bare-url@2.3.0 with the isURLSearchParams export that bare-fetch@2.8.2
+// expects from bare-url@^2.4.0. Our npm override pins bare-url to 2.3.0 (the
+// newest version react-native-bare-kit ships), but that version lacks this
+// export. Adding it here avoids a runtime TypeError inside the worklet.
+const bareUrlIndex = join(PROJECT_ROOT, 'node_modules', 'bare-url', 'index.js');
+try {
+  const src = readFileSync(bareUrlIndex, 'utf8');
+  if (!src.includes('isURLSearchParams')) {
+    const patch = `\nexports.isURLSearchParams = function isURLSearchParams(value) { return value instanceof URLSearchParams }\n`;
+    writeFileSync(bareUrlIndex, src + patch);
+    console.log('  patched bare-url with isURLSearchParams');
+  }
+} catch (err) {
+  console.warn('  (bare-url patch skipped — file not found or unwritable:', err.message, ')');
+}
 
 // Setup pear-wrk-wdk submodule
 console.log('\n4. Setting up pear-wrk-wdk...');
