@@ -83,7 +83,7 @@ index 4c3dff5..2a7d990 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..3e5e2d5 100644
+index 5ae8528..a664c5f 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -251,18 +251,18 @@ index 5ae8528..3e5e2d5 100644
 +      return;
 +    }
 +    try {
-+      // @ts-expect-error — resolved via symlink at runtime
-+      const wdk = await import('@arkade-os/wdk');
-+      const WalletManagerArkade = wdk.default;
-+      const { ExpoArkProvider, ExpoIndexerProvider } = await import(
-+        // @ts-expect-error — subpath resolved at runtime by Metro
-+        '@arkade-os/sdk/adapters/expo'
-+      );
-+      const { SQLiteWalletRepository, SQLiteContractRepository } =
-+        // @ts-expect-error — subpath resolved at runtime by Metro
-+        await import('@arkade-os/sdk/repositories/sqlite');
-+      // @ts-expect-error — resolved at runtime
-+      const SQLite = await import('expo-sqlite');
++      // Use require() instead of dynamic import() — Metro resolves
++      // require() through symlinks reliably, while import() fails with
++      // "Unable to resolve module ./src/index" due to a Metro base-
++      // directory bug with symlinked packages.
++      // eslint-disable-next-line @typescript-eslint/no-var-requires
++      const WalletManagerArkade = require('@arkade-os/wdk').default;
++      // eslint-disable-next-line @typescript-eslint/no-var-requires
++      const { ExpoArkProvider, ExpoIndexerProvider } = require('@arkade-os/sdk/adapters/expo');
++      // eslint-disable-next-line @typescript-eslint/no-var-requires
++      const { SQLiteWalletRepository, SQLiteContractRepository } = require('@arkade-os/sdk/repositories/sqlite');
++      // eslint-disable-next-line @typescript-eslint/no-var-requires
++      const SQLite = require('expo-sqlite');
 +      const db = SQLite.openDatabaseSync('arkade-wallet.db');
 +      const executor = {
 +        run: (sql: string, params?: any[]) => db.runAsync(sql, params ?? []),

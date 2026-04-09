@@ -41,10 +41,10 @@ index c2f76ee..91c1e4f 100644
      "experiments": {
        "typedRoutes": true,
 diff --git a/metro.config.js b/metro.config.js
-index dba8528..8b09d8b 100644
+index dba8528..74d674a 100644
 --- a/metro.config.js
 +++ b/metro.config.js
-@@ -17,11 +17,19 @@ config.resolver = {
+@@ -17,11 +17,20 @@ config.resolver = {
    sourceExts: [...resolver.sourceExts, 'svg'],
    // Ensure module paths include root node_modules
    nodeModulesPaths: [path.resolve(__dirname, 'node_modules')],
@@ -55,8 +55,9 @@ index dba8528..8b09d8b 100644
    },
  };
  
-+// Watch the linked package source directories so Metro picks up changes
++// Watch linked package directories so Metro can resolve their modules
 +config.watchFolders = [
++  path.resolve(__dirname, '../..'), // @arkade-os/wdk root (+ its node_modules)
 +  path.resolve(__dirname, '../../packages/wdk-react-native-provider'),
 +  path.resolve(__dirname, '../../packages/pear-wrk-wdk'),
 +];
