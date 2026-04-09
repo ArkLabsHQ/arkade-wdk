@@ -6750,6 +6750,35 @@ index ac8d02c..2126d40 100644
          },
        });
      },
+diff --git a/src/app/send/select-network.tsx b/src/app/send/select-network.tsx
+index ae693d1..7999f36 100644
+--- a/src/app/send/select-network.tsx
++++ b/src/app/send/select-network.tsx
+@@ -2,7 +2,7 @@ import { Network, NetworkSelector } from '@/components/NetworkSelector';
+ import { assetConfig } from '@/config/assets';
+ import { networkConfigs } from '@/config/networks';
+ import formatAmount from '@/utils/format-amount';
+-import { AssetTicker, useWallet } from '@tetherto/wdk-react-native-provider';
++import { AssetTicker, NetworkType, useWallet } from '@tetherto/wdk-react-native-provider';
+ import { useLocalSearchParams } from 'expo-router';
+ import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
+ import React, { useCallback, useEffect, useState } from 'react';
+@@ -38,8 +38,14 @@ export default function SelectNetworkScreen() {
+         return;
+       }
+ 
++      // Filter out ARKADE_BOARDING — boarding is receive-only (deposit
++      // on-chain BTC into Ark). You can't send FROM a boarding address.
++      const sendableNetworks = tokenConfig.supportedNetworks.filter(
++        n => n !== NetworkType.ARKADE_BOARDING
++      );
++
+       const networksWithBalances = await Promise.all(
+-        tokenConfig.supportedNetworks.map(async networkType => {
++        sendableNetworks.map(async networkType => {
+           const network = networkConfigs[networkType];
+ 
+           const balance = balances.list?.find(
 diff --git a/src/config/assets.ts b/src/config/assets.ts
 index 7a86eaf..4400f85 100644
 --- a/src/config/assets.ts
