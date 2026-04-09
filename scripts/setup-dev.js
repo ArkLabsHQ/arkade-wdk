@@ -92,8 +92,10 @@ linkPackage(PROJECT_ROOT, pearWrkDir);
 // `bare-performance` → `bare-performance-jsshim`. Without these shims,
 // the worklet bundle includes native binding.js files that try to load
 // .so libraries react-native-bare-kit doesn't ship at matching versions.
-linkPackage(join(pearWrkDir, 'shims', 'bare-type-jsshim'), pearWrkDir);
+linkPackage(join(pearWrkDir, 'shims', 'bare-abort-jsshim'), pearWrkDir);
 linkPackage(join(pearWrkDir, 'shims', 'bare-performance-jsshim'), pearWrkDir);
+linkPackage(join(pearWrkDir, 'shims', 'bare-stdio-jsshim'), pearWrkDir);
+linkPackage(join(pearWrkDir, 'shims', 'bare-type-jsshim'), pearWrkDir);
 // Now generate the mobile bundle — the @arkade-os/wdk symlink is in place.
 run('npm run gen:mobile-bundle', pearWrkDir);
 

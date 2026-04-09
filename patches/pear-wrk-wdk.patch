@@ -24,13 +24,15 @@ index 3931ba9..e8d61c6 100644
  
  // Export spec/schema
 diff --git a/pack.imports.json b/pack.imports.json
-index bcaef0c..1c63751 100644
+index bcaef0c..02cdc5b 100644
 --- a/pack.imports.json
 +++ b/pack.imports.json
-@@ -1,3 +1,6 @@
+@@ -1,3 +1,8 @@
  {
 -  "http": "bare-http1"
 +  "http": "bare-http1",
++  "bare-abort": "bare-abort-jsshim",
++  "bare-stdio": "bare-stdio-jsshim",
 +  "bare-type": "bare-type-jsshim",
 +  "bare-performance": "bare-performance-jsshim",
 +  "bare-performance/global": "bare-performance-jsshim/global"
@@ -136,6 +138,32 @@ index 83a4a5c..63bd445 100644
      "gen:schema": "node src/schema/schema.js",
      "postinstall": "npm run gen:mobile-bundle"
    },
+diff --git a/shims/bare-abort-jsshim/index.js b/shims/bare-abort-jsshim/index.js
+new file mode 100644
+index 0000000..23a22aa
+--- /dev/null
++++ b/shims/bare-abort-jsshim/index.js
+@@ -0,0 +1,8 @@
++// Pure-JS shim for bare-abort. The upstream package calls a native addon to
++// trigger an immediate process abort. In the RN worklet context there's no
++// meaningful abort — throwing is the closest JS equivalent.
++'use strict'
++
++module.exports = function abort () {
++  throw new Error('process.abort() called (bare-abort-jsshim)')
++}
+diff --git a/shims/bare-abort-jsshim/package.json b/shims/bare-abort-jsshim/package.json
+new file mode 100644
+index 0000000..2a2beba
+--- /dev/null
++++ b/shims/bare-abort-jsshim/package.json
+@@ -0,0 +1,6 @@
++{
++  "name": "bare-abort-jsshim",
++  "version": "1.0.0",
++  "main": "./index.js",
++  "license": "Apache-2.0"
++}
 diff --git a/shims/bare-performance-jsshim/global.js b/shims/bare-performance-jsshim/global.js
 new file mode 100644
 index 0000000..5ba967f
@@ -375,6 +403,46 @@ index 0000000..09a403a
 +  "name": "bare-performance-jsshim",
 +  "version": "1.0.0",
 +  "description": "Pure-JS replacement for bare-performance, used by bare-pack via pack.imports.json so the worklet doesn't need libbare-performance.so at runtime.",
++  "main": "./index.js",
++  "license": "Apache-2.0"
++}
+diff --git a/shims/bare-stdio-jsshim/index.js b/shims/bare-stdio-jsshim/index.js
+new file mode 100644
+index 0000000..60370e7
+--- /dev/null
++++ b/shims/bare-stdio-jsshim/index.js
+@@ -0,0 +1,22 @@
++// Pure-JS shim for bare-stdio. The upstream package wraps fd 0/1/2 using
++// bare-tty, bare-pipe, and bare-fs — all of which need native addons that
++// react-native-bare-kit may not ship. In the RN worklet context, stdin/
++// stdout/stderr are not meaningfully available; this shim provides no-op
++// streams so consumers that probe process.stdin/stdout/stderr don't crash.
++'use strict'
++
++const { Writable, Readable } = require('streamx')
++
++class NullWritable extends Writable {
++  _write (data, cb) { cb(null) }
++}
++
++class NullReadable extends Readable {
++  _read (cb) { this.push(null); cb(null) }
++}
++
++module.exports = {
++  get in () { return new NullReadable() },
++  get out () { return new NullWritable() },
++  get err () { return new NullWritable() }
++}
+diff --git a/shims/bare-stdio-jsshim/package.json b/shims/bare-stdio-jsshim/package.json
+new file mode 100644
+index 0000000..44c5d88
+--- /dev/null
++++ b/shims/bare-stdio-jsshim/package.json
+@@ -0,0 +1,6 @@
++{
++  "name": "bare-stdio-jsshim",
++  "version": "1.0.0",
 +  "main": "./index.js",
 +  "license": "Apache-2.0"
 +}
