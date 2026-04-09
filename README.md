@@ -121,7 +121,7 @@ console.log(invoice) // BOLT11 invoice string
 Pay to Lightning address / LNURL:
 
 ```typescript
-import { fetchInvoice, isLightningAddress } from '@arkade-os/wdk'
+import { fetchInvoice, isLightningAddress } from '@arkade-os/wdk/src/lib/lnurl.js'
 
 if (isLightningAddress('user@wallet.com')) {
   const invoice = await fetchInvoice('user@wallet.com', 1000, 'tip')
