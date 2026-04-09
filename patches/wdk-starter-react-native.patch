@@ -6471,28 +6471,36 @@ index 8025f1b..5ced777 100644
  
      // Sort transactions by timestamp (newest first) and calculate fiat values
 diff --git a/src/app/receive/details.tsx b/src/app/receive/details.tsx
-index 0ac6e1c..369de80 100644
+index 0ac6e1c..5efe3da 100644
 --- a/src/app/receive/details.tsx
 +++ b/src/app/receive/details.tsx
-@@ -1,10 +1,11 @@
+@@ -1,25 +1,82 @@
  import { QRCode } from '@tetherto/wdk-uikit-react-native';
  import { useLocalSearchParams } from 'expo-router';
  import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
-+import { useWallet } from '@tetherto/wdk-react-native-provider';
++import { NetworkType, useWallet } from '@tetherto/wdk-react-native-provider';
  import * as Clipboard from 'expo-clipboard';
- import { ArrowLeft, Copy, Share, X } from 'lucide-react-native';
+-import { ArrowLeft, Copy, Share, X } from 'lucide-react-native';
 -import React, { useCallback } from 'react';
 -import { Share as RNShare, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
-+import React, { useCallback, useState } from 'react';
++import { ArrowLeft, Check, Copy, Share, X } from 'lucide-react-native';
++import React, { useCallback, useEffect, useRef, useState } from 'react';
 +import { Share as RNShare, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
  import { useSafeAreaInsets } from 'react-native-safe-area-context';
  import { toast } from 'sonner-native';
  import { colors } from '@/constants/colors';
-@@ -13,13 +14,44 @@ export default function ReceiveQRCodeScreen() {
+ 
++const ARKADE_NETWORKS = [
++  NetworkType.ARKADE,
++  NetworkType.ARKADE_BOARDING,
++  NetworkType.LIGHTNING,
++] as const;
++
+ export default function ReceiveQRCodeScreen() {
    const insets = useSafeAreaInsets();
    const router = useDebouncedNavigation();
    const params = useLocalSearchParams();
-+  const { createLightningInvoice } = useWallet();
++  const { createLightningInvoice, balances } = useWallet();
  
 -  const { tokenName, networkName, address } = params as {
 +  const { tokenName, networkName, address, addresslessReceive } = params as {
@@ -6528,13 +6536,32 @@ index 0ac6e1c..369de80 100644
 +    }
 +  }, [invoiceAmount, invoiceDescription, createLightningInvoice]);
 +
++  // Detect incoming Arkade payment by watching the balance map.
++  // The wallet-context auto-refreshes via notifyIncomingFunds SSE.
++  const [paymentReceived, setPaymentReceived] = useState(false);
++  const initialBalanceRef = useRef<number | null>(null);
++  const networkId = params.networkId as string;
++  const isArkadeNetwork = (ARKADE_NETWORKS as readonly string[]).includes(networkId);
++
++  useEffect(() => {
++    if (!isArkadeNetwork) return;
++    const key = `${NetworkType.ARKADE}_btc`;
++    const current = balances.map?.[key]?.balance ?? 0;
++    if (initialBalanceRef.current === null) {
++      initialBalanceRef.current = current;
++    } else if (current > initialBalanceRef.current && !paymentReceived) {
++      setPaymentReceived(true);
++      toast.success('Payment received!');
++    }
++  }, [balances.map, isArkadeNetwork, paymentReceived]);
++
 +  // For Lightning, show either the form or the generated invoice
 +  const displayAddress = isLightning ? generatedInvoice : address;
 +
    const handleBack = useCallback(() => {
      router.back();
    }, [router]);
-@@ -30,25 +62,31 @@ export default function ReceiveQRCodeScreen() {
+@@ -30,25 +87,31 @@ export default function ReceiveQRCodeScreen() {
    }, [router]);
  
    const handleCopyAddress = useCallback(async () => {
@@ -6575,10 +6602,14 @@ index 0ac6e1c..369de80 100644
  
    return (
      <View style={[styles.container, { paddingTop: insets.top }]}>
-@@ -68,43 +106,83 @@ export default function ReceiveQRCodeScreen() {
-           <Text style={styles.title}>
-             You&apos;re about to receive {tokenName} on {networkName}
-           </Text>
+@@ -64,47 +127,110 @@ export default function ReceiveQRCodeScreen() {
+       </View>
+ 
+       <View style={styles.content}>
+-        <View style={styles.titleSection}>
+-          <Text style={styles.title}>
+-            You&apos;re about to receive {tokenName} on {networkName}
+-          </Text>
 -        </View>
 -
 -        <QRCode
@@ -6593,26 +6624,47 @@ index 0ac6e1c..369de80 100644
 -          <View style={styles.addressContainer}>
 -            <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle">
 -              {address}
++        {/* Payment received overlay */}
++        {paymentReceived ? (
++          <View style={styles.receivedContainer}>
++            <View style={styles.receivedIcon}>
++              <Check size={48} color={colors.primary} />
++            </View>
++            <Text style={styles.receivedTitle}>Payment received!</Text>
++            <Text style={styles.receivedSubtitle}>
++              Your {networkName} balance has been updated.
+             </Text>
+-          </View>
+-
+-          <View style={styles.buttonsContainer}>
+             <TouchableOpacity
+-              style={[styles.actionButton, styles.copyButton]}
+-              onPress={handleCopyAddress}
++              style={[styles.actionButton, styles.copyButton, { marginTop: 32, width: '100%' }]}
++              onPress={handleClose}
+               activeOpacity={0.7}
+             >
+-              <Copy size={20} color={colors.white} />
+-              <Text style={styles.actionButtonText}>Copy</Text>
++              <Text style={styles.actionButtonText}>Go to wallet</Text>
+             </TouchableOpacity>
++          </View>
++        ) : (
++        <View style={styles.titleSection}>
++          <Text style={styles.title}>
++            You&apos;re about to receive {tokenName} on {networkName}
++          </Text>
 +          {networkName === 'Bitcoin (Boarding)' && (
 +            <Text style={styles.boardingHint}>
 +              Send on-chain BTC to this address. It will become available as
 +              Arkade balance after the next server round (usually within a few
 +              minutes).
-             </Text>
--          </View>
--
--          <View style={styles.buttonsContainer}>
--            <TouchableOpacity
--              style={[styles.actionButton, styles.copyButton]}
--              onPress={handleCopyAddress}
--              activeOpacity={0.7}
--            >
--              <Copy size={20} color={colors.white} />
--              <Text style={styles.actionButtonText}>Copy</Text>
--            </TouchableOpacity>
++            </Text>
 +          )}
 +        </View>
  
++        {!paymentReceived && (
++        <>
 +        {/* Lightning: show invoice form until an invoice is generated */}
 +        {isLightning && !generatedInvoice ? (
 +          <View style={styles.addressSection}>
@@ -6686,10 +6738,12 @@ index 0ac6e1c..369de80 100644
 +            </View>
 +          </>
 +        )}
++        </>
++        )}
        </View>
      </View>
    );
-@@ -153,6 +231,23 @@ const styles = StyleSheet.create({
+@@ -153,6 +279,51 @@ const styles = StyleSheet.create({
      lineHeight: 28,
      textAlign: 'left',
    },
@@ -6698,6 +6752,34 @@ index 0ac6e1c..369de80 100644
 +    color: colors.textSecondary,
 +    lineHeight: 20,
 +    marginTop: 8,
++  },
++  receivedContainer: {
++    flex: 1,
++    alignItems: 'center',
++    justifyContent: 'center',
++    paddingHorizontal: 20,
++  },
++  receivedIcon: {
++    width: 80,
++    height: 80,
++    borderRadius: 40,
++    backgroundColor: colors.card,
++    borderWidth: 2,
++    borderColor: colors.primary,
++    alignItems: 'center',
++    justifyContent: 'center',
++    marginBottom: 24,
++  },
++  receivedTitle: {
++    fontSize: 24,
++    fontWeight: '700',
++    color: colors.text,
++    marginBottom: 8,
++  },
++  receivedSubtitle: {
++    fontSize: 16,
++    color: colors.textSecondary,
++    textAlign: 'center',
 +  },
 +  lightningInput: {
 +    backgroundColor: colors.card,
