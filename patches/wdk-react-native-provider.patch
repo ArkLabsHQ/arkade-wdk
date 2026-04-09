@@ -104,7 +104,7 @@ index 4c3dff5..dd8018d 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..c131843 100644
+index 5ae8528..d541db0 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -751,13 +751,12 @@ index 5ae8528..c131843 100644
          allBalances[`${obj.blockchain}_${obj.token}`] = {
            balance: parseFloat(obj.amount),
            asset: obj.token as AssetTicker,
-@@ -759,8 +1216,46 @@ class WDKService {
+@@ -759,8 +1216,49 @@ class WDKService {
        },
        {} as Record<string, { balance: number; asset: AssetTicker }>
      );
 +  }
- 
--    return balanceMap;
++
 +  /**
 +   * Resolve Arkade balances via the RN-side wallet. Now that the wallet runs
 +   * on the RN side with Expo providers, we just call wallet.getBalance()
@@ -769,27 +768,31 @@ index 5ae8528..c131843 100644
 +  ): Promise<Record<string, { balance: number; asset: AssetTicker }>> {
 +    const result: Record<string, { balance: number; asset: AssetTicker }> = {};
 +    if (!this.arkadeAccount) return result;
-+
+ 
+-    return balanceMap;
 +    for (const asset of enabledAssets) {
 +      const networks = AssetBalanceMap[asset];
 +      if (!networks || !(NetworkType.ARKADE in networks)) continue;
 +
 +      try {
-+        const balanceSats = await this.arkadeAccount.getBalance();
-+        const btc = Number(balanceSats) / this.getDenominationValue(AssetTicker.BTC);
-+        result[`${NetworkType.ARKADE}_${asset}`] = { balance: btc, asset };
-+        if (NetworkType.LIGHTNING in networks) {
-+          result[`${NetworkType.LIGHTNING}_${asset}`] = { balance: btc, asset };
-+        }
++        // Use the raw SDK balance object for a proper breakdown:
++        //   boarding.total  → on-chain BTC waiting to enter Ark
++        //   available       → offchain VTXOs ready to spend
++        // Lightning shares the offchain balance, so no separate entry.
++        const bal = await this.arkadeAccount.wallet.getBalance();
++        const denom = this.getDenominationValue(AssetTicker.BTC);
++        const offchainBtc = Number(bal.available ?? 0) / denom;
++        const boardingBtc = Number(bal.boarding?.total ?? 0) / denom;
++
++        result[`${NetworkType.ARKADE}_${asset}`] = { balance: offchainBtc, asset };
 +        if (NetworkType.ARKADE_BOARDING in networks) {
-+          result[`${NetworkType.ARKADE_BOARDING}_${asset}`] = { balance: btc, asset };
++          result[`${NetworkType.ARKADE_BOARDING}_${asset}`] = { balance: boardingBtc, asset };
 +        }
++        // Lightning uses the same offchain VTXOs — not a separate balance.
++        // Don't populate LIGHTNING to avoid double-counting in the total.
 +      } catch (err) {
 +        console.warn('[arkade] Failed to fetch balance:', err);
 +        result[`${NetworkType.ARKADE}_${asset}`] = { balance: 0, asset };
-+        if (NetworkType.LIGHTNING in networks) {
-+          result[`${NetworkType.LIGHTNING}_${asset}`] = { balance: 0, asset };
-+        }
 +        if (NetworkType.ARKADE_BOARDING in networks) {
 +          result[`${NetworkType.ARKADE_BOARDING}_${asset}`] = { balance: 0, asset };
 +        }
