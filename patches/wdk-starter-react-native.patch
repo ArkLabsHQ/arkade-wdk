@@ -6883,6 +6883,31 @@ index 43f4274..5090008 100644
  
          // Calculate fiat value using pricing service
          const usdValue = await pricingService.getFiatValue(
+diff --git a/src/app/wallet.tsx b/src/app/wallet.tsx
+index 1a8cf06..6702a05 100644
+--- a/src/app/wallet.tsx
++++ b/src/app/wallet.tsx
+@@ -1,5 +1,5 @@
+ import { BalanceLoader } from '@/components/BalanceLoader';
+-import { AssetTicker, useWallet } from '@tetherto/wdk-react-native-provider';
++import { AssetTicker, NetworkType, useWallet } from '@tetherto/wdk-react-native-provider';
+ import { Balance } from '@tetherto/wdk-uikit-react-native';
+ import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
+ import {
+@@ -88,8 +88,12 @@ export default function WalletScreen() {
+ 
+     const map = new Map<string, { totalBalance: number }>();
+ 
+-    // Sum up balances by denomination across all networks
++    // Sum up balances by denomination across all networks.
++    // Skip Lightning and Boarding — they share the same pool of sats as
++    // Arkade and would double/triple the total if counted separately.
++    const SKIP_IN_TOTAL = new Set([NetworkType.LIGHTNING, NetworkType.ARKADE_BOARDING]);
+     balances.list.forEach(balance => {
++      if (SKIP_IN_TOTAL.has(balance.networkType)) return;
+       const current = map.get(balance.denomination) || { totalBalance: 0 };
+       map.set(balance.denomination, {
+         totalBalance: current.totalBalance + parseFloat(balance.value),
 diff --git a/src/config/assets.ts b/src/config/assets.ts
 index 7a86eaf..4400f85 100644
 --- a/src/config/assets.ts
