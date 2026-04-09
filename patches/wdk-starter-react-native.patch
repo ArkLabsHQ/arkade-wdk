@@ -6470,6 +6470,37 @@ index 8025f1b..5ced777 100644
        : [];
  
      // Sort transactions by timestamp (newest first) and calculate fiat values
+diff --git a/src/app/receive/details.tsx b/src/app/receive/details.tsx
+index 0ac6e1c..17fa9e2 100644
+--- a/src/app/receive/details.tsx
++++ b/src/app/receive/details.tsx
+@@ -68,6 +68,13 @@ export default function ReceiveQRCodeScreen() {
+           <Text style={styles.title}>
+             You&apos;re about to receive {tokenName} on {networkName}
+           </Text>
++          {networkName === 'Bitcoin (Boarding)' && (
++            <Text style={styles.boardingHint}>
++              Send on-chain BTC to this address. It will become available as
++              Arkade balance after the next server round (usually within a few
++              minutes).
++            </Text>
++          )}
+         </View>
+ 
+         <QRCode
+@@ -153,6 +160,12 @@ const styles = StyleSheet.create({
+     lineHeight: 28,
+     textAlign: 'left',
+   },
++  boardingHint: {
++    fontSize: 14,
++    color: colors.textSecondary,
++    lineHeight: 20,
++    marginTop: 8,
++  },
+   qrSection: {
+     marginBottom: 40,
+   },
 diff --git a/src/app/receive/select-network.tsx b/src/app/receive/select-network.tsx
 index ac8d02c..3ec4a64 100644
 --- a/src/app/receive/select-network.tsx
@@ -6496,7 +6527,7 @@ index ac8d02c..3ec4a64 100644
        };
      });
 diff --git a/src/config/assets.ts b/src/config/assets.ts
-index 7a86eaf..a7eb6f5 100644
+index 7a86eaf..b02cdc4 100644
 --- a/src/config/assets.ts
 +++ b/src/config/assets.ts
 @@ -26,7 +26,11 @@ export const assetConfig: Record<string, AssetConfig> = {
@@ -6508,7 +6539,7 @@ index 7a86eaf..a7eb6f5 100644
 +    // (swap-backed invoices). Phase 5 adds ARKADE_BOARDING (on-chain BTC
 +    // deposits into Ark). Each appears as its own row in the receive /
 +    // send network selectors.
-+    supportedNetworks: [NetworkType.SEGWIT, NetworkType.ARKADE],
++    supportedNetworks: [NetworkType.SEGWIT, NetworkType.ARKADE, NetworkType.ARKADE_BOARDING],
    },
    usdt: {
      name: 'USD₮',
@@ -6589,10 +6620,10 @@ index 1ae6c16..2fb1043 100644
    },
  };
 diff --git a/src/utils/gas-fee-calculator.ts b/src/utils/gas-fee-calculator.ts
-index 3a08372..cdbad42 100644
+index 3a08372..a95c8e4 100644
 --- a/src/utils/gas-fee-calculator.ts
 +++ b/src/utils/gas-fee-calculator.ts
-@@ -9,6 +9,13 @@ const QUOTE_RECIPIENTS = {
+@@ -9,6 +9,14 @@ const QUOTE_RECIPIENTS = {
    [AssetTicker.BTC]: {
      networks: {
        [NetworkType.SEGWIT]: 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9',
@@ -6603,10 +6634,11 @@ index 3a08372..cdbad42 100644
 +      // and we don't ship a sentinel Ark address until Phase 4 when the
 +      // user can paste real ones.
 +      [NetworkType.ARKADE]: 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9',
++      [NetworkType.ARKADE_BOARDING]: 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9',
      },
    },
    [AssetTicker.USDT]: {
-@@ -31,19 +38,27 @@ const QUOTE_RECIPIENTS = {
+@@ -31,19 +39,27 @@ const QUOTE_RECIPIENTS = {
    },
  };
  
@@ -6636,7 +6668,7 @@ index 3a08372..cdbad42 100644
  };
  
  // Asset ticker mapping
-@@ -71,7 +86,13 @@ export const calculateGasFee = async (
+@@ -71,7 +87,13 @@ export const calculateGasFee = async (
      // @ts-expect-error
      const quoteRecipient = QUOTE_RECIPIENTS[assetTicker].networks[networkType];
  
@@ -6651,7 +6683,7 @@ index 3a08372..cdbad42 100644
        return {
          fee: undefined,
          error: 'Insufficient balance for fee calculation',
-@@ -91,7 +112,10 @@ export const calculateGasFee = async (
+@@ -91,7 +113,10 @@ export const calculateGasFee = async (
      console.error('Gas fee pre-calculation failed:', error);
      const networkType = getNetworkType(networkId);
      const isBitcoinNetwork =
