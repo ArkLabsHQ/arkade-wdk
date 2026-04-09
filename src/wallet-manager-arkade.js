@@ -1,5 +1,11 @@
 import WalletManager from '@tetherto/wdk-wallet';
-import { RestArkProvider, SingleKey, Wallet } from '@arkade-os/sdk';
+import {
+  RestArkProvider,
+  SingleKey,
+  Wallet,
+  InMemoryWalletRepository,
+  InMemoryContractRepository,
+} from '@arkade-os/sdk';
 import { HDKey } from '@scure/bip32';
 import { ArkadeSwaps, BoltzSwapProvider } from '@arkade-os/boltz-swap';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
@@ -72,6 +78,16 @@ class WalletManagerArkade extends WalletManager {
       const walletConfig = {
         ...this.config,
         identity: SingleKey.fromPrivateKey(hdKey.privateKey),
+        // Use in-memory storage when no storage config is provided. The SDK
+        // defaults to IndexedDB which isn't available in the Bare worklet
+        // runtime. In-memory storage means VTXO state is lost on app restart,
+        // but balance/send/history work for the current session. A future
+        // improvement could bridge to expo-sqlite on the RN side or use a
+        // bare-fs-backed SQLite repo.
+        storage: this.config.storage ?? {
+          walletRepository: new InMemoryWalletRepository(),
+          contractRepository: new InMemoryContractRepository(),
+        },
       };
 
       const wallet = await Promise.race([
