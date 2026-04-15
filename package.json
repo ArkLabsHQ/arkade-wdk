@@ -5,10 +5,7 @@
   "main": "src/index.js",
   "type": "module",
   "exports": {
-    ".": {
-      "bare": "./bare.js",
-      "default": "./src/index.js"
-    }
+    ".": "./src/index.js"
   },
   "scripts": {
     "test": "node --test src/__tests__/*.test.js",
@@ -36,25 +33,8 @@
     "@scure/base": "^2.0.0",
     "@scure/bip32": "^2.0.1",
     "@tetherto/wdk-wallet": "^1.0.0-beta.5",
-    "bare-node-runtime": "^1.1.4",
     "light-bolt11-decoder": "^3.2.0",
     "sodium-universal": "^5.0.1"
-  },
-  "overridesNote": "Pin bare-* native addons to versions that react-native-bare-kit actually ships in its libs/jni directory. Without these pins the worklet bundle requests addon versions the host doesn't have and require.addon() throws ADDON_NOT_FOUND at runtime. Only pin packages we've verified the dep tree tolerates downgrading — some bare-* packages bumped their internal file layout between minor versions, so naive pinning breaks the bundle (e.g. bare-performance 1.3.0 → 1.2.0 removes lib/constants which dependents still require). Inspect the host's bundled .so files in node_modules/react-native-bare-kit/android/build/intermediates/library_jni/.../jni/arm64-v8a/ to find safe versions. Other addons (bare-buffer, bare-fs, bare-os, bare-pipe, bare-signals, bare-tcp, bare-tls, bare-tty, bare-url, bare-performance) have version mismatches in the bundle but only crash at runtime if their code paths are actually exercised — add overrides reactively as those errors surface.",
-  "overrides": {
-    "bare-buffer": "3.4.0",
-    "bare-crypto": "1.11.6",
-    "bare-fs": "4.4.11",
-    "bare-os": "3.6.2",
-    "bare-pipe": "4.0.7",
-    "bare-signals": "4.0.4",
-    "bare-tcp": "2.0.9",
-    "bare-tls": "2.1.5",
-    "bare-tty": "5.0.3",
-    "bare-type": "1.0.8",
-    "bare-url": "2.3.0",
-    "bare-zlib": "1.3.1",
-    "sodium-native": "5.0.9"
   },
   "devDependencies": {
     "@tetherto/wdk": "^1.0.0-beta.4",
