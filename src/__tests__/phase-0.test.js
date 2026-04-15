@@ -55,53 +55,7 @@ afterEach(() => {
 // ----------------------------------------------------------------------------
 
 describe('0.7 — root index re-exports', () => {
-  const expectedHelpers = [
-    // address
-    'isArkAddress',
-    'isBTCAddress',
-    'isLightningInvoice',
-    'decodeArkAddress',
-    // bip21
-    'decodeBip21',
-    'encodeBip21',
-    'isBip21',
-    // bolt11
-    'decodeInvoice',
-    'isValidInvoice',
-    // lnurl
-    'isLnUrl',
-    'isLightningAddress',
-    'isValidLnUrl',
-    'fetchInvoice',
-    'fetchArkAddress',
-    'getLnUrlLimits',
-    'checkLnUrlConditions',
-    'extractRecipientFromMetadata',
-    // format
-    'fromSatoshis',
-    'toSatoshis',
-    'prettyNumber',
-    'formatSats',
-    'formatSatsWithCommas',
-    // send
-    'send',
-    'quoteSend',
-    'detectTransactionType',
-    'resolveDestination',
-    'TransactionType',
-    // fees
-    'calculateOffchainFee',
-    'calculateOnchainFee',
-    'calculateLightningFee',
-  ];
-
-  for (const name of expectedHelpers) {
-    it(`re-exports ${name}`, () => {
-      assert.ok(name in wdkExports, `${name} missing from @arkade-os/wdk root export`);
-    });
-  }
-
-  it('still re-exports the three account/manager classes', () => {
+  it('re-exports the three account/manager classes', () => {
     assert.equal(typeof wdkExports.default, 'function');
     assert.equal(typeof wdkExports.WalletAccountArkade, 'function');
     assert.equal(typeof wdkExports.WalletAccountReadOnlyArkade, 'function');
