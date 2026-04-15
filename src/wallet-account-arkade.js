@@ -1,4 +1,4 @@
-import { BIP322 } from '@arkade-os/sdk';
+import { BIP322, ReadonlySingleKey } from '@arkade-os/sdk';
 import { sodium_memzero } from 'sodium-universal';
 import { calculateOffchainFee } from './lib/fees.js';
 import { quoteSend, send } from './lib/send.js';
@@ -88,10 +88,12 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   }
 
   /** @returns {Promise<WalletAccountReadOnlyArkade>} */
-  toReadOnlyAccount() {
+  async toReadOnlyAccount() {
+    const publicKey = await this.wallet.identity.compressedPublicKey();
+    const readonlyIdentity = ReadonlySingleKey.fromPublicKey(publicKey);
     /** @type {import('@arkade-os/sdk').IReadonlyWallet} */
     const readonlyWallet = {
-      identity: this.wallet.identity,
+      identity: readonlyIdentity,
       getAddress: () => this.wallet.getAddress(),
       getBoardingAddress: () => this.wallet.getBoardingAddress(),
       getBalance: () => this.wallet.getBalance(),
@@ -101,14 +103,12 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
       getContractManager: () => this.wallet.getContractManager(),
       assetManager: this.wallet.assetManager,
     };
-    return Promise.resolve(
-      new WalletAccountReadOnlyArkade(
-        /** @type {string} */ (this._address),
-        readonlyWallet,
-        this.indexerProvider,
-        this.arkInfo
-      )
-    );
+    return new WalletAccountReadOnlyArkade(
+      /** @type {string} */ (this._address),
+      readonlyWallet,
+      this.indexerProvider,
+      this.arkInfo
+    )
   }
 
   dispose() {
