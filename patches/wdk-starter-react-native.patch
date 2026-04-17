@@ -6831,8 +6831,173 @@ index ac8d02c..2126d40 100644
          },
        });
      },
+diff --git a/src/app/scan-qr.tsx b/src/app/scan-qr.tsx
+index 55cc435..4537fe1 100644
+--- a/src/app/scan-qr.tsx
++++ b/src/app/scan-qr.tsx
+@@ -6,6 +6,7 @@ import React, { useCallback, useState } from 'react';
+ import { Alert, Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+ import { useSafeAreaInsets } from 'react-native-safe-area-context';
+ import { colors } from '@/constants/colors';
++import { formatBtcAmount, parsePaymentUri } from '@/utils/parse-payment-uri';
+ 
+ const { width: screenWidth } = Dimensions.get('window');
+ const qrSize = screenWidth * 0.7;
+@@ -34,17 +35,30 @@ export default function ScanQRScreen() {
+         return;
+       }
+ 
++      // Resolve BIP21 wrappers and BOLT11 invoices up-front so downstream
++      // screens receive the inner destination the wallet can actually send to
++      // (not the full URI) plus any amount hint for pre-filling the input.
++      const parsed = parsePaymentUri(data);
++      const nextParams: Record<string, string> = {
++        ...(params as Record<string, string>),
++        scannedAddress: parsed.address,
++      };
++      if (parsed.amountBTC !== undefined) {
++        const formatted = formatBtcAmount(parsed.amountBTC);
++        if (formatted) nextParams.scannedAmount = formatted;
++      }
++
+       // Navigate back with the scanned address
+       if (returnRoute) {
+         router.replace({
+           pathname: returnRoute as any,
+-          params: { scannedAddress: data, ...params },
++          params: nextParams,
+         });
+       } else {
+         // Fallback - navigate to send flow starting with token selection
+         router.replace({
+           pathname: '/send/select-token',
+-          params: { scannedAddress: data, ...params },
++          params: nextParams,
+         });
+       }
+     },
+diff --git a/src/app/send/details.tsx b/src/app/send/details.tsx
+index fb7b837..936bcfa 100644
+--- a/src/app/send/details.tsx
++++ b/src/app/send/details.tsx
+@@ -34,6 +34,7 @@ import formatTokenAmount from '@/utils/format-token-amount';
+ import formatUSDValue from '@/utils/format-usd-value';
+ import Header from '@/components/header';
+ import { toast } from 'sonner-native';
++import { formatBtcAmount, parsePaymentUri } from '@/utils/parse-payment-uri';
+ 
+ export default function SendDetailsScreen() {
+   const insets = useSafeAreaInsets();
+@@ -50,6 +51,7 @@ export default function SendDetailsScreen() {
+     networkName,
+     networkId,
+     scannedAddress,
++    scannedAmount,
+   } = params as {
+     tokenId: string;
+     tokenSymbol: string;
+@@ -59,6 +61,7 @@ export default function SendDetailsScreen() {
+     networkName: string;
+     networkId: string;
+     scannedAddress?: string;
++    scannedAmount?: string;
+   };
+ 
+   const [recipientAddress, setRecipientAddress] = useState('');
+@@ -80,12 +83,21 @@ export default function SendDetailsScreen() {
+   const [isAmountInputFocused, setIsAmountInputFocused] = useState(false);
+   const keyboard = useKeyboard();
+ 
+-  // Handle scanned address from QR scanner
++  // Handle scanned address from QR scanner. `scannedAddress` is already
++  // resolved to the inner destination (invoice / ark / btc) by scan-qr.tsx,
++  // and `scannedAmount` — if present — is a BTC-denominated string derived
++  // from the BIP21 `amount=` param or the BOLT11 HRP. Pre-fill the amount in
++  // token mode so the user doesn't have to retype what the invoice already
++  // specified.
+   useEffect(() => {
+     if (scannedAddress) {
+       setRecipientAddress(scannedAddress);
+     }
+-  }, [scannedAddress]);
++    if (scannedAmount) {
++      setInputMode('token');
++      setAmount(scannedAmount);
++    }
++  }, [scannedAddress, scannedAmount]);
+ 
+   // Auto-scroll when keyboard opens
+   useEffect(() => {
+@@ -135,18 +147,23 @@ export default function SendDetailsScreen() {
+     async (showLoading = true, amountValue?: string) => {
+       if (showLoading) {
+         setIsLoadingGasEstimate(true);
+-        setGasEstimate(prev => ({ ...prev, error: undefined }));
++        setGasEstimate((prev) => ({ ...prev, error: undefined }));
+       }
+ 
+       // Convert amount to token value if provided
+       const numericAmount = amountValue ? getTokenAmount(amountValue) : undefined;
+ 
+-      const estimate = await calculateGasFee(networkId, tokenId, numericAmount);
++      const estimate = await calculateGasFee(
++        networkId,
++        tokenId,
++        numericAmount,
++        recipientAddress || undefined
++      );
+ 
+       setGasEstimate(estimate);
+       setIsLoadingGasEstimate(false);
+     },
+-    [networkId, tokenId, getTokenAmount]
++    [networkId, tokenId, getTokenAmount, recipientAddress]
+   );
+ 
+   // Pre-calculate fee when screen loads (skip for BTC as it requires amount)
+@@ -199,6 +216,7 @@ export default function SendDetailsScreen() {
+         networkName,
+         networkId,
+         scannedAddress,
++        ...(scannedAmount && { scannedAmount }),
+       },
+     });
+   }, [
+@@ -210,10 +228,22 @@ export default function SendDetailsScreen() {
+     networkName,
+     networkId,
+     scannedAddress,
++    scannedAmount,
+   ]);
+ 
+   const handlePasteAddress = useCallback(() => {
+-    Clipboard.getStringAsync().then(setRecipientAddress);
++    Clipboard.getStringAsync().then((data) => {
++      const parsed = parsePaymentUri(data);
++      setRecipientAddress(parsed.address);
++      if (parsed.amountBTC !== undefined) {
++        const formatted = formatBtcAmount(parsed.amountBTC);
++        if (formatted) {
++          setInputMode('token');
++          setAmount(formatted);
++          setAmountError(null);
++        }
++      }
++    });
+   }, []);
+ 
+   const handleUseMax = useCallback(() => {
+@@ -242,7 +272,7 @@ export default function SendDetailsScreen() {
+   }, [inputMode, tokenBalance, tokenBalanceUSD, gasEstimate.fee, tokenPrice]);
+ 
+   const toggleInputMode = useCallback(() => {
+-    setInputMode(prev => (prev === 'token' ? 'fiat' : 'token'));
++    setInputMode((prev) => (prev === 'token' ? 'fiat' : 'token'));
+     setAmount('');
+     setAmountError(null);
+   }, []);
 diff --git a/src/app/send/select-network.tsx b/src/app/send/select-network.tsx
-index ae693d1..7999f36 100644
+index ae693d1..3a586a5 100644
 --- a/src/app/send/select-network.tsx
 +++ b/src/app/send/select-network.tsx
 @@ -2,7 +2,7 @@ import { Network, NetworkSelector } from '@/components/NetworkSelector';
@@ -6844,22 +7009,92 @@ index ae693d1..7999f36 100644
  import { useLocalSearchParams } from 'expo-router';
  import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
  import React, { useCallback, useEffect, useState } from 'react';
-@@ -38,8 +38,14 @@ export default function SelectNetworkScreen() {
+@@ -19,11 +19,12 @@ export default function SelectNetworkScreen() {
+   const router = useDebouncedNavigation();
+   const params = useLocalSearchParams();
+   const { balances } = useWallet();
+-  const { tokenId, tokenSymbol, tokenName, scannedAddress } = params as {
++  const { tokenId, tokenSymbol, tokenName, scannedAddress, scannedAmount } = params as {
+     tokenId: string;
+     tokenSymbol: string;
+     tokenName: string;
+     scannedAddress?: string;
++    scannedAmount?: string;
+   };
+ 
+   const [networks, setNetworks] = useState<Network[]>([]);
+@@ -38,12 +39,18 @@ export default function SelectNetworkScreen() {
          return;
        }
  
 +      // Filter out ARKADE_BOARDING — boarding is receive-only (deposit
 +      // on-chain BTC into Ark). You can't send FROM a boarding address.
 +      const sendableNetworks = tokenConfig.supportedNetworks.filter(
-+        n => n !== NetworkType.ARKADE_BOARDING
++        (n) => n !== NetworkType.ARKADE_BOARDING
 +      );
 +
        const networksWithBalances = await Promise.all(
 -        tokenConfig.supportedNetworks.map(async networkType => {
-+        sendableNetworks.map(async networkType => {
++        sendableNetworks.map(async (networkType) => {
            const network = networkConfigs[networkType];
  
            const balance = balances.list?.find(
+-            b => networkType === b.networkType && b.denomination === tokenId
++            (b) => networkType === b.networkType && b.denomination === tokenId
+           );
+ 
+           const balanceValue = balance ? parseFloat(balance.value) : 0;
+@@ -84,10 +91,11 @@ export default function SelectNetworkScreen() {
+           networkName: network.name,
+           networkId: network.id,
+           ...(scannedAddress && { scannedAddress }),
++          ...(scannedAmount && { scannedAmount }),
+         },
+       });
+     },
+-    [router, tokenId, tokenSymbol, tokenName, scannedAddress]
++    [router, tokenId, tokenSymbol, tokenName, scannedAddress, scannedAmount]
+   );
+ 
+   return (
+diff --git a/src/app/send/select-token.tsx b/src/app/send/select-token.tsx
+index b3a0e0a..d8d2242 100644
+--- a/src/app/send/select-token.tsx
++++ b/src/app/send/select-token.tsx
+@@ -22,7 +22,10 @@ export default function SelectTokenScreen() {
+   const { wallet, balances } = useWallet();
+ 
+   // Get the scanned address from params (passed from QR scanner)
+-  const { scannedAddress } = params as { scannedAddress?: string };
++  const { scannedAddress, scannedAmount } = params as {
++    scannedAddress?: string;
++    scannedAmount?: string;
++  };
+   const [recentTokens, setRecentTokens] = useState<string[]>([]);
+   const [tokens, setTokens] = useState<Token[]>([]);
+ 
+@@ -45,7 +48,7 @@ export default function SelectTokenScreen() {
+       // Group balances by denomination
+       const balanceMap = new Map<string, { totalBalance: number }>();
+ 
+-      balances.list.forEach(balance => {
++      balances.list.forEach((balance) => {
+         const current = balanceMap.get(balance.denomination) || { totalBalance: 0 };
+         balanceMap.set(balance.denomination, {
+           totalBalance: current.totalBalance + parseFloat(balance.value),
+@@ -132,10 +135,11 @@ export default function SelectTokenScreen() {
+           tokenBalance: token.balance,
+           tokenBalanceUSD: token.balanceUSD,
+           ...(scannedAddress && { scannedAddress }),
++          ...(scannedAmount && { scannedAmount }),
+         },
+       });
+     },
+-    [router, scannedAddress]
++    [router, scannedAddress, scannedAmount]
+   );
+ 
+   return (
 diff --git a/src/app/token-details.tsx b/src/app/token-details.tsx
 index 43f4274..5090008 100644
 --- a/src/app/token-details.tsx
@@ -7023,7 +7258,7 @@ index 34120d4..a5d146d 100644
    const formattedAmount = formatAmount(amount, {
      minimumFractionDigits: 0,
 diff --git a/src/utils/gas-fee-calculator.ts b/src/utils/gas-fee-calculator.ts
-index 3a08372..a95c8e4 100644
+index 3a08372..06db018 100644
 --- a/src/utils/gas-fee-calculator.ts
 +++ b/src/utils/gas-fee-calculator.ts
 @@ -9,6 +9,14 @@ const QUOTE_RECIPIENTS = {
@@ -7071,22 +7306,54 @@ index 3a08372..a95c8e4 100644
  };
  
  // Asset ticker mapping
-@@ -71,7 +87,13 @@ export const calculateGasFee = async (
-     // @ts-expect-error
-     const quoteRecipient = QUOTE_RECIPIENTS[assetTicker].networks[networkType];
- 
--    if (!amount && networkType === NetworkType.SEGWIT) {
+@@ -59,19 +75,42 @@ export const getAssetTicker = (tokenId: string): AssetTicker => {
+ /**
+  * Pre-calculates gas fee using dummy values
+  * This is useful for showing an estimated fee before the user enters transaction details
++ *
++ * When the user has supplied a real recipient (typed, pasted, or scanned), we
++ * prefer it over the hardcoded `QUOTE_RECIPIENTS` placeholder — otherwise the
++ * SDK's destination-based routing (Ark vs on-chain vs Lightning) runs against
++ * the wrong address type and either yields the wrong fee or, for Lightning,
++ * fails with "Unknown destination type: undefined" since there's no sensible
++ * placeholder invoice.
+  */
+ export const calculateGasFee = async (
+   networkId: string,
+   tokenId: string,
+-  amount?: number
++  amount?: number,
++  recipient?: string
+ ): Promise<GasFeeEstimate> => {
+   try {
+     const networkType = getNetworkType(networkId);
+     const assetTicker = getAssetTicker(tokenId);
+-    // @ts-expect-error
+-    const quoteRecipient = QUOTE_RECIPIENTS[assetTicker].networks[networkType];
++    const quoteRecipient =
++      recipient ||
++      // @ts-expect-error
++      QUOTE_RECIPIENTS[assetTicker]?.networks?.[networkType];
++
 +    const isBitcoinAsset =
 +      networkType === NetworkType.SEGWIT ||
 +      networkType === NetworkType.ARKADE ||
 +      networkType === NetworkType.ARKADE_BOARDING ||
 +      networkType === NetworkType.LIGHTNING;
 +
++    // Lightning fee quotes depend on the invoice itself; without a real
++    // invoice there's no placeholder we can route through, so hold off on the
++    // quote until the user supplies one.
++    if (!quoteRecipient) {
++      return { fee: undefined };
++    }
+ 
+-    if (!amount && networkType === NetworkType.SEGWIT) {
 +    if (!amount && isBitcoinAsset) {
        return {
          fee: undefined,
          error: 'Insufficient balance for fee calculation',
-@@ -91,7 +113,10 @@ export const calculateGasFee = async (
+@@ -91,7 +130,10 @@ export const calculateGasFee = async (
      console.error('Gas fee pre-calculation failed:', error);
      const networkType = getNetworkType(networkId);
      const isBitcoinNetwork =
@@ -7098,3 +7365,107 @@ index 3a08372..a95c8e4 100644
  
      if (
        isBitcoinNetwork &&
+diff --git a/src/utils/parse-payment-uri.ts b/src/utils/parse-payment-uri.ts
+new file mode 100644
+index 0000000..cc1f946
+--- /dev/null
++++ b/src/utils/parse-payment-uri.ts
+@@ -0,0 +1,98 @@
++/**
++ * Parse a payment URI from a QR scan or paste into the inner destination that
++ * `WDKService.sendByNetwork` actually consumes, plus any amount carried with it.
++ *
++ * Supports:
++ *  - BIP21 URIs (`bitcoin:<address>?amount=&ark=&lightning=`), resolving to the
++ *    inner destination in priority order lightning > ark > bitcoin — matching
++ *    the SDK's `detectTransactionType`. The `amount=` query param is in BTC.
++ *  - Raw BOLT11 invoices (`ln[bc|tb|bcrt|sb]<amount><mult>1...`), with the
++ *    amount decoded from the HRP.
++ *  - Raw on-chain/Ark addresses — passed through unchanged with no amount.
++ */
++export interface ParsedPaymentURI {
++  address: string;
++  amountBTC?: number;
++}
++
++export const parsePaymentUri = (data: string): ParsedPaymentURI => {
++  const trimmed = (data ?? '').trim();
++  if (!trimmed) return { address: '' };
++
++  if (trimmed.toLowerCase().startsWith('bitcoin:')) {
++    return parseBip21(trimmed);
++  }
++
++  if (isBolt11Invoice(trimmed)) {
++    return { address: trimmed, amountBTC: decodeBolt11AmountBTC(trimmed) };
++  }
++
++  return { address: trimmed };
++};
++
++/**
++ * Render a BTC amount as a fixed-point string suitable for the amount input,
++ * trimming insignificant trailing zeros and avoiding exponential notation for
++ * small values (e.g. 1e-7 → "0.0000001").
++ */
++export const formatBtcAmount = (n: number): string => {
++  if (!Number.isFinite(n) || n <= 0) return '';
++  const fixed = n.toFixed(8);
++  return fixed.replace(/\.?0+$/, '') || '0';
++};
++
++const parseBip21 = (uri: string): ParsedPaymentURI => {
++  const withoutScheme = uri.slice('bitcoin:'.length);
++  const [rawAddress, queryString] = withoutScheme.split('?');
++  const params = new URLSearchParams(queryString ?? '');
++
++  const lightning = params.get('lightning') ?? '';
++  const ark = params.get('ark') ?? '';
++  const inner =
++    (lightning && lightning.toLowerCase().startsWith('ln') ? lightning : '') || ark || rawAddress;
++
++  const amountParam = params.get('amount');
++  let amountBTC: number | undefined;
++  if (amountParam !== null) {
++    const parsed = Number(amountParam);
++    if (Number.isFinite(parsed) && parsed >= 0) amountBTC = parsed;
++  }
++
++  // BOLT11 invoices embed their own amount; prefer it when the resolved inner
++  // destination is an invoice since it's the authoritative payment amount.
++  if (inner && isBolt11Invoice(inner)) {
++    const invoiceAmount = decodeBolt11AmountBTC(inner);
++    if (invoiceAmount !== undefined) amountBTC = invoiceAmount;
++  }
++
++  return { address: inner, amountBTC };
++};
++
++const BOLT11_HRP_RE = /^ln(?:bc|tb|bcrt|sb)(\d+)([munp])?$/;
++
++const isBolt11Invoice = (data: string): boolean => {
++  const sep = data.lastIndexOf('1');
++  if (sep < 4) return false;
++  return /^ln(?:bc|tb|bcrt|sb)/i.test(data) && /^[\x21-\x7e]+$/.test(data);
++};
++
++const decodeBolt11AmountBTC = (invoice: string): number | undefined => {
++  const sep = invoice.lastIndexOf('1');
++  if (sep < 0) return undefined;
++  const hrp = invoice.slice(0, sep).toLowerCase();
++  const match = BOLT11_HRP_RE.exec(hrp);
++  if (!match) return undefined;
++  const amount = Number(match[1]);
++  switch (match[2]) {
++    case 'm':
++      return amount * 1e-3;
++    case 'u':
++      return amount * 1e-6;
++    case 'n':
++      return amount * 1e-9;
++    case 'p':
++      return amount * 1e-12;
++    default:
++      return amount;
++  }
++};
