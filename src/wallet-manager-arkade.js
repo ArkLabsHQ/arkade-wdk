@@ -8,6 +8,7 @@ import {
 } from '@arkade-os/sdk';
 import { HDKey } from '@scure/bip32';
 import { ArkadeSwaps, BoltzSwapProvider } from '@arkade-os/boltz-swap';
+import { parseFeeRate } from './lib/fees.js';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
 
 const WALLET_CREATE_TIMEOUT_MS = 30_000;
@@ -200,7 +201,7 @@ class WalletManagerArkade extends WalletManager {
   async getFeeRates() {
     this.disposeCheck();
     const info = await this.info;
-    const rate = BigInt(Math.ceil(parseFloat(info.fees.txFeeRate)));
+    const rate = BigInt(Math.ceil(parseFeeRate(info.fees.txFeeRate)));
     return { normal: rate, fast: rate };
   }
 
