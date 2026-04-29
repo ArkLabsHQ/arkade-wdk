@@ -6578,10 +6578,10 @@ index 8025f1b..5ced777 100644
  
      // Sort transactions by timestamp (newest first) and calculate fiat values
 diff --git a/src/app/receive/details.tsx b/src/app/receive/details.tsx
-index 0ac6e1c..cf5e22e 100644
+index 0ac6e1c..a60abc0 100644
 --- a/src/app/receive/details.tsx
 +++ b/src/app/receive/details.tsx
-@@ -1,25 +1,82 @@
+@@ -1,25 +1,90 @@
  import { QRCode } from '@tetherto/wdk-uikit-react-native';
  import { useLocalSearchParams } from 'expo-router';
  import { useDebouncedNavigation } from '@/hooks/use-debounced-navigation';
@@ -6652,15 +6652,23 @@ index 0ac6e1c..cf5e22e 100644
 +
 +  useEffect(() => {
 +    if (!isArkadeNetwork) return;
-+    const key = `${NetworkType.ARKADE}_btc`;
-+    const current = balances.map?.[key]?.balance ?? 0;
++    // Pick the key matching the network the user is receiving on. Boarding
++    // receives populate `arkade-boarding_btc`, not `arkade_btc`, so the prior
++    // hardcoded key missed every on-chain inbound.
++    const key = `${networkId}_btc`;
++    const entry = balances.map?.[key];
++    // Wait until balances have actually loaded — otherwise we'd seed
++    // initialBalanceRef with 0 and then trip the success screen the moment
++    // the first real balance refresh comes in (regardless of any new payment).
++    if (!entry) return;
++    const current = entry.balance;
 +    if (initialBalanceRef.current === null) {
 +      initialBalanceRef.current = current;
 +    } else if (current > initialBalanceRef.current && !paymentReceived) {
 +      setPaymentReceived(true);
 +      toast.success('Payment received!');
 +    }
-+  }, [balances.map, isArkadeNetwork, paymentReceived]);
++  }, [balances.map, isArkadeNetwork, networkId, paymentReceived]);
 +
 +  // For Lightning, show either the form or the generated invoice
 +  const displayAddress = isLightning ? generatedInvoice : address;
@@ -6668,7 +6676,7 @@ index 0ac6e1c..cf5e22e 100644
    const handleBack = useCallback(() => {
      router.back();
    }, [router]);
-@@ -30,25 +87,31 @@ export default function ReceiveQRCodeScreen() {
+@@ -30,25 +95,31 @@ export default function ReceiveQRCodeScreen() {
    }, [router]);
  
    const handleCopyAddress = useCallback(async () => {
@@ -6709,7 +6717,7 @@ index 0ac6e1c..cf5e22e 100644
  
    return (
      <View style={[styles.container, { paddingTop: insets.top }]}>
-@@ -64,47 +127,104 @@ export default function ReceiveQRCodeScreen() {
+@@ -64,47 +135,104 @@ export default function ReceiveQRCodeScreen() {
        </View>
  
        <View style={styles.content}>
@@ -6849,7 +6857,7 @@ index 0ac6e1c..cf5e22e 100644
        </View>
      </View>
    );
-@@ -153,6 +273,51 @@ const styles = StyleSheet.create({
+@@ -153,6 +281,51 @@ const styles = StyleSheet.create({
      lineHeight: 28,
      textAlign: 'left',
    },
