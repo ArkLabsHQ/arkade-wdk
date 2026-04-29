@@ -8,6 +8,7 @@ import {
 } from '@arkade-os/sdk';
 import { HDKey } from '@scure/bip32';
 import { ArkadeSwaps, BoltzSwapProvider } from '@arkade-os/boltz-swap';
+import { sodium_memzero } from 'sodium-universal';
 import { parseFeeRate } from './lib/fees.js';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
 
@@ -70,7 +71,12 @@ class WalletManagerArkade extends WalletManager {
     }
 
     this._walletPromises[path] = (async () => {
-      const hdKey = HDKey.fromMasterSeed(this.seed).derive(path);
+      // Keep the master HDKey named so we can wipe its private data after
+      // derivation. The final hdKey._privateKey is shared with keyPair below
+      // and is zeroed via sodium_memzero in the account dispose path.
+      const master = HDKey.fromMasterSeed(this.seed);
+      const hdKey = master.derive(path);
+      master.wipePrivateData();
       if (!hdKey.privateKey || !hdKey.publicKey) {
         throw new Error(`Failed to derive private key at path ${path}`);
       }
@@ -230,8 +236,7 @@ class WalletManagerArkade extends WalletManager {
       }
     }
 
-    globalThis.crypto.getRandomValues(this.seed);
-    this.seed.fill(0);
+    sodium_memzero(this.seed);
   }
 }
 

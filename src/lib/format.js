@@ -14,12 +14,14 @@ export const fromSatoshis = (sats) => {
 };
 
 /**
- * Convert BTC to satoshis
+ * Convert BTC to satoshis. Uses Math.round so callers passing exact decimal
+ * values like 0.29 get 29000000, not 28999999 (the float representation of
+ * 0.29 * 1e8 sits just below the integer).
  * @param {number} btc
  * @returns {number}
  */
 export const toSatoshis = (btc) => {
-  return Math.floor(btc * SATS_PER_BTC);
+  return Math.round(btc * SATS_PER_BTC);
 };
 
 /**
