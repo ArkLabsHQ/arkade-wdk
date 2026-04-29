@@ -104,7 +104,7 @@ index 4c3dff5..dd8018d 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..1636cf0 100644
+index 5ae8528..51edfab 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -702,14 +702,29 @@ index 5ae8528..1636cf0 100644
          const address = networkAddresses[networkType as NetworkType];
          if (address) {
            payload.push({
-@@ -726,6 +1158,23 @@ class WDKService {
+@@ -726,6 +1158,38 @@ class WDKService {
        });
      });
  
-+    const [indexerMap, arkadeMap] = await Promise.all([
-+      payload.length > 0 ? this._fetchIndexerBalances(payload, headers) : {},
++    // Use allSettled so a transient failure on one leg (e.g. the WDK indexer
++    // returning a 524 upstream timeout) doesn't poison the other. Each leg
++    // owns its own balance keys, so a partial result is still useful — the
++    // receive flow's balance-watcher can fire on the Arkade leg even if the
++    // WDK indexer is down, and vice versa.
++    const [indexerResult, arkadeResult] = await Promise.allSettled([
++      payload.length > 0 ? this._fetchIndexerBalances(payload, headers) : Promise.resolve({}),
 +      this.resolveArkadeBalances(enabledAssets, networkAddresses),
 +    ]);
++
++    const indexerMap = indexerResult.status === 'fulfilled' ? indexerResult.value : {};
++    const arkadeMap = arkadeResult.status === 'fulfilled' ? arkadeResult.value : {};
++
++    if (indexerResult.status === 'rejected') {
++      console.warn('[balances] WDK indexer leg failed:', indexerResult.reason);
++    }
++    if (arkadeResult.status === 'rejected') {
++      console.warn('[balances] Arkade leg failed:', arkadeResult.reason);
++    }
 +
 +    return { ...indexerMap, ...arkadeMap };
 +  }
@@ -726,7 +741,7 @@ index 5ae8528..1636cf0 100644
      const requestOptions = {
        method: 'POST',
        headers: headers,
-@@ -743,14 +1192,22 @@ class WDKService {
+@@ -743,14 +1207,22 @@ class WDKService {
  
      const data = await response.json();
  
@@ -751,7 +766,7 @@ index 5ae8528..1636cf0 100644
          allBalances[`${obj.blockchain}_${obj.token}`] = {
            balance: parseFloat(obj.amount),
            asset: obj.token as AssetTicker,
-@@ -759,8 +1216,53 @@ class WDKService {
+@@ -759,8 +1231,53 @@ class WDKService {
        },
        {} as Record<string, { balance: number; asset: AssetTicker }>
      );
