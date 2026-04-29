@@ -91,10 +91,16 @@ class WalletManagerArkade extends WalletManager {
         },
       };
 
+      // Track the timer so we can clear it when Wallet.create wins. Letting
+      // the timeout fire after a successful create produces an unhandled
+      // rejection on the losing promise, which Bare's strict handler turns
+      // into an abort.
+      /** @type {ReturnType<typeof setTimeout> | undefined} */
+      let timeoutId;
       const wallet = await Promise.race([
         Wallet.create(walletConfig),
         new Promise((_resolve, reject) => {
-          setTimeout(
+          timeoutId = setTimeout(
             () =>
               reject(
                 new Error(
@@ -105,7 +111,7 @@ class WalletManagerArkade extends WalletManager {
             WALLET_CREATE_TIMEOUT_MS
           );
         }),
-      ]);
+      ]).finally(() => clearTimeout(timeoutId));
 
       /** @type {import('@tetherto/wdk-wallet').KeyPair} */
       const keyPair = {
