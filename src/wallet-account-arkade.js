@@ -91,6 +91,13 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   async toReadOnlyAccount() {
     const publicKey = await this.wallet.identity.compressedPublicKey();
     const readonlyIdentity = ReadonlySingleKey.fromPublicKey(publicKey);
+    // The full IAssetManager exposes issue/reissue/burn — all signing ops.
+    // Project it down to the IReadonlyAssetManager surface (just
+    // getAssetDetails) so the read-only facade can't sign asset transactions.
+    const readonlyAssetManager = {
+      getAssetDetails: (/** @type {string} */ assetId) =>
+        this.wallet.assetManager.getAssetDetails(assetId),
+    };
     /** @type {import('@arkade-os/sdk').IReadonlyWallet} */
     const readonlyWallet = {
       identity: readonlyIdentity,
@@ -101,7 +108,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
       getBoardingUtxos: () => this.wallet.getBoardingUtxos(),
       getTransactionHistory: () => this.wallet.getTransactionHistory(),
       getContractManager: () => this.wallet.getContractManager(),
-      assetManager: this.wallet.assetManager,
+      assetManager: readonlyAssetManager,
     };
     return new WalletAccountReadOnlyArkade(
       /** @type {string} */ (this._address),
