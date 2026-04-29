@@ -190,6 +190,139 @@ describe('Base class conformance', () => {
   });
 });
 
+describe('toReadOnlyAccount isolation', () => {
+  /**
+   * Mock signing wallet that exposes every method on IWallet — including
+   * the signing surface — so the test can verify which of them survive the
+   * projection into the read-only facade.
+   */
+  function makeSigningWalletMock() {
+    const pubkey = new Uint8Array(33).fill(0xee);
+    return {
+      identity: {
+        compressedPublicKey: () => Promise.resolve(pubkey),
+        // Real signing identities expose .key (the 32-byte secret) and .sign.
+        // The read-only projection must not surface either of these.
+        key: new Uint8Array(32).fill(0xaa),
+        sign: mock.fn(() => Promise.reject(new Error('should not be reachable'))),
+      },
+      send: mock.fn(() => Promise.reject(new Error('should not be reachable'))),
+      sendBitcoin: mock.fn(() => Promise.reject(new Error('should not be reachable'))),
+      settle: mock.fn(() => Promise.reject(new Error('should not be reachable'))),
+      getAddress: mock.fn(() => Promise.resolve('ark1addrFromUnderlying')),
+      getBoardingAddress: mock.fn(() => Promise.resolve('bc1boarding')),
+      getBalance: mock.fn(() => Promise.resolve({ total: 12345, assets: [] })),
+      getVtxos: mock.fn(() => Promise.resolve([])),
+      getBoardingUtxos: mock.fn(() => Promise.resolve([])),
+      getTransactionHistory: mock.fn(() => Promise.resolve([])),
+      getContractManager: mock.fn(() => ({})),
+      assetManager: {
+        getAssetDetails: mock.fn((id) => Promise.resolve({ assetId: id })),
+        issue: mock.fn(() => Promise.reject(new Error('should not be reachable'))),
+        reissue: mock.fn(() => Promise.reject(new Error('should not be reachable'))),
+        burn: mock.fn(() => Promise.reject(new Error('should not be reachable'))),
+      },
+    };
+  }
+
+  it('returns a WalletAccountReadOnlyArkade instance', async () => {
+    const wallet = makeSigningWalletMock();
+    const account = new WalletAccountArkade(
+      'ark1addr',
+      "m/86'/0'/0'/0/0",
+      wallet,
+      { publicKey: new Uint8Array(33), privateKey: new Uint8Array(32) },
+      {},
+      Promise.resolve({}),
+      null
+    );
+
+    const readonly = await account.toReadOnlyAccount();
+
+    assert.ok(readonly instanceof WalletAccountReadOnlyArkade);
+    assert.ok(readonly instanceof WalletAccountReadOnly);
+  });
+
+  it('facade does not expose signing methods', async () => {
+    const wallet = makeSigningWalletMock();
+    const account = new WalletAccountArkade(
+      'ark1addr',
+      "m/86'/0'/0'/0/0",
+      wallet,
+      { publicKey: new Uint8Array(33), privateKey: new Uint8Array(32) },
+      {},
+      Promise.resolve({}),
+      null
+    );
+
+    const readonly = await account.toReadOnlyAccount();
+    const facade = /** @type {Record<string, unknown>} */ (readonly.wallet);
+
+    assert.equal(facade.send, undefined);
+    assert.equal(facade.sendBitcoin, undefined);
+    assert.equal(facade.settle, undefined);
+  });
+
+  it('facade identity has no private-key material', async () => {
+    const wallet = makeSigningWalletMock();
+    const account = new WalletAccountArkade(
+      'ark1addr',
+      "m/86'/0'/0'/0/0",
+      wallet,
+      { publicKey: new Uint8Array(33), privateKey: new Uint8Array(32) },
+      {},
+      Promise.resolve({}),
+      null
+    );
+
+    const readonly = await account.toReadOnlyAccount();
+    const identity = /** @type {Record<string, unknown>} */ (readonly.wallet.identity);
+
+    assert.notEqual(identity, wallet.identity, 'must be a fresh ReadonlySingleKey, not the signing identity');
+    assert.equal(identity.key, undefined, 'must not expose the .key secret bytes');
+    assert.equal(typeof identity.sign, 'undefined', 'must not expose a .sign method');
+  });
+
+  it('facade assetManager exposes only getAssetDetails', async () => {
+    const wallet = makeSigningWalletMock();
+    const account = new WalletAccountArkade(
+      'ark1addr',
+      "m/86'/0'/0'/0/0",
+      wallet,
+      { publicKey: new Uint8Array(33), privateKey: new Uint8Array(32) },
+      {},
+      Promise.resolve({}),
+      null
+    );
+
+    const readonly = await account.toReadOnlyAccount();
+    const am = /** @type {Record<string, unknown>} */ (readonly.wallet.assetManager);
+
+    assert.equal(typeof am.getAssetDetails, 'function');
+    assert.equal(am.issue, undefined);
+    assert.equal(am.reissue, undefined);
+    assert.equal(am.burn, undefined);
+  });
+
+  it('read-only methods proxy through to the underlying wallet', async () => {
+    const wallet = makeSigningWalletMock();
+    const account = new WalletAccountArkade(
+      'ark1addr',
+      "m/86'/0'/0'/0/0",
+      wallet,
+      { publicKey: new Uint8Array(33), privateKey: new Uint8Array(32) },
+      {},
+      Promise.resolve({}),
+      null
+    );
+
+    const readonly = await account.toReadOnlyAccount();
+
+    assert.equal(await readonly.getBoardingAddress(), 'bc1boarding');
+    assert.equal(await readonly.getBalance(), 12345n);
+  });
+});
+
 describe('Per-account wallet isolation', () => {
   let walletCreateMock;
 
