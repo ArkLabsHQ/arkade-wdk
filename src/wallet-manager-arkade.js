@@ -23,15 +23,12 @@ class WalletManagerArkade extends WalletManager {
    * @param {string | Uint8Array} seed
    * @param {import('./types.js').ArkadeWalletConfig} [config]
    */
-  constructor(seed, config) {
-    super(seed);
-
-    /** @private @type {import('./types.js').ArkadeWalletConfig} */
-    this.config = config ?? {};
+  constructor(seed, config = {}) {
+    super(seed, config);
 
     /** @private @type {import('@arkade-os/sdk').ArkProvider} */
-    this.arkProvider = /** @type {import('@arkade-os/sdk').ArkProvider} */ (
-      this.config.arkProvider ?? new RestArkProvider(this.config.arkServerUrl)
+    this._arkProvider = /** @type {import('@arkade-os/sdk').ArkProvider} */ (
+      this._cfg().arkProvider ?? new RestArkProvider(this._cfg().arkServerUrl)
     );
 
     /** @private @type {Promise<import('@arkade-os/sdk').ArkInfo>} */
@@ -41,21 +38,32 @@ class WalletManagerArkade extends WalletManager {
     // Returning the retry result from catch keeps a single promise chain with
     // no orphaned rejections. If BOTH attempts fail, the promise rejects and
     // callers (getAccount, getFeeRates) surface the error normally.
-    this.info = this.arkProvider.getInfo().catch((/** @type {unknown} */ reason) => {
+    this._info = this._arkProvider.getInfo().catch((/** @type {unknown} */ reason) => {
       console.warn(`Arkade network info fetch failed, retrying: ${String(reason)}`);
-      return this.arkProvider.getInfo();
+      return this._arkProvider.getInfo();
     });
 
     /** @private */
-    this.disposed = false;
+    this._disposed = false;
 
     /** @private @type {{ [path: string]: Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps | null }> | undefined }} */
     this._walletPromises = {};
   }
 
+  /**
+   * Narrows the inherited `_config` (typed as the WDK `WalletConfig` base)
+   * to our `ArkadeWalletConfig`. Accessing it through this helper keeps the
+   * type assertion in one place.
+   * @private
+   * @returns {import('./types.js').ArkadeWalletConfig}
+   */
+  _cfg() {
+    return /** @type {import('./types.js').ArkadeWalletConfig} */ (this._config);
+  }
+
   /** @private */
-  disposeCheck() {
-    if (this.disposed) {
+  _disposeCheck() {
+    if (this._disposed) {
       throw new Error('WalletManagerArkade has been disposed');
     }
   }
@@ -74,16 +82,23 @@ class WalletManagerArkade extends WalletManager {
       // Keep the master HDKey named so we can wipe its private data after
       // derivation. The final hdKey._privateKey is shared with keyPair below
       // and is zeroed via sodium_memzero in the account dispose path.
+      // The try/finally ensures the master's private data is wiped even if
+      // `derive(path)` throws on a malformed path supplied by the consumer.
       const master = HDKey.fromMasterSeed(this.seed);
-      const hdKey = master.derive(path);
-      master.wipePrivateData();
+      let hdKey;
+      try {
+        hdKey = master.derive(path);
+      } finally {
+        master.wipePrivateData();
+      }
       if (!hdKey.privateKey || !hdKey.publicKey) {
         throw new Error(`Failed to derive private key at path ${path}`);
       }
 
+      const cfg = this._cfg();
       /** @type {import('@arkade-os/sdk').WalletConfig} */
       const walletConfig = {
-        ...this.config,
+        ...cfg,
         identity: SingleKey.fromPrivateKey(hdKey.privateKey),
         // Use in-memory storage when no storage config is provided. The SDK
         // defaults to IndexedDB which isn't available in the Bare worklet
@@ -91,7 +106,7 @@ class WalletManagerArkade extends WalletManager {
         // but balance/send/history work for the current session. A future
         // improvement could bridge to expo-sqlite on the RN side or use a
         // bare-fs-backed SQLite repo.
-        storage: this.config.storage ?? {
+        storage: cfg.storage ?? {
           walletRepository: new InMemoryWalletRepository(),
           contractRepository: new InMemoryContractRepository(),
         },
@@ -111,7 +126,7 @@ class WalletManagerArkade extends WalletManager {
               reject(
                 new Error(
                   `Ark wallet creation timed out after ${WALLET_CREATE_TIMEOUT_MS}ms — ` +
-                    `is the Ark server at ${this.config.arkServerUrl} reachable?`
+                    `is the Ark server at ${cfg.arkServerUrl} reachable?`
                 )
               ),
             WALLET_CREATE_TIMEOUT_MS
@@ -127,13 +142,13 @@ class WalletManagerArkade extends WalletManager {
 
       /** @type {ArkadeSwaps | null} */
       let swaps = null;
-      if (this.config.swapProviderUrl) {
+      if (cfg.swapProviderUrl) {
         // Resolve the network from the same arkInfo we cached at construction
         // time so the swap provider speaks to the matching Boltz endpoint.
-        const info = await this.info;
+        const info = await this._info;
         const network = /** @type {import('@arkade-os/sdk').NetworkName} */ (info.network);
         const swapProvider = new BoltzSwapProvider({
-          apiUrl: this.config.swapProviderUrl,
+          apiUrl: cfg.swapProviderUrl,
           network,
         });
         /** @type {import('@arkade-os/boltz-swap').ArkadeSwapsCreateConfig} */
@@ -144,8 +159,8 @@ class WalletManagerArkade extends WalletManager {
         };
         // Forward swapRepository from config if provided (e.g. a SQLite-
         // backed repo passed by the RN-side initArkadeWallet).
-        if (this.config.swapRepository) {
-          swapsConfig.swapRepository = this.config.swapRepository;
+        if (cfg.swapRepository) {
+          swapsConfig.swapRepository = cfg.swapRepository;
         }
         swaps = await ArkadeSwaps.create(swapsConfig);
       }
@@ -165,9 +180,9 @@ class WalletManagerArkade extends WalletManager {
    * @returns {Promise<WalletAccountArkade>}
    */
   async getAccount(index = 0) {
-    this.disposeCheck();
+    this._disposeCheck();
 
-    const info = await this.info;
+    const info = await this._info;
     const network = ['bitcoin', 'mainnet'].includes(String(info.network)) ? '0' : '1';
     const path = `m/86'/${network}/0'/0/${index}`;
 
@@ -179,7 +194,7 @@ class WalletManagerArkade extends WalletManager {
    * @returns {Promise<WalletAccountArkade>}
    */
   async getAccountByPath(path) {
-    this.disposeCheck();
+    this._disposeCheck();
 
     const cached = /** @type {WalletAccountArkade | undefined} */ (this._accounts[path]);
     if (cached) return cached;
@@ -193,7 +208,7 @@ class WalletManagerArkade extends WalletManager {
       wallet,
       keyPair,
       wallet.indexerProvider,
-      this.info,
+      this._info,
       swaps
     );
 
@@ -211,15 +226,15 @@ class WalletManagerArkade extends WalletManager {
    * @returns {Promise<import('@tetherto/wdk').FeeRates>}
    */
   async getFeeRates() {
-    this.disposeCheck();
-    const info = await this.info;
+    this._disposeCheck();
+    const info = await this._info;
     const rate = BigInt(Math.ceil(parseFeeRate(info.fees.txFeeRate)));
     return { normal: rate, fast: rate };
   }
 
   async dispose() {
-    this.disposeCheck();
-    this.disposed = true;
+    this._disposeCheck();
+    this._disposed = true;
 
     super.dispose();
 

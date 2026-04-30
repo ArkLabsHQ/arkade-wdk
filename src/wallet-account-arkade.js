@@ -38,8 +38,8 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
     const result = await send({
       to: tx.to,
       amount: BigInt(tx.value),
-      wallet: this.wallet,
-      arkInfo: this.arkInfo,
+      wallet: this._wallet,
+      arkInfo: this._arkInfo,
       lightning: this.arkadeSwaps,
     });
 
@@ -57,8 +57,8 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
     const estimate = await quoteSend({
       to: tx.to,
       amount: BigInt(tx.value),
-      wallet: this.wallet,
-      arkInfo: this.arkInfo,
+      wallet: this._wallet,
+      arkInfo: this._arkInfo,
       lightning: this.arkadeSwaps,
     });
 
@@ -70,12 +70,12 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<import('@tetherto/wdk-wallet').TransferResult>}
    */
   async transfer(options) {
-    const txid = await this.wallet.send({
+    const txid = await this._wallet.send({
       address: options.recipient,
       assets: [{ assetId: options.token, amount: Number(options.amount) }],
     });
 
-    const feeEstimate = await calculateOffchainFee(this.arkInfo);
+    const feeEstimate = await calculateOffchainFee(this._arkInfo);
     return { hash: txid, fee: feeEstimate.fee };
   }
 
@@ -84,37 +84,37 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<string>}
    */
   async sign(message) {
-    return BIP322.sign(message, this.wallet.identity);
+    return BIP322.sign(message, this._wallet.identity);
   }
 
   /** @returns {Promise<WalletAccountReadOnlyArkade>} */
   async toReadOnlyAccount() {
-    const publicKey = await this.wallet.identity.compressedPublicKey();
+    const publicKey = await this._wallet.identity.compressedPublicKey();
     const readonlyIdentity = ReadonlySingleKey.fromPublicKey(publicKey);
     // The full IAssetManager exposes issue/reissue/burn — all signing ops.
     // Project it down to the IReadonlyAssetManager surface (just
     // getAssetDetails) so the read-only facade can't sign asset transactions.
     const readonlyAssetManager = {
       getAssetDetails: (/** @type {string} */ assetId) =>
-        this.wallet.assetManager.getAssetDetails(assetId),
+        this._wallet.assetManager.getAssetDetails(assetId),
     };
     /** @type {import('@arkade-os/sdk').IReadonlyWallet} */
     const readonlyWallet = {
       identity: readonlyIdentity,
-      getAddress: () => this.wallet.getAddress(),
-      getBoardingAddress: () => this.wallet.getBoardingAddress(),
-      getBalance: () => this.wallet.getBalance(),
-      getVtxos: (/** @type {import('@arkade-os/sdk').GetVtxosFilter} */ filter) => this.wallet.getVtxos(filter),
-      getBoardingUtxos: () => this.wallet.getBoardingUtxos(),
-      getTransactionHistory: () => this.wallet.getTransactionHistory(),
-      getContractManager: () => this.wallet.getContractManager(),
+      getAddress: () => this._wallet.getAddress(),
+      getBoardingAddress: () => this._wallet.getBoardingAddress(),
+      getBalance: () => this._wallet.getBalance(),
+      getVtxos: (/** @type {import('@arkade-os/sdk').GetVtxosFilter} */ filter) => this._wallet.getVtxos(filter),
+      getBoardingUtxos: () => this._wallet.getBoardingUtxos(),
+      getTransactionHistory: () => this._wallet.getTransactionHistory(),
+      getContractManager: () => this._wallet.getContractManager(),
       assetManager: readonlyAssetManager,
     };
     return new WalletAccountReadOnlyArkade(
       /** @type {string} */ (this._address),
       readonlyWallet,
-      this.indexerProvider,
-      this.arkInfo
+      this._indexerProvider,
+      this._arkInfo
     )
   }
 

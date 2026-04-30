@@ -256,7 +256,7 @@ describe('toReadOnlyAccount isolation', () => {
     );
 
     const readonly = await account.toReadOnlyAccount();
-    const facade = /** @type {Record<string, unknown>} */ (readonly.wallet);
+    const facade = /** @type {Record<string, unknown>} */ (readonly._wallet);
 
     assert.equal(facade.send, undefined);
     assert.equal(facade.sendBitcoin, undefined);
@@ -276,7 +276,7 @@ describe('toReadOnlyAccount isolation', () => {
     );
 
     const readonly = await account.toReadOnlyAccount();
-    const identity = /** @type {Record<string, unknown>} */ (readonly.wallet.identity);
+    const identity = /** @type {Record<string, unknown>} */ (readonly._wallet.identity);
 
     assert.notEqual(identity, wallet.identity, 'must be a fresh ReadonlySingleKey, not the signing identity');
     assert.equal(identity.key, undefined, 'must not expose the .key secret bytes');
@@ -296,7 +296,7 @@ describe('toReadOnlyAccount isolation', () => {
     );
 
     const readonly = await account.toReadOnlyAccount();
-    const am = /** @type {Record<string, unknown>} */ (readonly.wallet.assetManager);
+    const am = /** @type {Record<string, unknown>} */ (readonly._wallet.assetManager);
 
     assert.equal(typeof am.getAssetDetails, 'function');
     assert.equal(am.issue, undefined);
@@ -381,7 +381,7 @@ describe('Per-account wallet isolation', () => {
 
     await manager.dispose();
 
-    assert.equal(account0.wallet.dispose.mock.callCount(), 1);
-    assert.equal(account1.wallet.dispose.mock.callCount(), 1);
+    assert.equal(account0._wallet.dispose.mock.callCount(), 1);
+    assert.equal(account1._wallet.dispose.mock.callCount(), 1);
   });
 });

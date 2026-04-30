@@ -18,11 +18,11 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
   constructor(address, wallet, indexerProvider, arkInfo) {
     super(address);
     /** @protected */
-    this.wallet = wallet;
+    this._wallet = wallet;
     /** @protected */
-    this.indexerProvider = indexerProvider;
+    this._indexerProvider = indexerProvider;
     /** @protected */
-    this.arkInfo = arkInfo;
+    this._arkInfo = arkInfo;
   }
 
   /**
@@ -30,12 +30,12 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
    * @returns {Promise<string>}
    */
   async getBoardingAddress() {
-    return await this.wallet.getBoardingAddress();
+    return await this._wallet.getBoardingAddress();
   }
 
   /** @returns {Promise<bigint>} */
   async getBalance() {
-    const balance = await this.wallet.getBalance();
+    const balance = await this._wallet.getBalance();
     return BigInt(balance.total);
   }
 
@@ -53,13 +53,13 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
    * @returns {Promise<unknown>}
    */
   async getTransactionReceipt(hash) {
-    const res = await this.indexerProvider.getVirtualTxs([hash]);
+    const res = await this._indexerProvider.getVirtualTxs([hash]);
     return res.txs.length > 0 ? res.txs[0] : null;
   }
 
   /** @returns {Promise<import('@arkade-os/sdk').ArkTransaction[]>} */
   async getTransactionHistory() {
-    return await this.wallet.getTransactionHistory();
+    return await this._wallet.getTransactionHistory();
   }
 
   /**
@@ -67,7 +67,7 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
    * @returns {Promise<bigint>}
    */
   async getTokenBalance(tokenAddress) {
-    const balance = await this.wallet.getBalance();
+    const balance = await this._wallet.getBalance();
     const asset = balance.assets.find(
       (/** @type {{ assetId: string; amount: number }} */ a) => a.assetId === tokenAddress
     );
@@ -82,8 +82,8 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
     const estimate = await quoteSend({
       to: tx.to,
       amount: BigInt(tx.value),
-      wallet: this.wallet,
-      arkInfo: this.arkInfo,
+      wallet: this._wallet,
+      arkInfo: this._arkInfo,
       lightning: null,
     });
     return { fee: estimate.fee };
@@ -94,7 +94,7 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
    * @returns {Promise<Omit<import('@tetherto/wdk-wallet').TransferResult, 'hash'>>}
    */
   async quoteTransfer(_options) {
-    const feeEstimate = await calculateOffchainFee(this.arkInfo);
+    const feeEstimate = await calculateOffchainFee(this._arkInfo);
     return { fee: feeEstimate.fee };
   }
 }
