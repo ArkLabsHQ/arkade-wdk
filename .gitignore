@@ -1,12 +1,13 @@
 # Dependencies
 node_modules/
-package-lock.json
+pnpm-lock.yaml
 yarn.lock
 
 # Build output
 dist/
 build/
 *.tsbuildinfo
+types/
 
 # Test coverage
 coverage/
@@ -38,3 +39,4 @@ yarn-error.log*
 .cache/
 CLAUDE.md
 .claude
+*.agents.md

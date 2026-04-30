@@ -1,615 +1,47 @@
-diff --git a/.github/workflows/build.yml b/.github/workflows/build.yml
-index d5ce769..d2dbcb2 100644
---- a/.github/workflows/build.yml
-+++ b/.github/workflows/build.yml
-@@ -1,6 +1,12 @@
- name: build
+diff --git a/index.js b/index.js
+index 3931ba9..e8d61c6 100644
+--- a/index.js
++++ b/index.js
+@@ -25,9 +25,18 @@
  
- on:
-+  workflow_dispatch:
-+    inputs:
-+      dry_run:
-+        type: boolean
-+        required: false
-+        default: true
-   push:
-     branches: [main, develop, workflow-fix]
-   pull_request:
-@@ -16,12 +22,21 @@ jobs:
-         uses: actions/setup-node@v4
-         with:
-           node-version: "22.19.0"
-+          cache: "npm"
-           registry-url: "https://registry.npmjs.org"
+ /** @typedef {import('./src/wdk-core/wdk-manager.js').TransferConfig} TransferConfig */
  
-+      - name: Auth for private GitHub git deps
-+        run: |
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "ssh://git@github.com/"
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "git@github.com:"
-+        env:
-+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-+
-       - name: Install dependencies
--        run: npm install
-+        run: npm clean-install
-         env:
--          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-+          NODE_AUTH_TOKEN: ${{ secrets.PAT_TOKEN }}
+-export { WdkManager, Blockchain } from './src/wdk-core/wdk-manager.js'
++// Note: WdkManager and Blockchain intentionally NOT re-exported from this
++// entry point. They live in src/wdk-core/wdk-manager.js, which runs INSIDE
++// the Bare worklet — it dynamically imports per-chain wallet packages like
++// @arkade-os/wdk that bring native deps (sodium-universal, bare-node-runtime)
++// not designed for the React Native JS thread. Re-exporting them from
++// index.js made Metro statically follow that file from the RN side and
++// fail trying to resolve those native deps. The worklet imports WdkManager
++// directly via require('../src/wdk-core/wdk-manager') in wdk-worklet.js,
++// so this only affects RN-side consumers — none of which actually use
++// WdkManager (they only need HRPC).
  
-       - name: Install bare
-         run: npm install -g bare
-diff --git a/.github/workflows/publish.yml b/.github/workflows/publish.yml
-index b415c97..15d188b 100644
---- a/.github/workflows/publish.yml
-+++ b/.github/workflows/publish.yml
-@@ -1,6 +1,12 @@
- name: publish
+-// Export spec/hrpc
++// Export spec/hrpc — this is what the React Native provider imports.
+ export { default as HRPC } from './spec/hrpc'
  
- on:
-+  workflow_dispatch:
-+    inputs:
-+      dry_run:
-+        type: boolean
-+        required: false
-+        default: true
-   # Allow calling this workflow from other workflows (local tests with act)
-   workflow_call:
-     inputs:
-@@ -28,21 +34,27 @@ jobs:
-         uses: actions/setup-node@v4
-         with:
-           node-version: "22.19.0"
-+          cache: "npm"
-           registry-url: "https://registry.npmjs.org"
- 
-+      - name: Auth for private GitHub git deps
-+        run: |
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "ssh://git@github.com/"
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "git@github.com:"
-+        env:
-+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-+
-       - name: Install dependencies
-         run: npm ci
-         env:
--          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-+          NODE_AUTH_TOKEN: ${{ secrets.PAT_TOKEN }}
- 
-       - name: Lint Standard
-         run: npm run lint
-       - name: Install bare
-         run: npm install -g bare
- 
--      - run: npm run gen:schema
--      - run: npm run gen:bundle
--
-       - name: Upload bundle artifact
-         uses: actions/upload-artifact@v4
-         with:
-@@ -53,7 +65,6 @@ jobs:
-           if-no-files-found: error
- 
-   publish:
--    if: startsWith(github.ref, 'refs/tags/v')
-     needs: test
-     runs-on: ubuntu-latest
-     steps:
-@@ -65,18 +76,19 @@ jobs:
-           cache: "npm"
-           registry-url: "https://registry.npmjs.org"
- 
-+      - name: Auth for private GitHub git deps
-+        run: |
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "https://github.com/"
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "ssh://git@github.com/"
-+          git config --global url."https://${PAT_TOKEN}:x-oauth-basic@github.com/".insteadOf "git@github.com:"
-+        env:
-+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
-+
-       - name: Install dependencies
-         run: npm ci
-         env:
--          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
--
--      # Dry-run when invoked via workflow_call with dry_run=true
--      - name: Publish to npm (dry-run)
--        if: ${{ github.event_name != 'release' && inputs.dry_run }}
--        run: npm publish --dry-run
-+          NODE_AUTH_TOKEN: ${{ secrets.PAT_TOKEN }}
- 
--      - run: npm pack # optional: sanity check the tarball contents
--        if: ${{ github.event_name == 'release' || !inputs.dry_run }}
-       - run: npm publish
-         env:
-           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-diff --git a/.gitignore b/.gitignore
-index fe9e6bf..2ff396d 100644
---- a/.gitignore
-+++ b/.gitignore
-@@ -1,4 +1,4 @@
- /node_modules
- /.idea
- .DS_Store
--/bundle
-+/bundle
+ // Export spec/schema
+diff --git a/pack.imports.json b/pack.imports.json
+index bcaef0c..02cdc5b 100644
+--- a/pack.imports.json
++++ b/pack.imports.json
+@@ -1,3 +1,8 @@
+ {
+-  "http": "bare-http1"
++  "http": "bare-http1",
++  "bare-abort": "bare-abort-jsshim",
++  "bare-stdio": "bare-stdio-jsshim",
++  "bare-type": "bare-type-jsshim",
++  "bare-performance": "bare-performance-jsshim",
++  "bare-performance/global": "bare-performance-jsshim/global"
+ }
 \ No newline at end of file
-diff --git a/README.md b/README.md
-index f2584b8..220335d 100644
---- a/README.md
-+++ b/README.md
-@@ -45,7 +45,7 @@ npm install @tetherto/pear-wrk-wdk
- ### Importing
- 
- ```javascript
--import WDK, { HRPC, bundle } from '@tetherto/pear-wrk-wdk'
-+import WDK, { HRPC, bundle } from "@tetherto/pear-wrk-wdk";
- ```
- 
- - `default` export: `WDK` (multi-chain manager)
-@@ -57,62 +57,78 @@ import WDK, { HRPC, bundle } from '@tetherto/pear-wrk-wdk'
- You can pass a single seed (used for all chains) or a map of per-chain seeds.
- 
- ```javascript
--const seed = 'test test test ...' // BIP39 mnemonic string or Uint8Array
-+const seed = "test test test ..."; // BIP39 mnemonic string or Uint8Array
- 
- const wdk = new WDK(seed, {
--  ethereum: { provider: 'https://eth-mainnet.example', transferMaxFee: 1_000_000_000n },
--  arbitrum: { provider: 'https://arb1.example' },
--  polygon:  { provider: 'https://polygon.example' },
--  ton:      { /* TON config */ },
--  tron:     { /* TRON config */ },
--  bitcoin:  { /* BTC config */ },
--  solana:   { /* Solana config */ }
--})
-+  ethereum: {
-+    provider: "https://eth-mainnet.example",
-+    transferMaxFee: 1_000_000_000n,
-+  },
-+  arbitrum: { provider: "https://arb1.example" },
-+  polygon: { provider: "https://polygon.example" },
-+  ton: {
-+    /* TON config */
-+  },
-+  tron: {
-+    /* TRON config */
-+  },
-+  bitcoin: {
-+    /* BTC config */
-+  },
-+  solana: {
-+    /* Solana config */
-+  },
-+});
- ```
- 
- Or with per-chain seeds:
- 
- ```javascript
--const wdk = new WDK({
--  ethereum: 'seed phrase...',
--  arbitrum: 'seed phrase...',
--  polygon:  'seed phrase...',
--  ton:      'seed phrase...',
--  tron:     'seed phrase...',
--  bitcoin:  'seed phrase...',
--  solana:   'seed phrase...'
--}, {/* same config object as above */})
-+const wdk = new WDK(
-+  {
-+    ethereum: "seed phrase...",
-+    arbitrum: "seed phrase...",
-+    polygon: "seed phrase...",
-+    ton: "seed phrase...",
-+    tron: "seed phrase...",
-+    bitcoin: "seed phrase...",
-+    solana: "seed phrase...",
-+  },
-+  {
-+    /* same config object as above */
-+  }
-+);
- ```
- 
- ### Accounts and Addresses
- 
- ```javascript
- // EVM example: get account by index (BIP-44 m/44'/60'/0'/0/index)
--const account = await wdk.getAccount('ethereum', 0)
--const address = await wdk.getAddress('ethereum', 0)
-+const account = await wdk.getAccount("ethereum", 0);
-+const address = await wdk.getAddress("ethereum", 0);
- 
- // Custom path
--const accountByPath = await wdk.getAccountByPath('ethereum', "0'/0/5")
-+const accountByPath = await wdk.getAccountByPath("ethereum", "0'/0/5");
- 
- // Fee rates (chain-specific)
--const fees = await wdk.getFeeRates('ethereum')
-+const fees = await wdk.getFeeRates("ethereum");
- ```
- 
- ### Transfers and Quotes (Native)
- 
- ```javascript
- // Quote native transfer fee
--const quote = await wdk.quoteSendTransaction('ethereum', 0, {
--  to: '0xRecipient',
--  value: 1000000000000000n // 0.001 ETH
--})
-+const quote = await wdk.quoteSendTransaction("ethereum", 0, {
-+  to: "0xRecipient",
-+  value: 1000000000000000n, // 0.001 ETH
-+});
- 
- // Send native transfer
--const result = await wdk.sendTransaction('ethereum', 0, {
--  to: '0xRecipient',
--  value: 1000000000000000n
--})
--console.log(result.hash)
-+const result = await wdk.sendTransaction("ethereum", 0, {
-+  to: "0xRecipient",
-+  value: 1000000000000000n,
-+});
-+console.log(result.hash);
- ```
- 
- ### Account Abstraction Flows
-@@ -121,56 +137,64 @@ Supported on EVM (ERC-4337), TON (gasless), TRON (gasfree).
- 
- ```javascript
- // Derive an abstracted account and read balances
--const aaAddress = await wdk.getAbstractedAddress('ethereum', 0)
--const aaNativeBalance = await wdk.getAbstractedAddressBalance('ethereum', 0)
-+const aaAddress = await wdk.getAbstractedAddress("ethereum", 0);
-+const aaNativeBalance = await wdk.getAbstractedAddressBalance("ethereum", 0);
- 
- // Token balance (e.g., ERC20 on EVM)
- const tokenBalance = await wdk.getAbstractedAddressTokenBalance(
--  'ethereum', 0, '0xdAC17F958D2ee523a2206206994597C13D831ec7'
--)
-+  "ethereum",
-+  0,
-+  "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-+);
- 
- // Token transfer via AA
--const transfer = await wdk.abstractedAccountTransfer('ethereum', 0, {
--  token: '0xdAC17F...ec7',
--  recipient: '0xRecipient',
--  amount: 1_000_000n // base units
--}, {
--  // Optionally override configured transferMaxFee or paymaster token
--  transferMaxFee: 2_000_000n,
--  paymasterToken: { address: '0xPaymasterToken' }
--})
-+const transfer = await wdk.abstractedAccountTransfer(
-+  "ethereum",
-+  0,
-+  {
-+    token: "0xdAC17F...ec7",
-+    recipient: "0xRecipient",
-+    amount: 1_000_000n, // base units
-+  },
-+  {
-+    // Optionally override configured transferMaxFee or paymaster token
-+    transferMaxFee: 2_000_000n,
-+    paymasterToken: { address: "0xPaymasterToken" },
-+  }
-+);
- 
- // Quote AA transfer
--const transferQuote = await wdk.abstractedAccountQuoteTransfer('ethereum', 0, {
--  token: '0xdAC17F...ec7',
--  recipient: '0xRecipient',
--  amount: 1_000_000n
--})
-+const transferQuote = await wdk.abstractedAccountQuoteTransfer("ethereum", 0, {
-+  token: "0xdAC17F...ec7",
-+  recipient: "0xRecipient",
-+  amount: 1_000_000n,
-+});
- 
- // AA send transaction (array of EVM tx objects)
--const txResult = await wdk.abstractedSendTransaction('ethereum', 0, [{
--  to: '0xContract',
--  value: 0,
--  data: '0x...' // encoded calldata
--}])
-+const txResult = await wdk.abstractedSendTransaction("ethereum", 0, [
-+  {
-+    to: "0xContract",
-+    value: 0,
-+    data: "0x...", // encoded calldata
-+  },
-+]);
- 
- // Receipt lookup
--const receipt = await wdk.getTransactionReceipt('ethereum', 0, txResult.hash)
-+const receipt = await wdk.getTransactionReceipt("ethereum", 0, txResult.hash);
- ```
- 
--
- ```javascript
- const approveTx = await wdk.getApproveTransaction({
--  token: '0xdAC17F...ec7',
--  recipient: '0xSpender',
--  amount: 1000000n
--})
-+  token: "0xdAC17F...ec7",
-+  recipient: "0xSpender",
-+  amount: 1000000n,
-+});
- // { to, value: 0, data }
- ```
- 
- ### Disposing
- 
--```javascript
-+````javascript
- wdk.dispose()
- 
- ## 🔌 Integration Guide (React Native Bare)
-@@ -186,8 +210,9 @@ Minimal example:
- import WDK, { bundle, HRPC } from '@tetherto/pear-wrk-wdk'
- const wdk = new WDK(seed, config)
- const address = await wdk.getAddress('ethereum', 0)
--```
--```
-+````
-+
-+````
- 
- ## 📚 API Reference
- 
-@@ -197,7 +222,7 @@ Constructor:
- 
- ```javascript
- new WDK(seedOrSeeds, config)
--```
-+````
- 
- - `seedOrSeeds`: `string | Uint8Array | { ethereum, arbitrum, polygon, ton, tron, bitcoin, solana }`
- - `config`: `{ ethereum, arbitrum, polygon, ton, tron, bitcoin, solana }` where each chain entry matches its wallet package config
-@@ -235,11 +260,12 @@ The prebuilt bundle is generated on `postinstall` via `bare-pack` for common iOS
- - Performance: load once at startup and reuse the HRPC context to avoid re-initialization costs.
- 
- ```javascript
--import { bundle } from '@tetherto/pear-wrk-wdk'
-+import { bundle } from "@tetherto/pear-wrk-wdk";
- // bundle points to bundle/worklet.bundle.mjs
- ```
- 
- Targets (from `gen:bundle`):
-+
- - iOS: `ios-arm64`, `ios-arm64-simulator`, `ios-x64-simulator`
- - Android: `android-arm`, `android-arm64`, `android-ia32`, `android-x64`
- 
-@@ -248,7 +274,7 @@ Targets (from `gen:bundle`):
- An HRPC schema and helpers are provided to integrate the worklet in a host app. See `hrpc-doc.md` for the current commands (e.g., `workletStart`, `getAddress`, `sendTransaction`, AA variants, etc.).
- 
- ```javascript
--import { HRPC } from '@tetherto/pear-wrk-wdk'
-+import { HRPC } from "@tetherto/pear-wrk-wdk";
- // Use HRPC.spec / messages as needed in your host runtime
- ```
- 
-diff --git a/hrpc-doc.md b/hrpc-doc.md
-index 3f08f7e..8aa7bf5 100644
---- a/hrpc-doc.md
-+++ b/hrpc-doc.md
-@@ -60,7 +60,7 @@
- 
- **Fields:**
- 
--- `balance`: `uint` _(v1)_
-+- `balance`: `string` _(v1)_
- 
- ---
- 
-@@ -74,13 +74,13 @@
- - `accountIndex`: `uint` _(v1)_
- - `options`: `object` _(v1)_
-   - `to`: `string` _(v1)_
--  - `value`: `uint` _(v1)_
-+  - `value`: `string` _(v1)_
- 
- **Response:** `@wdk-core/quoteSendTransaction-response`
- 
- **Fields:**
- 
--- `fee`: `uint` _(v1)_
-+- `fee`: `string` _(v1)_
- 
- ---
- 
-@@ -94,13 +94,13 @@
- - `accountIndex`: `uint` _(v1)_
- - `options`: `object` _(v1)_
-   - `to`: `string` _(v1)_
--  - `value`: `uint` _(v1)_
-+  - `value`: `string` _(v1)_
- 
- **Response:** `@wdk-core/sendTransaction-response`
- 
- **Fields:**
- 
--- `fee`: `uint` _(v1)_
-+- `fee`: `string` _(v1)_
- - `hash`: `string` _(v1)_
- 
- ---
-@@ -135,7 +135,7 @@
- 
- **Fields:**
- 
--- `balance`: `uint` _(v1)_
-+- `balance`: `string` _(v1)_
- 
- ---
- 
-@@ -153,7 +153,7 @@
- 
- **Fields:**
- 
--- `balance`: `uint` _(v1)_
-+- `balance`: `string` _(v1)_
- 
- ---
- 
-@@ -168,14 +168,37 @@
- - `options`: `object` _(v1)_
-   - `token`: `string` _(v1)_
-   - `recipient`: `string` _(v1)_
--  - `amount`: `uint` _(v1)_
-+  - `amount`: `string` _(v1)_
-+- `config`: `object` _(optional)_ _(v1)_
-+  - `paymasterToken`: `object` _(optional)_ _(v1)_
-+    - `address`: `string` _(v1)_
- 
- **Response:** `@wdk-core/abstractedAccountTransfer-response`
- 
- **Fields:**
- 
- - `hash`: `string` _(v1)_
--- `fee`: `uint` _(v1)_
-+- `fee`: `string` _(v1)_
-+
-+---
-+
-+## getApproveTransaction
-+
-+**Request:** `@wdk-core/getApproveTransaction-request`
-+
-+**Fields:**
-+
-+- `token`: `string` _(v1)_
-+- `recipient`: `string` _(v1)_
-+- `amount`: `string` _(v1)_
-+
-+**Response:** `@wdk-core/getApproveTransaction-response`
-+
-+**Fields:**
-+
-+- `to`: `string` _(v1)_
-+- `value`: `string` _(v1)_
-+- `data`: `string` _(v1)_
- 
- ---
- 
-@@ -187,19 +210,17 @@
- 
- - `network`: `string` _(v1)_
- - `accountIndex`: `uint` _(v1)_
--- `options`: `object` _(v1)_
--  - `to`: `string` _(v1)_
--  - `value`: `uint` _(v1)_
--  - `data`: `string` _(v1)_
-+- `options`: `string` _(v1)_
- - `config`: `object` _(optional)_ _(v1)_
--  - `paymasterToken`: `string` _(v1)_
-+  - `paymasterToken`: `object` _(optional)_ _(v1)_
-+    - `address`: `string` _(v1)_
- 
- **Response:** `@wdk-core/abstractedSendTransaction-response`
- 
- **Fields:**
- 
- - `hash`: `string` _(v1)_
--- `fee`: `uint` _(v1)_
-+- `fee`: `string` _(v1)_
- 
- ---
- 
-@@ -214,13 +235,16 @@
- - `options`: `object` _(v1)_
-   - `token`: `string` _(v1)_
-   - `recipient`: `string` _(v1)_
--  - `amount`: `uint` _(v1)_
-+  - `amount`: `string` _(v1)_
-+- `config`: `object` _(optional)_ _(v1)_
-+  - `paymasterToken`: `object` _(optional)_ _(v1)_
-+    - `address`: `string` _(v1)_
- 
- **Response:** `@wdk-core/abstractedAccountQuoteTransfer-response`
- 
- **Fields:**
- 
--- `fee`: `uint` _(v1)_
-+- `fee`: `string` _(v1)_
- 
- ---
- 
-@@ -251,24 +275,3 @@
- _No fields defined_
- 
- ---
--
--## getApproveTransaction
--
--**Request:** `@wdk-core/getApproveTransaction-request`
--
--**Fields:**
--
--- `token`: `string` _(v2)_
--- `recipient`: `string` _(v2)_
--- `amount`: `uint` _(v2)_
--
--**Response:** `@wdk-core/getApproveTransaction-response`
--
--**Fields:**
--
--- `to`: `string` _(v2)_
--- `value`: `uint` _(v2)_
--- `data`: `string` _(v2)_
--
-----
--
 diff --git a/package-lock.json b/package-lock.json
-index 2762a84..0e324e2 100644
+index 1ba00ef..07a906d 100644
 --- a/package-lock.json
 +++ b/package-lock.json
-@@ -1,24 +1,24 @@
- {
--  "name": "@wdk/bare",
--  "version": "0.1.1",
-+  "name": "@tetherto/pear-wrk-wdk",
-+  "version": "1.0.0-beta.5",
-   "lockfileVersion": 3,
-   "requires": true,
-   "packages": {
-     "": {
--      "name": "@wdk/bare",
--      "version": "0.1.1",
-+      "name": "@tetherto/pear-wrk-wdk",
-+      "version": "1.0.0-beta.5",
-       "hasInstallScript": true,
-       "license": "Apache-2.0",
-       "dependencies": {
--        "@wdk/wallet": "https://github.com/tetherto/wdk-wallet#ee0f6046b6128d0a096f18cc6ca7845ca4cedb12",
--        "@wdk/wallet-btc": "https://github.com/tetherto/wdk-wallet-btc#ed35de0b49344bb07736fc296a28b8465a8e8a6e",
--        "@wdk/wallet-evm": "https://github.com/tetherto/wdk-wallet-evm#74e281ea63f7df6e2590580bba988daeda021df6",
--        "@wdk/wallet-evm-erc-4337": "https://github.com/tetherto/wdk-wallet-evm-erc-4337#cc4431332b86d9c0609eaf833daa7295c13d8f86",
--        "@wdk/wallet-solana": "https://github.com/tetherto/wdk-wallet-solana#e132dc8247cd7b9e84aeaad6c20667a92830e212",
--        "@wdk/wallet-ton": "https://github.com/tetherto/wdk-wallet-ton#e2fc2c913fc003a0ad895822dc452db263faa259",
--        "@wdk/wallet-ton-gasless": "https://github.com/tetherto/wdk-wallet-ton-gasless#4b62e81488647158b2492e06c6cde176b69dd17d",
--        "@wdk/wallet-tron": "https://github.com/tetherto/wdk-wallet-tron#ec076473a5b8340599e005ab5ece8c8d246b3965",
--        "@wdk/wallet-tron-gasfree": "https://github.com/tetherto/wdk-wallet-tron-gasfree#fd57ed375801ae281e98c6882ea0f2ad4c2b30f5",
-+        "@wdk/wallet": "https://github.com/tetherto/wdk-wallet#integration-rn-starter",
-+        "@wdk/wallet-btc": "https://github.com/tetherto/wdk-wallet-btc#integration-rn-starter",
-+        "@wdk/wallet-evm": "https://github.com/tetherto/wdk-wallet-evm#integration-rn-starter",
-+        "@wdk/wallet-evm-erc-4337": "https://github.com/tetherto/wdk-wallet-evm-erc-4337#integration-rn-starter",
-+        "@wdk/wallet-solana": "https://github.com/tetherto/wdk-wallet-solana#integration-rn-starter",
-+        "@wdk/wallet-ton": "https://github.com/tetherto/wdk-wallet-ton#integration-rn-starter",
-+        "@wdk/wallet-ton-gasless": "https://github.com/tetherto/wdk-wallet-ton-gasless#integration-rn-starter",
-+        "@wdk/wallet-tron": "https://github.com/tetherto/wdk-wallet-tron#integration-rn-starter",
-+        "@wdk/wallet-tron-gasfree": "https://github.com/tetherto/wdk-wallet-tron-gasfree#integration-rn-starter",
-         "bare-ipc": "1.1.1",
-         "encoding": "npm:bare-encoding@1.0.0",
-         "hrpc": "4.0.1",
 @@ -1873,7 +1873,7 @@
      },
      "node_modules/@wdk/wallet": {
@@ -691,2236 +123,1587 @@ index 2762a84..0e324e2 100644
        "integrity": "sha512-pJUGHNn26Dyv/pbeN9HTcnp+SH6DuENN6WWTCOHr2GxojrrrwGxBaJnmgq1DrgXoh8xxR3KEbX029kpp1IvQTA==",
        "dependencies": {
          "@noble/curves": "1.9.2",
-@@ -3221,14 +3221,6 @@
-         "node": ">=6.0.0"
-       }
-     },
--    "node_modules/bip32-path": {
--      "version": "0.4.2",
--      "resolved": "https://registry.npmjs.org/bip32-path/-/bip32-path-0.4.2.tgz",
--      "integrity": "sha512-ZBMCELjJfcNMkz5bDuJ1WrYvjlhEF5k6mQ8vUr4N7MbVRsXei7ZOg8VhhwMfNiW68NWmLkgkc6WvTickrLGprQ==",
--      "license": "MIT",
--      "optional": true,
--      "peer": true
--    },
-     "node_modules/bip39": {
-       "version": "3.1.0",
-       "resolved": "https://registry.npmjs.org/bip39/-/bip39-3.1.0.tgz",
-@@ -7245,17 +7237,6 @@
-         "queue-microtask": "^1.2.2"
-       }
-     },
--    "node_modules/rxjs": {
--      "version": "7.8.2",
--      "resolved": "https://registry.npmjs.org/rxjs/-/rxjs-7.8.2.tgz",
--      "integrity": "sha512-dhKf903U/PQZY6boNNtAGdWbG85WAbjT/1xYoZIC7FAY0yWapOBQVsVrDl58W86//e1VpMNBtRV4MaXfdMySFA==",
--      "license": "Apache-2.0",
--      "optional": true,
--      "peer": true,
--      "dependencies": {
--        "tslib": "^2.1.0"
--      }
--    },
-     "node_modules/safe-array-concat": {
-       "version": "1.1.3",
-       "resolved": "https://registry.npmjs.org/safe-array-concat/-/safe-array-concat-1.1.3.tgz",
 diff --git a/package.json b/package.json
-index 397037d..33e6d8a 100644
+index 83a4a5c..63bd445 100644
 --- a/package.json
 +++ b/package.json
-@@ -1,26 +1,26 @@
- {
--  "name": "@wdk/bare",
--  "version": "0.1.1",
-+  "name": "@tetherto/pear-wrk-wdk",
-+  "version": "1.0.0-beta.5",
-   "main": "index.js",
-   "scripts": {
+@@ -6,8 +6,8 @@
      "build:types": "rimraf *.d.ts **/*.d.ts; tsc",
      "lint": "standard",
      "lint:fix": "standard --fix",
 -    "gen:macos-bundle": "npx bare-pack --target darwin-arm64 --linked --out bundle/wdk-worklet.bundle.js src/wdk-worklet.js",
 -    "gen:mobile-bundle": "npx bare-pack --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --imports ./pack.imports.json --out bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js",
-+    "gen:macos-bundle": "npx bare-pack --host darwin-arm64 --out bundle/wdk-worklet.bundle.js src/wdk-worklet.js",
-+    "gen:mobile-bundle": "npx bare-pack --host ios-arm64 --host ios-arm64-simulator --host ios-x64-simulator --host android-arm --host android-arm64 --host android-ia32 --host android-x64 --imports ./pack.imports.json --out bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js",
++    "gen:macos-bundle": "npx bare-pack@1 --target darwin-arm64 --linked --out bundle/wdk-worklet.bundle.js src/wdk-worklet.js",
++    "gen:mobile-bundle": "npx bare-pack@1 --target ios-arm64 --target ios-arm64-simulator --target ios-x64-simulator --target android-arm --target android-arm64 --target android-ia32 --target android-x64 --linked --imports ./pack.imports.json --out bundle/wdk-worklet.mobile.bundle.js src/wdk-worklet.js",
      "gen:schema": "node src/schema/schema.js",
      "postinstall": "npm run gen:mobile-bundle"
    },
-   "dependencies": {
--    "@wdk/wallet": "https://github.com/tetherto/wdk-wallet#ee0f6046b6128d0a096f18cc6ca7845ca4cedb12",
--    "@wdk/wallet-btc": "https://github.com/tetherto/wdk-wallet-btc#ed35de0b49344bb07736fc296a28b8465a8e8a6e",
--    "@wdk/wallet-evm": "https://github.com/tetherto/wdk-wallet-evm#74e281ea63f7df6e2590580bba988daeda021df6",
--    "@wdk/wallet-evm-erc-4337": "https://github.com/tetherto/wdk-wallet-evm-erc-4337#cc4431332b86d9c0609eaf833daa7295c13d8f86",
--    "@wdk/wallet-solana": "https://github.com/tetherto/wdk-wallet-solana#e132dc8247cd7b9e84aeaad6c20667a92830e212",
--    "@wdk/wallet-ton": "https://github.com/tetherto/wdk-wallet-ton#e2fc2c913fc003a0ad895822dc452db263faa259",
--    "@wdk/wallet-ton-gasless": "https://github.com/tetherto/wdk-wallet-ton-gasless#4b62e81488647158b2492e06c6cde176b69dd17d",
--    "@wdk/wallet-tron": "https://github.com/tetherto/wdk-wallet-tron#ec076473a5b8340599e005ab5ece8c8d246b3965",
--    "@wdk/wallet-tron-gasfree": "https://github.com/tetherto/wdk-wallet-tron-gasfree#fd57ed375801ae281e98c6882ea0f2ad4c2b30f5",
-+    "@wdk/wallet": "https://github.com/tetherto/wdk-wallet#integration-rn-starter",
-+    "@wdk/wallet-btc": "https://github.com/tetherto/wdk-wallet-btc#integration-rn-starter",
-+    "@wdk/wallet-evm": "https://github.com/tetherto/wdk-wallet-evm#integration-rn-starter",
-+    "@wdk/wallet-evm-erc-4337": "https://github.com/tetherto/wdk-wallet-evm-erc-4337#integration-rn-starter",
-+    "@wdk/wallet-solana": "https://github.com/tetherto/wdk-wallet-solana#integration-rn-starter",
-+    "@wdk/wallet-ton": "https://github.com/tetherto/wdk-wallet-ton#integration-rn-starter",
-+    "@wdk/wallet-ton-gasless": "https://github.com/tetherto/wdk-wallet-ton-gasless#integration-rn-starter",
-+    "@wdk/wallet-tron": "https://github.com/tetherto/wdk-wallet-tron#integration-rn-starter",
-+    "@wdk/wallet-tron-gasfree": "https://github.com/tetherto/wdk-wallet-tron-gasfree#integration-rn-starter",
-     "bare-ipc": "1.1.1",
-     "encoding": "npm:bare-encoding@1.0.0",
-     "hrpc": "4.0.1",
-@@ -33,5 +33,9 @@
-     "typescript": "5.8.3"
-   },
-   "author": "Tether",
--  "license": "Apache-2.0"
--}
-\ No newline at end of file
-+  "license": "Apache-2.0",
-+  "publishConfig": {
-+    "access": "public",
-+    "registry": "https://registry.npmjs.org/"
+diff --git a/shims/bare-abort-jsshim/index.js b/shims/bare-abort-jsshim/index.js
+new file mode 100644
+index 0000000..23a22aa
+--- /dev/null
++++ b/shims/bare-abort-jsshim/index.js
+@@ -0,0 +1,8 @@
++// Pure-JS shim for bare-abort. The upstream package calls a native addon to
++// trigger an immediate process abort. In the RN worklet context there's no
++// meaningful abort — throwing is the closest JS equivalent.
++'use strict'
++
++module.exports = function abort () {
++  throw new Error('process.abort() called (bare-abort-jsshim)')
++}
+diff --git a/shims/bare-abort-jsshim/package.json b/shims/bare-abort-jsshim/package.json
+new file mode 100644
+index 0000000..2a2beba
+--- /dev/null
++++ b/shims/bare-abort-jsshim/package.json
+@@ -0,0 +1,6 @@
++{
++  "name": "bare-abort-jsshim",
++  "version": "1.0.0",
++  "main": "./index.js",
++  "license": "Apache-2.0"
++}
+diff --git a/shims/bare-performance-jsshim/global.js b/shims/bare-performance-jsshim/global.js
+new file mode 100644
+index 0000000..5ba967f
+--- /dev/null
++++ b/shims/bare-performance-jsshim/global.js
+@@ -0,0 +1,12 @@
++// Mirrors bare-performance/global.js — sets up the global performance API
++// using the JS shim instead of the native addon.
++'use strict'
++
++const performance = require('.')
++
++global.performance = performance
++global.PerformanceEntry = performance.PerformanceEntry
++global.PerformanceMark = performance.PerformanceMark
++global.PerformanceMeasure = performance.PerformanceMeasure
++global.PerformanceObserver = performance.PerformanceObserver
++global.PerformanceObserverEntryList = performance.PerformanceObserverEntryList
+diff --git a/shims/bare-performance-jsshim/index.js b/shims/bare-performance-jsshim/index.js
+new file mode 100644
+index 0000000..0f75627
+--- /dev/null
++++ b/shims/bare-performance-jsshim/index.js
+@@ -0,0 +1,205 @@
++// Pure-JS shim for bare-performance. The upstream package uses a native addon
++// (libbare-performance.so) for high-resolution timing and histogram stats.
++// react-native-bare-kit doesn't ship the matching version, and downgrading
++// breaks the dep tree. This shim replaces the native binding with Date-based
++// fallbacks — precise enough for the Arkade wallet's use case (diagnostics,
++// not microsecond-accuracy benchmarks).
++'use strict'
++
++const TIME_ORIGIN = Date.now()
++
++exports.now = function now () {
++  return Date.now() - TIME_ORIGIN
++}
++
++exports.eventLoopUtilization = function eventLoopUtilization () {
++  return { idle: 0, active: 0, utilization: 0 }
++}
++
++exports.idleTime = function idleTime () {
++  return 0
++}
++
++exports.metricsInfo = function metricsInfo () {
++  return {}
++}
++
++exports.timeOrigin = TIME_ORIGIN
++
++exports.performance = exports
++
++class PerformanceNodeTiming {
++  get idleTime () { return 0 }
++  get uvMetricsInfo () { return {} }
++}
++
++exports.nodeTiming = new PerformanceNodeTiming()
++
++// --- Performance Timeline (mark / measure / observer) ---
++
++const observerType = { UNDEFINED: 1, SINGLE: 2, MULTIPLE: 3 }
++
++class InvalidModificationError extends Error {
++  get name () { return 'InvalidModificationError' }
++}
++
++const globalObservers = new Set()
++const globalPendingObservers = new Set()
++let globalBuffer = []
++let pending = false
++
++class PerformanceEntry {
++  constructor (name, type, start, duration) {
++    this._name = name; this._type = type; this._start = start; this._duration = duration
++  }
++  get name () { return this._name }
++  get entryType () { return this._type }
++  get startTime () { return this._start }
++  get duration () { return this._duration }
++}
++exports.PerformanceEntry = PerformanceEntry
++
++class PerformanceMark extends PerformanceEntry {
++  constructor (name, opts = {}) {
++    const { startTime = exports.now(), detail = null } = opts
++    super(name, 'mark', startTime, 0)
++    this._detail = detail
++  }
++  get detail () { return this._detail }
++}
++exports.PerformanceMark = PerformanceMark
++
++class PerformanceMeasure extends PerformanceEntry {
++  constructor (name, startTime, duration, opts = {}) {
++    const { detail = null } = opts
++    super(name, 'measure', startTime, duration)
++    this._detail = detail
++  }
++  get detail () { return this._detail }
++}
++exports.PerformanceMeasure = PerformanceMeasure
++
++class PerformanceObserverEntryList {
++  constructor (entryList) { this._list = entryList }
++  getEntries () { return this._list }
++  getEntriesByType (type) { return this._list.filter(e => e.entryType === type) }
++  getEntriesByName (name) { return this._list.filter(e => e.name === name) }
++}
++exports.PerformanceObserverEntryList = PerformanceObserverEntryList
++
++class PerformanceObserver {
++  constructor (cb) {
++    this._entryTypes = new Set()
++    this._type = observerType.UNDEFINED
++    this._buffer = []
++    this._cb = cb
++  }
++  static get supportedEntryTypes () { return ['mark', 'measure'] }
++  observe (opts = {}) {
++    if ((!opts.entryTypes && !opts.type) || (opts.entryTypes && opts.type)) {
++      throw new TypeError('opts.entryTypes OR opts.type must be specified')
++    }
++    if ((this._type === observerType.MULTIPLE && opts.type) || (this._type === observerType.SINGLE && opts.entryTypes)) {
++      throw new InvalidModificationError('Cannot change the PerformanceObserver type')
++    }
++    if (this._type === observerType.UNDEFINED) {
++      this._type = opts.entryTypes ? observerType.MULTIPLE : observerType.SINGLE
++    }
++    this._entryTypes.clear()
++    const types = opts.entryTypes || [opts.type]
++    for (const t of types) {
++      if (PerformanceObserver.supportedEntryTypes.includes(t)) this._entryTypes.add(t)
++    }
++    if (this._entryTypes.size > 0) globalObservers.add(this)
++    else this.disconnect()
++  }
++  takeRecords () { const buf = this._buffer; this._buffer = []; return buf }
++  disconnect () { globalObservers.delete(this); this._entryTypes.clear(); this._type = observerType.UNDEFINED }
++}
++exports.PerformanceObserver = PerformanceObserver
++
++function processEntry (entry) {
++  for (const observer of globalObservers) {
++    if (observer._entryTypes.has(entry.entryType)) {
++      observer._buffer.push(entry)
++      globalPendingObservers.add(observer)
++      processPendingObservers()
++    }
 +  }
 +}
++
++function processPendingObservers () {
++  if (pending) return
++  pending = true
++  setTimeout(() => {
++    pending = false
++    const observers = Array.from(globalPendingObservers.values())
++    globalPendingObservers.clear()
++    for (const observer of observers) {
++      observer._cb(new PerformanceObserverEntryList(observer.takeRecords()), observer)
++    }
++  }, 0)
++}
++
++exports.mark = function mark (name, opts) {
++  const m = new PerformanceMark(name, opts)
++  processEntry(m)
++  globalBuffer.push(m)
++  return m
++}
++
++exports.clearMarks = function clearMarks (name) {
++  globalBuffer = name
++    ? globalBuffer.filter(e => !(e.name === name && e.entryType === 'mark'))
++    : globalBuffer.filter(e => e.entryType !== 'mark')
++}
++
++exports.measure = function measure (name, start, end) {
++  const startTime = typeof start === 'number' ? start : 0
++  const endTime = typeof end === 'number' ? end : exports.now()
++  const m = new PerformanceMeasure(name, startTime, endTime - startTime)
++  processEntry(m)
++  globalBuffer.push(m)
++  return m
++}
++
++exports.clearMeasures = function clearMeasures (name) {
++  globalBuffer = name
++    ? globalBuffer.filter(e => !(e.name === name && e.entryType === 'measure'))
++    : globalBuffer.filter(e => e.entryType !== 'measure')
++}
++
++exports.getEntries = function getEntries () { return new PerformanceObserverEntryList(globalBuffer).getEntries() }
++exports.getEntriesByName = function getEntriesByName (name) { return new PerformanceObserverEntryList(globalBuffer).getEntriesByName(name) }
++exports.getEntriesByType = function getEntriesByType (type) { return new PerformanceObserverEntryList(globalBuffer).getEntriesByType(type) }
++
++// Histogram — stub. The native binding provides nanosecond-precision HDR
++// histograms; this JS stub records nothing and returns zeroes. Good enough
++// for the Arkade wallet (nobody calls createHistogram / monitorEventLoopDelay
++// in the hot path).
++class Histogram {
++  get max () { return 0 }
++  get min () { return 0 }
++  get mean () { return 0 }
++  get percentiles () { return new Map() }
++  get stddev () { return 0 }
++  get count () { return 0 }
++  get exceeds () { return 0 }
++  percentile () { return 0 }
++  reset () {}
++}
++
++class RecordableHistogram extends Histogram {
++  add () {}
++  record () {}
++}
++
++exports.createHistogram = function createHistogram () { return new RecordableHistogram() }
++
++class IntervalHistogram extends Histogram {
++  enable () { return true }
++  disable () { return true }
++  [Symbol.dispose] () { this.disable() }
++}
++
++exports.monitorEventLoopDelay = function monitorEventLoopDelay () { return new IntervalHistogram() }
+diff --git a/shims/bare-performance-jsshim/package.json b/shims/bare-performance-jsshim/package.json
+new file mode 100644
+index 0000000..09a403a
+--- /dev/null
++++ b/shims/bare-performance-jsshim/package.json
+@@ -0,0 +1,7 @@
++{
++  "name": "bare-performance-jsshim",
++  "version": "1.0.0",
++  "description": "Pure-JS replacement for bare-performance, used by bare-pack via pack.imports.json so the worklet doesn't need libbare-performance.so at runtime.",
++  "main": "./index.js",
++  "license": "Apache-2.0"
++}
+diff --git a/shims/bare-stdio-jsshim/index.js b/shims/bare-stdio-jsshim/index.js
+new file mode 100644
+index 0000000..60370e7
+--- /dev/null
++++ b/shims/bare-stdio-jsshim/index.js
+@@ -0,0 +1,22 @@
++// Pure-JS shim for bare-stdio. The upstream package wraps fd 0/1/2 using
++// bare-tty, bare-pipe, and bare-fs — all of which need native addons that
++// react-native-bare-kit may not ship. In the RN worklet context, stdin/
++// stdout/stderr are not meaningfully available; this shim provides no-op
++// streams so consumers that probe process.stdin/stdout/stderr don't crash.
++'use strict'
++
++const { Writable, Readable } = require('streamx')
++
++class NullWritable extends Writable {
++  _write (data, cb) { cb(null) }
++}
++
++class NullReadable extends Readable {
++  _read (cb) { this.push(null); cb(null) }
++}
++
++module.exports = {
++  get in () { return new NullReadable() },
++  get out () { return new NullWritable() },
++  get err () { return new NullWritable() }
++}
+diff --git a/shims/bare-stdio-jsshim/package.json b/shims/bare-stdio-jsshim/package.json
+new file mode 100644
+index 0000000..44c5d88
+--- /dev/null
++++ b/shims/bare-stdio-jsshim/package.json
+@@ -0,0 +1,6 @@
++{
++  "name": "bare-stdio-jsshim",
++  "version": "1.0.0",
++  "main": "./index.js",
++  "license": "Apache-2.0"
++}
+diff --git a/shims/bare-type-jsshim/index.js b/shims/bare-type-jsshim/index.js
+new file mode 100644
+index 0000000..efc6435
+--- /dev/null
++++ b/shims/bare-type-jsshim/index.js
+@@ -0,0 +1,261 @@
++// Pure-JS shim for the `bare-type` package, used by bare-pack via
++// pack.imports.json. The upstream package uses a native addon
++// (libbare-type.so) that react-native-bare-kit doesn't ship, so the
++// worklet would otherwise fail at runtime with ADDON_NOT_FOUND when
++// any transitive dep (e.g. bare-utils → node:util/types) walks the
++// type-predicate path.
++//
++// The native version returns a packed numeric type code; the JS shim
++// captures the value and answers `is*` queries via standard typeof /
++// instanceof / Symbol.toStringTag checks. Predicates that can only be
++// answered by a native runtime (Proxy, External, ModuleNamespace) are
++// stubbed to `false`, which matches what bare-utils consumers do —
++// they treat unknown types as "not that".
++'use strict'
++
++class Type {
++  constructor(value) {
++    this._value = value
++    this._typeof = typeof value
++  }
++
++  isUndefined() {
++    return this._typeof === 'undefined'
++  }
++
++  isNull() {
++    return this._value === null
++  }
++
++  isBoolean() {
++    return this._typeof === 'boolean'
++  }
++
++  isNumber() {
++    return this._typeof === 'number'
++  }
++
++  isInt32() {
++    return (
++      this._typeof === 'number' &&
++      Number.isInteger(this._value) &&
++      this._value >= -0x80000000 &&
++      this._value <= 0x7fffffff
++    )
++  }
++
++  isUint32() {
++    return (
++      this._typeof === 'number' &&
++      Number.isInteger(this._value) &&
++      this._value >= 0 &&
++      this._value <= 0xffffffff
++    )
++  }
++
++  isString() {
++    return this._typeof === 'string'
++  }
++
++  isSymbol() {
++    return this._typeof === 'symbol'
++  }
++
++  isObject() {
++    return this._typeof === 'object' && this._value !== null
++  }
++
++  isArray() {
++    return Array.isArray(this._value)
++  }
++
++  isArguments() {
++    return Object.prototype.toString.call(this._value) === '[object Arguments]'
++  }
++
++  isDate() {
++    return this._value instanceof Date
++  }
++
++  isRegExp() {
++    return this._value instanceof RegExp
++  }
++
++  isError() {
++    return this._value instanceof Error
++  }
++
++  isPromise() {
++    return (
++      this._value !== null &&
++      typeof this._value === 'object' &&
++      typeof this._value.then === 'function'
++    )
++  }
++
++  isProxy() {
++    // Detecting a Proxy from JS is impossible without the native runtime.
++    return false
++  }
++
++  isGenerator() {
++    return (
++      this._value !== null &&
++      typeof this._value === 'object' &&
++      typeof this._value.next === 'function' &&
++      typeof this._value.return === 'function' &&
++      typeof this._value.throw === 'function'
++    )
++  }
++
++  isMap() {
++    return this._value instanceof Map
++  }
++
++  isSet() {
++    return this._value instanceof Set
++  }
++
++  isWeakMap() {
++    return this._value instanceof WeakMap
++  }
++
++  isWeakSet() {
++    return this._value instanceof WeakSet
++  }
++
++  isWeakRef() {
++    return typeof WeakRef !== 'undefined' && this._value instanceof WeakRef
++  }
++
++  isArrayBuffer() {
++    return this._value instanceof ArrayBuffer
++  }
++
++  isSharedArrayBuffer() {
++    return (
++      typeof SharedArrayBuffer !== 'undefined' &&
++      this._value instanceof SharedArrayBuffer
++    )
++  }
++
++  isTypedArray() {
++    return ArrayBuffer.isView(this._value) && !(this._value instanceof DataView)
++  }
++
++  isInt8Array() {
++    return this._value instanceof Int8Array
++  }
++
++  isUint8Array() {
++    return this._value instanceof Uint8Array && !(this._value instanceof Uint8ClampedArray)
++  }
++
++  isUint8ClampedArray() {
++    return this._value instanceof Uint8ClampedArray
++  }
++
++  isInt16Array() {
++    return this._value instanceof Int16Array
++  }
++
++  isUint16Array() {
++    return this._value instanceof Uint16Array
++  }
++
++  isInt32Array() {
++    return this._value instanceof Int32Array
++  }
++
++  isUint32Array() {
++    return this._value instanceof Uint32Array
++  }
++
++  isFloat16Array() {
++    return typeof Float16Array !== 'undefined' && this._value instanceof Float16Array
++  }
++
++  isFloat32Array() {
++    return this._value instanceof Float32Array
++  }
++
++  isFloat64Array() {
++    return this._value instanceof Float64Array
++  }
++
++  isBigInt64Array() {
++    return typeof BigInt64Array !== 'undefined' && this._value instanceof BigInt64Array
++  }
++
++  isBigUint64Array() {
++    return typeof BigUint64Array !== 'undefined' && this._value instanceof BigUint64Array
++  }
++
++  isDataView() {
++    return this._value instanceof DataView
++  }
++
++  isModuleNamespace() {
++    return false
++  }
++
++  isFunction() {
++    return this._typeof === 'function'
++  }
++
++  isAsyncFunction() {
++    return (
++      this._typeof === 'function' &&
++      this._value.constructor &&
++      this._value.constructor.name === 'AsyncFunction'
++    )
++  }
++
++  isGeneratorFunction() {
++    return (
++      this._typeof === 'function' &&
++      this._value.constructor &&
++      this._value.constructor.name === 'GeneratorFunction'
++    )
++  }
++
++  isExternal() {
++    return false
++  }
++
++  isBigInt() {
++    return this._typeof === 'bigint'
++  }
++}
++
++module.exports = exports = function type(value) {
++  return new Type(value)
++}
++
++// Object tagging — bare-type uses these to associate opaque tags with
++// objects, e.g. for cross-realm equality. The JS shim uses a WeakMap so
++// tags survive as long as the object is alive but don't pin GC.
++const tags = new WeakMap()
++
++exports.createTag = function createTag(...components) {
++  const tag = new Uint32Array(4)
++  for (let i = 0; i < 4; i++) tag[i] = components[i] || 0
++  return tag
++}
++
++exports.addTag = function addTag(object, tag) {
++  let list = tags.get(object)
++  if (!list) {
++    list = []
++    tags.set(object, list)
++  }
++  list.push(tag)
++}
++
++exports.checkTag = function checkTag(object, tag) {
++  const list = tags.get(object)
++  if (!list) return false
++  return list.some(
++    (t) => t.length === tag.length && t.every((v, i) => v === tag[i])
++  )
++}
+diff --git a/shims/bare-type-jsshim/package.json b/shims/bare-type-jsshim/package.json
+new file mode 100644
+index 0000000..13033c1
+--- /dev/null
++++ b/shims/bare-type-jsshim/package.json
+@@ -0,0 +1,7 @@
++{
++  "name": "bare-type-jsshim",
++  "version": "1.0.0",
++  "description": "Pure-JS replacement for bare-type, used by bare-pack via pack.imports.json so the worklet bundle doesn't need libbare-type.so at runtime.",
++  "main": "./index.js",
++  "license": "Apache-2.0"
++}
 diff --git a/spec/hrpc/hrpc.json b/spec/hrpc/hrpc.json
-index 23079ea..63ee1b3 100644
+index 23079ea..7ebced9 100644
 --- a/spec/hrpc/hrpc.json
 +++ b/spec/hrpc/hrpc.json
-@@ -38,6 +38,19 @@
-     },
+@@ -1,5 +1,5 @@
+ {
+-  "version": 1,
++  "version": 2,
+   "schema": [
      {
-       "id": 3,
-+      "name": "@wdk-core/getBoardingAddress",
-+      "request": {
-+        "name": "@wdk-core/getBoardingAddress-request",
-+        "stream": false
-+      },
-+      "response": {
-+        "name": "@wdk-core/getBoardingAddress-response",
-+        "stream": false
-+      },
-+      "version": 1
+       "id": 0,
+@@ -187,6 +187,123 @@
+         "send": true
+       },
+       "version": 1
 +    },
 +    {
-+      "id": 4,
-       "name": "@wdk-core/getAddressBalance",
-       "request": {
-         "name": "@wdk-core/getAddressBalance-request",
-@@ -50,7 +63,7 @@
-       "version": 1
-     },
-     {
--      "id": 4,
-+      "id": 5,
-       "name": "@wdk-core/quoteSendTransaction",
-       "request": {
-         "name": "@wdk-core/quoteSendTransaction-request",
-@@ -63,7 +76,7 @@
-       "version": 1
-     },
-     {
--      "id": 5,
-+      "id": 6,
-       "name": "@wdk-core/sendTransaction",
-       "request": {
-         "name": "@wdk-core/sendTransaction-request",
-@@ -76,7 +89,7 @@
-       "version": 1
-     },
-     {
--      "id": 6,
-+      "id": 7,
-       "name": "@wdk-core/getAbstractedAddress",
-       "request": {
-         "name": "@wdk-core/getAbstractedAddress-request",
-@@ -89,7 +102,7 @@
-       "version": 1
-     },
-     {
--      "id": 7,
-+      "id": 8,
-       "name": "@wdk-core/getAbstractedAddressBalance",
-       "request": {
-         "name": "@wdk-core/getAbstractedAddressBalance-request",
-@@ -102,7 +115,7 @@
-       "version": 1
-     },
-     {
--      "id": 8,
-+      "id": 9,
-       "name": "@wdk-core/getAbstractedAddressTokenBalance",
-       "request": {
-         "name": "@wdk-core/getAbstractedAddressTokenBalance-request",
-@@ -115,7 +128,7 @@
-       "version": 1
-     },
-     {
--      "id": 9,
-+      "id": 10,
-       "name": "@wdk-core/abstractedAccountTransfer",
-       "request": {
-         "name": "@wdk-core/abstractedAccountTransfer-request",
-@@ -128,7 +141,7 @@
-       "version": 1
-     },
-     {
--      "id": 10,
-+      "id": 11,
-       "name": "@wdk-core/getApproveTransaction",
-       "request": {
-         "name": "@wdk-core/getApproveTransaction-request",
-@@ -141,7 +154,7 @@
-       "version": 1
-     },
-     {
--      "id": 11,
-+      "id": 12,
-       "name": "@wdk-core/abstractedSendTransaction",
-       "request": {
-         "name": "@wdk-core/abstractedSendTransaction-request",
-@@ -154,7 +167,7 @@
-       "version": 1
-     },
-     {
--      "id": 12,
-+      "id": 13,
-       "name": "@wdk-core/abstractedAccountQuoteTransfer",
-       "request": {
-         "name": "@wdk-core/abstractedAccountQuoteTransfer-request",
-@@ -167,7 +180,7 @@
-       "version": 1
-     },
-     {
--      "id": 13,
-+      "id": 14,
-       "name": "@wdk-core/getTransactionReceipt",
-       "request": {
-         "name": "@wdk-core/getTransactionReceipt-request",
-@@ -180,7 +193,33 @@
-       "version": 1
-     },
-     {
--      "id": 14,
 +      "id": 15,
-+      "name": "@wdk-core/createLightningInvoice",
++      "name": "@wdk-core/arkadeGetBoardingAddress",
 +      "request": {
-+        "name": "@wdk-core/createLightningInvoice-request",
++        "name": "@wdk-core/arkadeGetBoardingAddress-request",
 +        "stream": false
 +      },
 +      "response": {
-+        "name": "@wdk-core/createLightningInvoice-response",
++        "name": "@wdk-core/arkadeGetBoardingAddress-response",
 +        "stream": false
 +      },
-+      "version": 1
++      "version": 2
 +    },
 +    {
 +      "id": 16,
-+      "name": "@wdk-core/getTransactionHistory",
++      "name": "@wdk-core/arkadeCreateLightningInvoice",
 +      "request": {
-+        "name": "@wdk-core/getTransactionHistory-request",
++        "name": "@wdk-core/arkadeCreateLightningInvoice-request",
 +        "stream": false
 +      },
 +      "response": {
-+        "name": "@wdk-core/getTransactionHistory-response",
++        "name": "@wdk-core/arkadeCreateLightningInvoice-response",
 +        "stream": false
 +      },
-+      "version": 1
++      "version": 2
 +    },
 +    {
 +      "id": 17,
-       "name": "@wdk-core/dispose",
-       "request": {
-         "name": "@wdk-core/dispose-request",
++      "name": "@wdk-core/arkadeGetPendingLightningReceives",
++      "request": {
++        "name": "@wdk-core/arkadeGetPendingLightningReceives-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetPendingLightningReceives-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 18,
++      "name": "@wdk-core/arkadeGetPendingLightningSends",
++      "request": {
++        "name": "@wdk-core/arkadeGetPendingLightningSends-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetPendingLightningSends-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 19,
++      "name": "@wdk-core/arkadeGetSwapHistory",
++      "request": {
++        "name": "@wdk-core/arkadeGetSwapHistory-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetSwapHistory-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 20,
++      "name": "@wdk-core/arkadeGetLightningLimits",
++      "request": {
++        "name": "@wdk-core/arkadeGetLightningLimits-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetLightningLimits-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 21,
++      "name": "@wdk-core/arkadeGetLightningFees",
++      "request": {
++        "name": "@wdk-core/arkadeGetLightningFees-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetLightningFees-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 22,
++      "name": "@wdk-core/arkadeGetTransactionHistory",
++      "request": {
++        "name": "@wdk-core/arkadeGetTransactionHistory-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeGetTransactionHistory-response",
++        "stream": false
++      },
++      "version": 2
++    },
++    {
++      "id": 23,
++      "name": "@wdk-core/arkadeWaitForLightningPayment",
++      "request": {
++        "name": "@wdk-core/arkadeWaitForLightningPayment-request",
++        "stream": false
++      },
++      "response": {
++        "name": "@wdk-core/arkadeWaitForLightningPayment-response",
++        "stream": false
++      },
++      "version": 2
+     }
+   ]
+ }
+\ No newline at end of file
 diff --git a/spec/hrpc/index.js b/spec/hrpc/index.js
-index e7371d5..274363a 100644
+index e7371d5..cea0fc4 100644
 --- a/spec/hrpc/index.js
 +++ b/spec/hrpc/index.js
-@@ -11,30 +11,36 @@ const methods = new Map([
-   [1, '@wdk-core/workletStart'],
-   ['@wdk-core/getAddress', 2],
-   [2, '@wdk-core/getAddress'],
--  ['@wdk-core/getAddressBalance', 3],
--  [3, '@wdk-core/getAddressBalance'],
--  ['@wdk-core/quoteSendTransaction', 4],
--  [4, '@wdk-core/quoteSendTransaction'],
--  ['@wdk-core/sendTransaction', 5],
--  [5, '@wdk-core/sendTransaction'],
--  ['@wdk-core/getAbstractedAddress', 6],
--  [6, '@wdk-core/getAbstractedAddress'],
--  ['@wdk-core/getAbstractedAddressBalance', 7],
--  [7, '@wdk-core/getAbstractedAddressBalance'],
--  ['@wdk-core/getAbstractedAddressTokenBalance', 8],
--  [8, '@wdk-core/getAbstractedAddressTokenBalance'],
--  ['@wdk-core/abstractedAccountTransfer', 9],
--  [9, '@wdk-core/abstractedAccountTransfer'],
--  ['@wdk-core/getApproveTransaction', 10],
--  [10, '@wdk-core/getApproveTransaction'],
--  ['@wdk-core/abstractedSendTransaction', 11],
--  [11, '@wdk-core/abstractedSendTransaction'],
--  ['@wdk-core/abstractedAccountQuoteTransfer', 12],
--  [12, '@wdk-core/abstractedAccountQuoteTransfer'],
--  ['@wdk-core/getTransactionReceipt', 13],
--  [13, '@wdk-core/getTransactionReceipt'],
--  ['@wdk-core/dispose', 14],
+@@ -34,7 +34,25 @@ const methods = new Map([
+   ['@wdk-core/getTransactionReceipt', 13],
+   [13, '@wdk-core/getTransactionReceipt'],
+   ['@wdk-core/dispose', 14],
 -  [14, '@wdk-core/dispose']
-+  ['@wdk-core/getBoardingAddress', 3],
-+  [3, '@wdk-core/getBoardingAddress'],
-+  ['@wdk-core/getAddressBalance', 4],
-+  [4, '@wdk-core/getAddressBalance'],
-+  ['@wdk-core/quoteSendTransaction', 5],
-+  [5, '@wdk-core/quoteSendTransaction'],
-+  ['@wdk-core/sendTransaction', 6],
-+  [6, '@wdk-core/sendTransaction'],
-+  ['@wdk-core/getAbstractedAddress', 7],
-+  [7, '@wdk-core/getAbstractedAddress'],
-+  ['@wdk-core/getAbstractedAddressBalance', 8],
-+  [8, '@wdk-core/getAbstractedAddressBalance'],
-+  ['@wdk-core/getAbstractedAddressTokenBalance', 9],
-+  [9, '@wdk-core/getAbstractedAddressTokenBalance'],
-+  ['@wdk-core/abstractedAccountTransfer', 10],
-+  [10, '@wdk-core/abstractedAccountTransfer'],
-+  ['@wdk-core/getApproveTransaction', 11],
-+  [11, '@wdk-core/getApproveTransaction'],
-+  ['@wdk-core/abstractedSendTransaction', 12],
-+  [12, '@wdk-core/abstractedSendTransaction'],
-+  ['@wdk-core/abstractedAccountQuoteTransfer', 13],
-+  [13, '@wdk-core/abstractedAccountQuoteTransfer'],
-+  ['@wdk-core/getTransactionReceipt', 14],
-+  [14, '@wdk-core/getTransactionReceipt'],
-+  ['@wdk-core/createLightningInvoice', 15],
-+  [15, '@wdk-core/createLightningInvoice'],
-+  ['@wdk-core/getTransactionHistory', 16],
-+  [16, '@wdk-core/getTransactionHistory'],
-+  ['@wdk-core/dispose', 17],
-+  [17, '@wdk-core/dispose']
++  [14, '@wdk-core/dispose'],
++  ['@wdk-core/arkadeGetBoardingAddress', 15],
++  [15, '@wdk-core/arkadeGetBoardingAddress'],
++  ['@wdk-core/arkadeCreateLightningInvoice', 16],
++  [16, '@wdk-core/arkadeCreateLightningInvoice'],
++  ['@wdk-core/arkadeGetPendingLightningReceives', 17],
++  [17, '@wdk-core/arkadeGetPendingLightningReceives'],
++  ['@wdk-core/arkadeGetPendingLightningSends', 18],
++  [18, '@wdk-core/arkadeGetPendingLightningSends'],
++  ['@wdk-core/arkadeGetSwapHistory', 19],
++  [19, '@wdk-core/arkadeGetSwapHistory'],
++  ['@wdk-core/arkadeGetLightningLimits', 20],
++  [20, '@wdk-core/arkadeGetLightningLimits'],
++  ['@wdk-core/arkadeGetLightningFees', 21],
++  [21, '@wdk-core/arkadeGetLightningFees'],
++  ['@wdk-core/arkadeGetTransactionHistory', 22],
++  [22, '@wdk-core/arkadeGetTransactionHistory'],
++  ['@wdk-core/arkadeWaitForLightningPayment', 23],
++  [23, '@wdk-core/arkadeWaitForLightningPayment']
  ])
  
  class HRPC {
-@@ -45,6 +51,7 @@ class HRPC {
-       ['@wdk-core/log', getEncoding('@wdk-core/log-request')],
-       ['@wdk-core/workletStart', getEncoding('@wdk-core/workletStart-request')],
-       ['@wdk-core/getAddress', getEncoding('@wdk-core/getAddress-request')],
-+      ['@wdk-core/getBoardingAddress', getEncoding('@wdk-core/getBoardingAddress-request')],
-       ['@wdk-core/getAddressBalance', getEncoding('@wdk-core/getAddressBalance-request')],
-       ['@wdk-core/quoteSendTransaction', getEncoding('@wdk-core/quoteSendTransaction-request')],
-       ['@wdk-core/sendTransaction', getEncoding('@wdk-core/sendTransaction-request')],
-@@ -56,11 +63,14 @@ class HRPC {
+@@ -56,7 +74,16 @@ class HRPC {
        ['@wdk-core/abstractedSendTransaction', getEncoding('@wdk-core/abstractedSendTransaction-request')],
        ['@wdk-core/abstractedAccountQuoteTransfer', getEncoding('@wdk-core/abstractedAccountQuoteTransfer-request')],
        ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-request')],
-+      ['@wdk-core/createLightningInvoice', getEncoding('@wdk-core/createLightningInvoice-request')],
-+      ['@wdk-core/getTransactionHistory', getEncoding('@wdk-core/getTransactionHistory-request')],
-       ['@wdk-core/dispose', getEncoding('@wdk-core/dispose-request')]
+-      ['@wdk-core/dispose', getEncoding('@wdk-core/dispose-request')]
++      ['@wdk-core/dispose', getEncoding('@wdk-core/dispose-request')],
++      ['@wdk-core/arkadeGetBoardingAddress', getEncoding('@wdk-core/arkadeGetBoardingAddress-request')],
++      ['@wdk-core/arkadeCreateLightningInvoice', getEncoding('@wdk-core/arkadeCreateLightningInvoice-request')],
++      ['@wdk-core/arkadeGetPendingLightningReceives', getEncoding('@wdk-core/arkadeGetPendingLightningReceives-request')],
++      ['@wdk-core/arkadeGetPendingLightningSends', getEncoding('@wdk-core/arkadeGetPendingLightningSends-request')],
++      ['@wdk-core/arkadeGetSwapHistory', getEncoding('@wdk-core/arkadeGetSwapHistory-request')],
++      ['@wdk-core/arkadeGetLightningLimits', getEncoding('@wdk-core/arkadeGetLightningLimits-request')],
++      ['@wdk-core/arkadeGetLightningFees', getEncoding('@wdk-core/arkadeGetLightningFees-request')],
++      ['@wdk-core/arkadeGetTransactionHistory', getEncoding('@wdk-core/arkadeGetTransactionHistory-request')],
++      ['@wdk-core/arkadeWaitForLightningPayment', getEncoding('@wdk-core/arkadeWaitForLightningPayment-request')]
      ])
      this._responseEncodings = new Map([
        ['@wdk-core/workletStart', getEncoding('@wdk-core/workletStart-response')],
-       ['@wdk-core/getAddress', getEncoding('@wdk-core/getAddress-response')],
-+      ['@wdk-core/getBoardingAddress', getEncoding('@wdk-core/getBoardingAddress-response')],
-       ['@wdk-core/getAddressBalance', getEncoding('@wdk-core/getAddressBalance-response')],
-       ['@wdk-core/quoteSendTransaction', getEncoding('@wdk-core/quoteSendTransaction-response')],
-       ['@wdk-core/sendTransaction', getEncoding('@wdk-core/sendTransaction-response')],
-@@ -71,7 +81,9 @@ class HRPC {
+@@ -71,7 +98,16 @@ class HRPC {
        ['@wdk-core/getApproveTransaction', getEncoding('@wdk-core/getApproveTransaction-response')],
        ['@wdk-core/abstractedSendTransaction', getEncoding('@wdk-core/abstractedSendTransaction-response')],
        ['@wdk-core/abstractedAccountQuoteTransfer', getEncoding('@wdk-core/abstractedAccountQuoteTransfer-response')],
 -      ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-response')]
 +      ['@wdk-core/getTransactionReceipt', getEncoding('@wdk-core/getTransactionReceipt-response')],
-+      ['@wdk-core/createLightningInvoice', getEncoding('@wdk-core/createLightningInvoice-response')],
-+      ['@wdk-core/getTransactionHistory', getEncoding('@wdk-core/getTransactionHistory-response')]
++      ['@wdk-core/arkadeGetBoardingAddress', getEncoding('@wdk-core/arkadeGetBoardingAddress-response')],
++      ['@wdk-core/arkadeCreateLightningInvoice', getEncoding('@wdk-core/arkadeCreateLightningInvoice-response')],
++      ['@wdk-core/arkadeGetPendingLightningReceives', getEncoding('@wdk-core/arkadeGetPendingLightningReceives-response')],
++      ['@wdk-core/arkadeGetPendingLightningSends', getEncoding('@wdk-core/arkadeGetPendingLightningSends-response')],
++      ['@wdk-core/arkadeGetSwapHistory', getEncoding('@wdk-core/arkadeGetSwapHistory-response')],
++      ['@wdk-core/arkadeGetLightningLimits', getEncoding('@wdk-core/arkadeGetLightningLimits-response')],
++      ['@wdk-core/arkadeGetLightningFees', getEncoding('@wdk-core/arkadeGetLightningFees-response')],
++      ['@wdk-core/arkadeGetTransactionHistory', getEncoding('@wdk-core/arkadeGetTransactionHistory-response')],
++      ['@wdk-core/arkadeWaitForLightningPayment', getEncoding('@wdk-core/arkadeWaitForLightningPayment-response')]
      ])
      this._rpc = new RPC(stream, async (req) => {
        const command = methods.get(req.command)
-@@ -147,6 +159,10 @@ class HRPC {
-     return this._call('@wdk-core/getAddress', args)
-   }
- 
-+  async getBoardingAddress (args) {
-+    return this._call('@wdk-core/getBoardingAddress', args)
-+  }
-+
-   async getAddressBalance (args) {
-     return this._call('@wdk-core/getAddressBalance', args)
-   }
-@@ -191,6 +207,14 @@ class HRPC {
-     return this._call('@wdk-core/getTransactionReceipt', args)
-   }
- 
-+  async createLightningInvoice (args) {
-+    return this._call('@wdk-core/createLightningInvoice', args)
-+  }
-+
-+  async getTransactionHistory (args) {
-+    return this._call('@wdk-core/getTransactionHistory', args)
-+  }
-+
-   dispose (args) {
+@@ -195,6 +231,42 @@ class HRPC {
      return this._callSync('@wdk-core/dispose', args)
    }
-@@ -207,6 +231,10 @@ class HRPC {
-     this._handlers['@wdk-core/getAddress'] = responseFn
-   }
  
-+  onGetBoardingAddress (responseFn) {
-+    this._handlers['@wdk-core/getBoardingAddress'] = responseFn
++  async arkadeGetBoardingAddress (args) {
++    return this._call('@wdk-core/arkadeGetBoardingAddress', args)
 +  }
 +
-   onGetAddressBalance (responseFn) {
-     this._handlers['@wdk-core/getAddressBalance'] = responseFn
++  async arkadeCreateLightningInvoice (args) {
++    return this._call('@wdk-core/arkadeCreateLightningInvoice', args)
++  }
++
++  async arkadeGetPendingLightningReceives (args) {
++    return this._call('@wdk-core/arkadeGetPendingLightningReceives', args)
++  }
++
++  async arkadeGetPendingLightningSends (args) {
++    return this._call('@wdk-core/arkadeGetPendingLightningSends', args)
++  }
++
++  async arkadeGetSwapHistory (args) {
++    return this._call('@wdk-core/arkadeGetSwapHistory', args)
++  }
++
++  async arkadeGetLightningLimits (args) {
++    return this._call('@wdk-core/arkadeGetLightningLimits', args)
++  }
++
++  async arkadeGetLightningFees (args) {
++    return this._call('@wdk-core/arkadeGetLightningFees', args)
++  }
++
++  async arkadeGetTransactionHistory (args) {
++    return this._call('@wdk-core/arkadeGetTransactionHistory', args)
++  }
++
++  async arkadeWaitForLightningPayment (args) {
++    return this._call('@wdk-core/arkadeWaitForLightningPayment', args)
++  }
++
+   onLog (responseFn) {
+     this._handlers['@wdk-core/log'] = responseFn
    }
-@@ -251,6 +279,14 @@ class HRPC {
-     this._handlers['@wdk-core/getTransactionReceipt'] = responseFn
-   }
- 
-+  onCreateLightningInvoice (responseFn) {
-+    this._handlers['@wdk-core/createLightningInvoice'] = responseFn
-+  }
-+
-+  onGetTransactionHistory (responseFn) {
-+    this._handlers['@wdk-core/getTransactionHistory'] = responseFn
-+  }
-+
-   onDispose (responseFn) {
+@@ -255,6 +327,42 @@ class HRPC {
      this._handlers['@wdk-core/dispose'] = responseFn
    }
+ 
++  onArkadeGetBoardingAddress (responseFn) {
++    this._handlers['@wdk-core/arkadeGetBoardingAddress'] = responseFn
++  }
++
++  onArkadeCreateLightningInvoice (responseFn) {
++    this._handlers['@wdk-core/arkadeCreateLightningInvoice'] = responseFn
++  }
++
++  onArkadeGetPendingLightningReceives (responseFn) {
++    this._handlers['@wdk-core/arkadeGetPendingLightningReceives'] = responseFn
++  }
++
++  onArkadeGetPendingLightningSends (responseFn) {
++    this._handlers['@wdk-core/arkadeGetPendingLightningSends'] = responseFn
++  }
++
++  onArkadeGetSwapHistory (responseFn) {
++    this._handlers['@wdk-core/arkadeGetSwapHistory'] = responseFn
++  }
++
++  onArkadeGetLightningLimits (responseFn) {
++    this._handlers['@wdk-core/arkadeGetLightningLimits'] = responseFn
++  }
++
++  onArkadeGetLightningFees (responseFn) {
++    this._handlers['@wdk-core/arkadeGetLightningFees'] = responseFn
++  }
++
++  onArkadeGetTransactionHistory (responseFn) {
++    this._handlers['@wdk-core/arkadeGetTransactionHistory'] = responseFn
++  }
++
++  onArkadeWaitForLightningPayment (responseFn) {
++    this._handlers['@wdk-core/arkadeWaitForLightningPayment'] = responseFn
++  }
++
+   _requestIsStream (command) {
+     return [
+     ].includes(command)
 diff --git a/spec/hrpc/messages.js b/spec/hrpc/messages.js
-index f295d49..0dcaa0d 100644
+index 4a9a5b1..180276f 100644
 --- a/spec/hrpc/messages.js
 +++ b/spec/hrpc/messages.js
-@@ -65,7 +65,7 @@ const encoding2 = {
+@@ -1,11 +1,11 @@
+ // This file is autogenerated by the hyperschema compiler
+-// Schema Version: 1
++// Schema Version: 2
+ /* eslint-disable camelcase */
+ /* eslint-disable quotes */
  
-     if (m.enableDebugLogs) c.uint.preencode(state, m.enableDebugLogs)
-     if (m.seedPhrase) c.string.preencode(state, m.seedPhrase)
--    if (m.seedBuffer) c.string.preencode(state, m.seedBuffer)
-+    if (m.seedBuffer) c.buffer.preencode(state, m.seedBuffer)
-     c.string.preencode(state, m.config)
-   },
-   encode (state, m) {
-@@ -78,7 +78,7 @@ const encoding2 = {
+ const { c } = require('hyperschema/runtime')
  
-     if (m.enableDebugLogs) c.uint.encode(state, m.enableDebugLogs)
-     if (m.seedPhrase) c.string.encode(state, m.seedPhrase)
--    if (m.seedBuffer) c.string.encode(state, m.seedBuffer)
-+    if (m.seedBuffer) c.buffer.encode(state, m.seedBuffer)
-     c.string.encode(state, m.config)
-   },
-   decode (state) {
-@@ -87,7 +87,7 @@ const encoding2 = {
-     return {
-       enableDebugLogs: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
-       seedPhrase: (flags & 2) !== 0 ? c.string.decode(state) : null,
--      seedBuffer: (flags & 4) !== 0 ? c.string.decode(state) : null,
-+      seedBuffer: (flags & 4) !== 0 ? c.buffer.decode(state) : null,
-       config: c.string.decode(state)
-     }
-   }
-@@ -160,11 +160,17 @@ const encoding5 = {
+-const VERSION = 1
++const VERSION = 2
+ 
+ // eslint-disable-next-line no-unused-vars
+ let version = VERSION
+@@ -728,6 +728,265 @@ const encoding38 = {
    }
  }
  
--// @wdk-core/getAddressBalance-request
-+// @wdk-core/getBoardingAddress-request
- const encoding6 = encoding4
- 
-+// @wdk-core/getBoardingAddress-response
-+const encoding7 = encoding5
-+
-+// @wdk-core/getAddressBalance-request
-+const encoding8 = encoding4
-+
- // @wdk-core/getAddressBalance-response
--const encoding7 = {
-+const encoding9 = {
-   preencode (state, m) {
-     state.end++ // max flag is 1 so always one byte
- 
-@@ -187,18 +193,18 @@ const encoding7 = {
- }
- 
- // @wdk-core/quoteSendTransaction-request-options
--const encoding8 = {
-+const encoding10 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.to)
--    c.uint.preencode(state, m.value)
-+    c.string.preencode(state, m.value)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.to)
--    c.uint.encode(state, m.value)
-+    c.string.encode(state, m.value)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
--    const r1 = c.uint.decode(state)
-+    const r1 = c.string.decode(state)
- 
-     return {
-       to: r0,
-@@ -208,24 +214,24 @@ const encoding8 = {
- }
- 
- // @wdk-core/quoteSendTransaction-request.options
--const encoding9_2 = c.frame(encoding8)
-+const encoding11_2 = c.frame(encoding10)
- 
- // @wdk-core/quoteSendTransaction-request
--const encoding9 = {
-+const encoding11 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
--    encoding9_2.preencode(state, m.options)
-+    encoding11_2.preencode(state, m.options)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.network)
-     c.uint.encode(state, m.accountIndex)
--    encoding9_2.encode(state, m.options)
-+    encoding11_2.encode(state, m.options)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.uint.decode(state)
--    const r2 = encoding9_2.decode(state)
-+    const r2 = encoding11_2.decode(state)
- 
-     return {
-       network: r0,
-@@ -236,50 +242,50 @@ const encoding9 = {
- }
- 
- // @wdk-core/quoteSendTransaction-response
--const encoding10 = {
-+const encoding12 = {
-   preencode (state, m) {
-     state.end++ // max flag is 1 so always one byte
- 
--    if (m.fee) c.uint.preencode(state, m.fee)
-+    if (m.fee) c.string.preencode(state, m.fee)
-   },
-   encode (state, m) {
-     const flags = m.fee ? 1 : 0
- 
-     c.uint.encode(state, flags)
- 
--    if (m.fee) c.uint.encode(state, m.fee)
-+    if (m.fee) c.string.encode(state, m.fee)
-   },
-   decode (state) {
-     const flags = c.uint.decode(state)
- 
-     return {
--      fee: (flags & 1) !== 0 ? c.uint.decode(state) : 0
-+      fee: (flags & 1) !== 0 ? c.string.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/sendTransaction-request-options
--const encoding11 = encoding8
-+const encoding13 = encoding10
- 
- // @wdk-core/sendTransaction-request.options
--const encoding12_2 = c.frame(encoding11)
-+const encoding14_2 = c.frame(encoding13)
- 
- // @wdk-core/sendTransaction-request
--const encoding12 = {
-+const encoding14 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
--    encoding12_2.preencode(state, m.options)
-+    encoding14_2.preencode(state, m.options)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.network)
-     c.uint.encode(state, m.accountIndex)
--    encoding12_2.encode(state, m.options)
-+    encoding14_2.encode(state, m.options)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.uint.decode(state)
--    const r2 = encoding12_2.decode(state)
-+    const r2 = encoding14_2.decode(state)
- 
-     return {
-       network: r0,
-@@ -290,11 +296,11 @@ const encoding12 = {
- }
- 
- // @wdk-core/sendTransaction-response
--const encoding13 = {
-+const encoding15 = {
-   preencode (state, m) {
-     state.end++ // max flag is 2 so always one byte
- 
--    if (m.fee) c.uint.preencode(state, m.fee)
-+    if (m.fee) c.string.preencode(state, m.fee)
-     if (m.hash) c.string.preencode(state, m.hash)
-   },
-   encode (state, m) {
-@@ -304,33 +310,33 @@ const encoding13 = {
- 
-     c.uint.encode(state, flags)
- 
--    if (m.fee) c.uint.encode(state, m.fee)
-+    if (m.fee) c.string.encode(state, m.fee)
-     if (m.hash) c.string.encode(state, m.hash)
-   },
-   decode (state) {
-     const flags = c.uint.decode(state)
- 
-     return {
--      fee: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
-+      fee: (flags & 1) !== 0 ? c.string.decode(state) : null,
-       hash: (flags & 2) !== 0 ? c.string.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/getAbstractedAddress-request
--const encoding14 = encoding4
-+const encoding16 = encoding4
- 
- // @wdk-core/getAbstractedAddress-response
--const encoding15 = encoding5
-+const encoding17 = encoding5
- 
- // @wdk-core/getAbstractedAddressBalance-request
--const encoding16 = encoding4
-+const encoding18 = encoding4
- 
- // @wdk-core/getAbstractedAddressBalance-response
--const encoding17 = encoding7
-+const encoding19 = encoding9
- 
- // @wdk-core/getAbstractedAddressTokenBalance-request
--const encoding18 = {
-+const encoding20 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
-@@ -355,24 +361,24 @@ const encoding18 = {
- }
- 
- // @wdk-core/getAbstractedAddressTokenBalance-response
--const encoding19 = encoding7
-+const encoding21 = encoding9
- 
- // @wdk-core/abstractedAccountTransfer-request-options
--const encoding20 = {
-+const encoding22 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.token)
-     c.string.preencode(state, m.recipient)
--    c.uint.preencode(state, m.amount)
-+    c.string.preencode(state, m.amount)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.token)
-     c.string.encode(state, m.recipient)
--    c.uint.encode(state, m.amount)
-+    c.string.encode(state, m.amount)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.string.decode(state)
--    const r2 = c.uint.decode(state)
-+    const r2 = c.string.decode(state)
- 
-     return {
-       token: r0,
-@@ -382,41 +388,96 @@ const encoding20 = {
-   }
- }
- 
-+// @wdk-core/abstractedAccountTransfer-request-config-paymasterToken
-+const encoding23 = {
-+  preencode (state, m) {
-+    c.string.preencode(state, m.address)
-+  },
-+  encode (state, m) {
-+    c.string.encode(state, m.address)
-+  },
-+  decode (state) {
-+    const r0 = c.string.decode(state)
-+
-+    return {
-+      address: r0
-+    }
-+  }
-+}
-+
-+// @wdk-core/abstractedAccountTransfer-request-config.paymasterToken
-+const encoding24_0 = c.frame(encoding23)
-+
-+// @wdk-core/abstractedAccountTransfer-request-config
-+const encoding24 = {
-+  preencode (state, m) {
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.paymasterToken) encoding24_0.preencode(state, m.paymasterToken)
-+  },
-+  encode (state, m) {
-+    const flags = m.paymasterToken ? 1 : 0
-+
-+    c.uint.encode(state, flags)
-+
-+    if (m.paymasterToken) encoding24_0.encode(state, m.paymasterToken)
-+  },
-+  decode (state) {
-+    const flags = c.uint.decode(state)
-+
-+    return {
-+      paymasterToken: (flags & 1) !== 0 ? encoding24_0.decode(state) : null
-+    }
-+  }
-+}
-+
- // @wdk-core/abstractedAccountTransfer-request.options
--const encoding21_2 = c.frame(encoding20)
-+const encoding25_2 = c.frame(encoding22)
-+// @wdk-core/abstractedAccountTransfer-request.config
-+const encoding25_3 = c.frame(encoding24)
- 
- // @wdk-core/abstractedAccountTransfer-request
--const encoding21 = {
-+const encoding25 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
--    encoding21_2.preencode(state, m.options)
-+    encoding25_2.preencode(state, m.options)
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.config) encoding25_3.preencode(state, m.config)
-   },
-   encode (state, m) {
-+    const flags = m.config ? 1 : 0
-+
-     c.string.encode(state, m.network)
-     c.uint.encode(state, m.accountIndex)
--    encoding21_2.encode(state, m.options)
-+    encoding25_2.encode(state, m.options)
-+    c.uint.encode(state, flags)
-+
-+    if (m.config) encoding25_3.encode(state, m.config)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.uint.decode(state)
--    const r2 = encoding21_2.decode(state)
-+    const r2 = encoding25_2.decode(state)
-+    const flags = c.uint.decode(state)
- 
-     return {
-       network: r0,
-       accountIndex: r1,
--      options: r2
-+      options: r2,
-+      config: (flags & 1) !== 0 ? encoding25_3.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/abstractedAccountTransfer-response
--const encoding22 = {
-+const encoding26 = {
-   preencode (state, m) {
-     state.end++ // max flag is 2 so always one byte
- 
-     if (m.hash) c.string.preencode(state, m.hash)
--    if (m.fee) c.uint.preencode(state, m.fee)
-+    if (m.fee) c.string.preencode(state, m.fee)
-   },
-   encode (state, m) {
-     const flags =
-@@ -426,36 +487,36 @@ const encoding22 = {
-     c.uint.encode(state, flags)
- 
-     if (m.hash) c.string.encode(state, m.hash)
--    if (m.fee) c.uint.encode(state, m.fee)
-+    if (m.fee) c.string.encode(state, m.fee)
-   },
-   decode (state) {
-     const flags = c.uint.decode(state)
- 
-     return {
-       hash: (flags & 1) !== 0 ? c.string.decode(state) : null,
--      fee: (flags & 2) !== 0 ? c.uint.decode(state) : 0
-+      fee: (flags & 2) !== 0 ? c.string.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/getApproveTransaction-request
--const encoding23 = encoding20
-+const encoding27 = encoding22
- 
- // @wdk-core/getApproveTransaction-response
--const encoding24 = {
-+const encoding28 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.to)
--    c.uint.preencode(state, m.value)
-+    c.string.preencode(state, m.value)
-     c.string.preencode(state, m.data)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.to)
--    c.uint.encode(state, m.value)
-+    c.string.encode(state, m.value)
-     c.string.encode(state, m.data)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
--    const r1 = c.uint.decode(state)
-+    const r1 = c.string.decode(state)
-     const r2 = c.string.decode(state)
- 
-     return {
-@@ -466,38 +527,47 @@ const encoding24 = {
-   }
- }
- 
--// @wdk-core/abstractedSendTransaction-request-options
--const encoding25 = encoding24
-+// @wdk-core/abstractedSendTransaction-request-config-paymasterToken
-+const encoding29 = encoding23
-+
-+// @wdk-core/abstractedSendTransaction-request-config.paymasterToken
-+const encoding30_0 = c.frame(encoding29)
- 
- // @wdk-core/abstractedSendTransaction-request-config
--const encoding26 = {
-+const encoding30 = {
-   preencode (state, m) {
--    c.string.preencode(state, m.paymasterToken)
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.paymasterToken) encoding30_0.preencode(state, m.paymasterToken)
-   },
-   encode (state, m) {
--    c.string.encode(state, m.paymasterToken)
-+    const flags = m.paymasterToken ? 1 : 0
-+
-+    c.uint.encode(state, flags)
-+
-+    if (m.paymasterToken) encoding30_0.encode(state, m.paymasterToken)
-   },
-   decode (state) {
--    const r0 = c.string.decode(state)
-+    const flags = c.uint.decode(state)
- 
-     return {
--      paymasterToken: r0
-+      paymasterToken: (flags & 1) !== 0 ? encoding30_0.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/abstractedSendTransaction-request.config
--const encoding27_3 = c.frame(encoding26)
-+const encoding31_3 = c.frame(encoding30)
- 
- // @wdk-core/abstractedSendTransaction-request
--const encoding27 = {
-+const encoding31 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
-     c.string.preencode(state, m.options)
-     state.end++ // max flag is 1 so always one byte
- 
--    if (m.config) encoding27_3.preencode(state, m.config)
-+    if (m.config) encoding31_3.preencode(state, m.config)
-   },
-   encode (state, m) {
-     const flags = m.config ? 1 : 0
-@@ -507,7 +577,7 @@ const encoding27 = {
-     c.string.encode(state, m.options)
-     c.uint.encode(state, flags)
- 
--    if (m.config) encoding27_3.encode(state, m.config)
-+    if (m.config) encoding31_3.encode(state, m.config)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-@@ -519,50 +589,91 @@ const encoding27 = {
-       network: r0,
-       accountIndex: r1,
-       options: r2,
--      config: (flags & 1) !== 0 ? encoding27_3.decode(state) : null
-+      config: (flags & 1) !== 0 ? encoding31_3.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/abstractedSendTransaction-response
--const encoding28 = encoding22
-+const encoding32 = encoding26
- 
- // @wdk-core/abstractedAccountQuoteTransfer-request-options
--const encoding29 = encoding20
-+const encoding33 = encoding22
-+
-+// @wdk-core/abstractedAccountQuoteTransfer-request-config-paymasterToken
-+const encoding34 = encoding23
-+
-+// @wdk-core/abstractedAccountQuoteTransfer-request-config.paymasterToken
-+const encoding35_0 = c.frame(encoding34)
-+
-+// @wdk-core/abstractedAccountQuoteTransfer-request-config
-+const encoding35 = {
-+  preencode (state, m) {
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.paymasterToken) encoding35_0.preencode(state, m.paymasterToken)
-+  },
-+  encode (state, m) {
-+    const flags = m.paymasterToken ? 1 : 0
-+
-+    c.uint.encode(state, flags)
-+
-+    if (m.paymasterToken) encoding35_0.encode(state, m.paymasterToken)
-+  },
-+  decode (state) {
-+    const flags = c.uint.decode(state)
-+
-+    return {
-+      paymasterToken: (flags & 1) !== 0 ? encoding35_0.decode(state) : null
-+    }
-+  }
-+}
- 
- // @wdk-core/abstractedAccountQuoteTransfer-request.options
--const encoding30_2 = c.frame(encoding29)
-+const encoding36_2 = c.frame(encoding33)
-+// @wdk-core/abstractedAccountQuoteTransfer-request.config
-+const encoding36_3 = c.frame(encoding35)
- 
- // @wdk-core/abstractedAccountQuoteTransfer-request
--const encoding30 = {
-+const encoding36 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
--    encoding30_2.preencode(state, m.options)
-+    encoding36_2.preencode(state, m.options)
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.config) encoding36_3.preencode(state, m.config)
-   },
-   encode (state, m) {
-+    const flags = m.config ? 1 : 0
-+
-     c.string.encode(state, m.network)
-     c.uint.encode(state, m.accountIndex)
--    encoding30_2.encode(state, m.options)
-+    encoding36_2.encode(state, m.options)
-+    c.uint.encode(state, flags)
-+
-+    if (m.config) encoding36_3.encode(state, m.config)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.uint.decode(state)
--    const r2 = encoding30_2.decode(state)
-+    const r2 = encoding36_2.decode(state)
-+    const flags = c.uint.decode(state)
- 
-     return {
-       network: r0,
-       accountIndex: r1,
--      options: r2
-+      options: r2,
-+      config: (flags & 1) !== 0 ? encoding36_3.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/abstractedAccountQuoteTransfer-response
--const encoding31 = encoding10
-+const encoding37 = encoding12
- 
- // @wdk-core/getTransactionReceipt-request
--const encoding32 = {
-+const encoding38 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
-@@ -587,7 +698,7 @@ const encoding32 = {
- }
- 
- // @wdk-core/getTransactionReceipt-response
--const encoding33 = {
++// @wdk-core/arkadeGetBoardingAddress-request
 +const encoding39 = {
-   preencode (state, m) {
-     state.end++ // max flag is 1 so always one byte
- 
-@@ -609,8 +720,97 @@ const encoding33 = {
-   }
- }
- 
-+// @wdk-core/createLightningInvoice-request
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++  },
++  encode (state, m) {
++    c.uint.encode(state, m.accountIndex)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++
++    return {
++      accountIndex: r0
++    }
++  }
++}
++
++// @wdk-core/arkadeGetBoardingAddress-response
 +const encoding40 = {
 +  preencode (state, m) {
-+    c.string.preencode(state, m.network)
-+    c.uint.preencode(state, m.accountIndex)
-+    c.uint.preencode(state, m.amountSats)
 +    state.end++ // max flag is 1 so always one byte
 +
-+    if (m.description) c.string.preencode(state, m.description)
++    if (version >= 2 && m.address) c.string.preencode(state, m.address)
 +  },
 +  encode (state, m) {
-+    const flags = m.description ? 1 : 0
++    const flags = (version >= 2 && m.address) ? 1 : 0
 +
-+    c.string.encode(state, m.network)
-+    c.uint.encode(state, m.accountIndex)
-+    c.uint.encode(state, m.amountSats)
 +    c.uint.encode(state, flags)
 +
-+    if (m.description) c.string.encode(state, m.description)
++    if (version >= 2 && m.address) c.string.encode(state, m.address)
 +  },
 +  decode (state) {
-+    const r0 = c.string.decode(state)
-+    const r1 = c.uint.decode(state)
-+    const r2 = c.uint.decode(state)
 +    const flags = c.uint.decode(state)
 +
 +    return {
-+      network: r0,
-+      accountIndex: r1,
-+      amountSats: r2,
-+      description: (flags & 1) !== 0 ? c.string.decode(state) : null
++      address: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
 +    }
 +  }
 +}
 +
-+// @wdk-core/createLightningInvoice-response
++// @wdk-core/arkadeCreateLightningInvoice-request
 +const encoding41 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++    c.uint.preencode(state, m.amount)
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.description) c.string.preencode(state, m.description)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.description) ? 1 : 0
++
++    c.uint.encode(state, m.accountIndex)
++    c.uint.encode(state, m.amount)
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.description) c.string.encode(state, m.description)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++    const r1 = c.uint.decode(state)
++    const flags = c.uint.decode(state)
++
++    return {
++      accountIndex: r0,
++      amount: r1,
++      description: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeCreateLightningInvoice-response
++const encoding42 = {
 +  preencode (state, m) {
 +    state.end++ // max flag is 2 so always one byte
 +
-+    if (m.invoice) c.string.preencode(state, m.invoice)
-+    if (m.paymentHash) c.string.preencode(state, m.paymentHash)
++    if (version >= 2 && m.invoice) c.string.preencode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.preencode(state, m.paymentHash)
 +  },
 +  encode (state, m) {
 +    const flags =
-+      (m.invoice ? 1 : 0) |
-+      (m.paymentHash ? 2 : 0)
++      ((version >= 2 && m.invoice) ? 1 : 0) |
++      ((version >= 2 && m.paymentHash) ? 2 : 0)
 +
 +    c.uint.encode(state, flags)
 +
-+    if (m.invoice) c.string.encode(state, m.invoice)
-+    if (m.paymentHash) c.string.encode(state, m.paymentHash)
++    if (version >= 2 && m.invoice) c.string.encode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.encode(state, m.paymentHash)
 +  },
 +  decode (state) {
 +    const flags = c.uint.decode(state)
 +
 +    return {
-+      invoice: (flags & 1) !== 0 ? c.string.decode(state) : null,
-+      paymentHash: (flags & 2) !== 0 ? c.string.decode(state) : null
++      invoice: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null,
++      paymentHash: (version >= 2 && (flags & 2) !== 0) ? c.string.decode(state) : null
 +    }
 +  }
 +}
 +
-+// @wdk-core/getTransactionHistory-request
-+const encoding42 = encoding4
++// @wdk-core/arkadeGetPendingLightningReceives-request
++const encoding43 = encoding39
 +
-+// @wdk-core/getTransactionHistory-response
-+const encoding43 = {
++// @wdk-core/arkadeGetPendingLightningReceives-response
++const encoding44 = {
 +  preencode (state, m) {
 +    state.end++ // max flag is 1 so always one byte
 +
-+    if (m.transactions) c.string.preencode(state, m.transactions)
++    if (version >= 2 && m.swaps) c.string.preencode(state, m.swaps)
 +  },
 +  encode (state, m) {
-+    const flags = m.transactions ? 1 : 0
++    const flags = (version >= 2 && m.swaps) ? 1 : 0
 +
 +    c.uint.encode(state, flags)
 +
-+    if (m.transactions) c.string.encode(state, m.transactions)
++    if (version >= 2 && m.swaps) c.string.encode(state, m.swaps)
 +  },
 +  decode (state) {
 +    const flags = c.uint.decode(state)
 +
 +    return {
-+      transactions: (flags & 1) !== 0 ? c.string.decode(state) : null
++      swaps: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
 +    }
 +  }
 +}
 +
- // @wdk-core/dispose-request
--const encoding34 = {
-+const encoding44 = {
-   preencode (state, m) {
- 
-   },
-@@ -652,35 +852,45 @@ function getEncoding (name) {
-     case '@wdk-core/workletStart-response': return encoding3
-     case '@wdk-core/getAddress-request': return encoding4
-     case '@wdk-core/getAddress-response': return encoding5
--    case '@wdk-core/getAddressBalance-request': return encoding6
--    case '@wdk-core/getAddressBalance-response': return encoding7
--    case '@wdk-core/quoteSendTransaction-request-options': return encoding8
--    case '@wdk-core/quoteSendTransaction-request': return encoding9
--    case '@wdk-core/quoteSendTransaction-response': return encoding10
--    case '@wdk-core/sendTransaction-request-options': return encoding11
--    case '@wdk-core/sendTransaction-request': return encoding12
--    case '@wdk-core/sendTransaction-response': return encoding13
--    case '@wdk-core/getAbstractedAddress-request': return encoding14
--    case '@wdk-core/getAbstractedAddress-response': return encoding15
--    case '@wdk-core/getAbstractedAddressBalance-request': return encoding16
--    case '@wdk-core/getAbstractedAddressBalance-response': return encoding17
--    case '@wdk-core/getAbstractedAddressTokenBalance-request': return encoding18
--    case '@wdk-core/getAbstractedAddressTokenBalance-response': return encoding19
--    case '@wdk-core/abstractedAccountTransfer-request-options': return encoding20
--    case '@wdk-core/abstractedAccountTransfer-request': return encoding21
--    case '@wdk-core/abstractedAccountTransfer-response': return encoding22
--    case '@wdk-core/getApproveTransaction-request': return encoding23
--    case '@wdk-core/getApproveTransaction-response': return encoding24
--    case '@wdk-core/abstractedSendTransaction-request-options': return encoding25
--    case '@wdk-core/abstractedSendTransaction-request-config': return encoding26
--    case '@wdk-core/abstractedSendTransaction-request': return encoding27
--    case '@wdk-core/abstractedSendTransaction-response': return encoding28
--    case '@wdk-core/abstractedAccountQuoteTransfer-request-options': return encoding29
--    case '@wdk-core/abstractedAccountQuoteTransfer-request': return encoding30
--    case '@wdk-core/abstractedAccountQuoteTransfer-response': return encoding31
--    case '@wdk-core/getTransactionReceipt-request': return encoding32
--    case '@wdk-core/getTransactionReceipt-response': return encoding33
--    case '@wdk-core/dispose-request': return encoding34
-+    case '@wdk-core/getBoardingAddress-request': return encoding6
-+    case '@wdk-core/getBoardingAddress-response': return encoding7
-+    case '@wdk-core/getAddressBalance-request': return encoding8
-+    case '@wdk-core/getAddressBalance-response': return encoding9
-+    case '@wdk-core/quoteSendTransaction-request-options': return encoding10
-+    case '@wdk-core/quoteSendTransaction-request': return encoding11
-+    case '@wdk-core/quoteSendTransaction-response': return encoding12
-+    case '@wdk-core/sendTransaction-request-options': return encoding13
-+    case '@wdk-core/sendTransaction-request': return encoding14
-+    case '@wdk-core/sendTransaction-response': return encoding15
-+    case '@wdk-core/getAbstractedAddress-request': return encoding16
-+    case '@wdk-core/getAbstractedAddress-response': return encoding17
-+    case '@wdk-core/getAbstractedAddressBalance-request': return encoding18
-+    case '@wdk-core/getAbstractedAddressBalance-response': return encoding19
-+    case '@wdk-core/getAbstractedAddressTokenBalance-request': return encoding20
-+    case '@wdk-core/getAbstractedAddressTokenBalance-response': return encoding21
-+    case '@wdk-core/abstractedAccountTransfer-request-options': return encoding22
-+    case '@wdk-core/abstractedAccountTransfer-request-config-paymasterToken': return encoding23
-+    case '@wdk-core/abstractedAccountTransfer-request-config': return encoding24
-+    case '@wdk-core/abstractedAccountTransfer-request': return encoding25
-+    case '@wdk-core/abstractedAccountTransfer-response': return encoding26
-+    case '@wdk-core/getApproveTransaction-request': return encoding27
-+    case '@wdk-core/getApproveTransaction-response': return encoding28
-+    case '@wdk-core/abstractedSendTransaction-request-config-paymasterToken': return encoding29
-+    case '@wdk-core/abstractedSendTransaction-request-config': return encoding30
-+    case '@wdk-core/abstractedSendTransaction-request': return encoding31
-+    case '@wdk-core/abstractedSendTransaction-response': return encoding32
-+    case '@wdk-core/abstractedAccountQuoteTransfer-request-options': return encoding33
-+    case '@wdk-core/abstractedAccountQuoteTransfer-request-config-paymasterToken': return encoding34
-+    case '@wdk-core/abstractedAccountQuoteTransfer-request-config': return encoding35
-+    case '@wdk-core/abstractedAccountQuoteTransfer-request': return encoding36
-+    case '@wdk-core/abstractedAccountQuoteTransfer-response': return encoding37
-+    case '@wdk-core/getTransactionReceipt-request': return encoding38
-+    case '@wdk-core/getTransactionReceipt-response': return encoding39
-+    case '@wdk-core/createLightningInvoice-request': return encoding40
-+    case '@wdk-core/createLightningInvoice-response': return encoding41
-+    case '@wdk-core/getTransactionHistory-request': return encoding42
-+    case '@wdk-core/getTransactionHistory-response': return encoding43
-+    case '@wdk-core/dispose-request': return encoding44
++// @wdk-core/arkadeGetPendingLightningSends-request
++const encoding45 = encoding39
++
++// @wdk-core/arkadeGetPendingLightningSends-response
++const encoding46 = encoding44
++
++// @wdk-core/arkadeGetSwapHistory-request
++const encoding47 = encoding39
++
++// @wdk-core/arkadeGetSwapHistory-response
++const encoding48 = encoding44
++
++// @wdk-core/arkadeGetLightningLimits-request
++const encoding49 = encoding39
++
++// @wdk-core/arkadeGetLightningLimits-response
++const encoding50 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.limits) c.string.preencode(state, m.limits)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.limits) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.limits) c.string.encode(state, m.limits)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      limits: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetLightningFees-request
++const encoding51 = encoding39
++
++// @wdk-core/arkadeGetLightningFees-response
++const encoding52 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.fees) c.string.preencode(state, m.fees)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.fees) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.fees) c.string.encode(state, m.fees)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      fees: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetTransactionHistory-request
++const encoding53 = encoding39
++
++// @wdk-core/arkadeGetTransactionHistory-response
++const encoding54 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.transactions) c.string.preencode(state, m.transactions)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.transactions) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.transactions) c.string.encode(state, m.transactions)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      transactions: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeWaitForLightningPayment-request
++const encoding55 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++    c.string.preencode(state, m.invoice)
++  },
++  encode (state, m) {
++    c.uint.encode(state, m.accountIndex)
++    c.string.encode(state, m.invoice)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++    const r1 = c.string.decode(state)
++
++    return {
++      accountIndex: r0,
++      invoice: r1
++    }
++  }
++}
++
++// @wdk-core/arkadeWaitForLightningPayment-response
++const encoding56 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.txid) c.string.preencode(state, m.txid)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.txid) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.txid) c.string.encode(state, m.txid)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      txid: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
+ function setVersion (v) {
+   version = v
+ }
+@@ -790,6 +1049,24 @@ function getEncoding (name) {
+     case '@wdk-core/getTransactionReceipt-request': return encoding36
+     case '@wdk-core/getTransactionReceipt-response': return encoding37
+     case '@wdk-core/dispose-request': return encoding38
++    case '@wdk-core/arkadeGetBoardingAddress-request': return encoding39
++    case '@wdk-core/arkadeGetBoardingAddress-response': return encoding40
++    case '@wdk-core/arkadeCreateLightningInvoice-request': return encoding41
++    case '@wdk-core/arkadeCreateLightningInvoice-response': return encoding42
++    case '@wdk-core/arkadeGetPendingLightningReceives-request': return encoding43
++    case '@wdk-core/arkadeGetPendingLightningReceives-response': return encoding44
++    case '@wdk-core/arkadeGetPendingLightningSends-request': return encoding45
++    case '@wdk-core/arkadeGetPendingLightningSends-response': return encoding46
++    case '@wdk-core/arkadeGetSwapHistory-request': return encoding47
++    case '@wdk-core/arkadeGetSwapHistory-response': return encoding48
++    case '@wdk-core/arkadeGetLightningLimits-request': return encoding49
++    case '@wdk-core/arkadeGetLightningLimits-response': return encoding50
++    case '@wdk-core/arkadeGetLightningFees-request': return encoding51
++    case '@wdk-core/arkadeGetLightningFees-response': return encoding52
++    case '@wdk-core/arkadeGetTransactionHistory-request': return encoding53
++    case '@wdk-core/arkadeGetTransactionHistory-response': return encoding54
++    case '@wdk-core/arkadeWaitForLightningPayment-request': return encoding55
++    case '@wdk-core/arkadeWaitForLightningPayment-response': return encoding56
      default: throw new Error('Encoder not found ' + name)
    }
  }
 diff --git a/spec/schema/index.js b/spec/schema/index.js
-index f295d49..0dcaa0d 100644
+index 4a9a5b1..180276f 100644
 --- a/spec/schema/index.js
 +++ b/spec/schema/index.js
-@@ -65,7 +65,7 @@ const encoding2 = {
+@@ -1,11 +1,11 @@
+ // This file is autogenerated by the hyperschema compiler
+-// Schema Version: 1
++// Schema Version: 2
+ /* eslint-disable camelcase */
+ /* eslint-disable quotes */
  
-     if (m.enableDebugLogs) c.uint.preencode(state, m.enableDebugLogs)
-     if (m.seedPhrase) c.string.preencode(state, m.seedPhrase)
--    if (m.seedBuffer) c.string.preencode(state, m.seedBuffer)
-+    if (m.seedBuffer) c.buffer.preencode(state, m.seedBuffer)
-     c.string.preencode(state, m.config)
-   },
-   encode (state, m) {
-@@ -78,7 +78,7 @@ const encoding2 = {
+ const { c } = require('hyperschema/runtime')
  
-     if (m.enableDebugLogs) c.uint.encode(state, m.enableDebugLogs)
-     if (m.seedPhrase) c.string.encode(state, m.seedPhrase)
--    if (m.seedBuffer) c.string.encode(state, m.seedBuffer)
-+    if (m.seedBuffer) c.buffer.encode(state, m.seedBuffer)
-     c.string.encode(state, m.config)
-   },
-   decode (state) {
-@@ -87,7 +87,7 @@ const encoding2 = {
-     return {
-       enableDebugLogs: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
-       seedPhrase: (flags & 2) !== 0 ? c.string.decode(state) : null,
--      seedBuffer: (flags & 4) !== 0 ? c.string.decode(state) : null,
-+      seedBuffer: (flags & 4) !== 0 ? c.buffer.decode(state) : null,
-       config: c.string.decode(state)
-     }
-   }
-@@ -160,11 +160,17 @@ const encoding5 = {
+-const VERSION = 1
++const VERSION = 2
+ 
+ // eslint-disable-next-line no-unused-vars
+ let version = VERSION
+@@ -728,6 +728,265 @@ const encoding38 = {
    }
  }
  
--// @wdk-core/getAddressBalance-request
-+// @wdk-core/getBoardingAddress-request
- const encoding6 = encoding4
- 
-+// @wdk-core/getBoardingAddress-response
-+const encoding7 = encoding5
-+
-+// @wdk-core/getAddressBalance-request
-+const encoding8 = encoding4
-+
- // @wdk-core/getAddressBalance-response
--const encoding7 = {
-+const encoding9 = {
-   preencode (state, m) {
-     state.end++ // max flag is 1 so always one byte
- 
-@@ -187,18 +193,18 @@ const encoding7 = {
- }
- 
- // @wdk-core/quoteSendTransaction-request-options
--const encoding8 = {
-+const encoding10 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.to)
--    c.uint.preencode(state, m.value)
-+    c.string.preencode(state, m.value)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.to)
--    c.uint.encode(state, m.value)
-+    c.string.encode(state, m.value)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
--    const r1 = c.uint.decode(state)
-+    const r1 = c.string.decode(state)
- 
-     return {
-       to: r0,
-@@ -208,24 +214,24 @@ const encoding8 = {
- }
- 
- // @wdk-core/quoteSendTransaction-request.options
--const encoding9_2 = c.frame(encoding8)
-+const encoding11_2 = c.frame(encoding10)
- 
- // @wdk-core/quoteSendTransaction-request
--const encoding9 = {
-+const encoding11 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
--    encoding9_2.preencode(state, m.options)
-+    encoding11_2.preencode(state, m.options)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.network)
-     c.uint.encode(state, m.accountIndex)
--    encoding9_2.encode(state, m.options)
-+    encoding11_2.encode(state, m.options)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.uint.decode(state)
--    const r2 = encoding9_2.decode(state)
-+    const r2 = encoding11_2.decode(state)
- 
-     return {
-       network: r0,
-@@ -236,50 +242,50 @@ const encoding9 = {
- }
- 
- // @wdk-core/quoteSendTransaction-response
--const encoding10 = {
-+const encoding12 = {
-   preencode (state, m) {
-     state.end++ // max flag is 1 so always one byte
- 
--    if (m.fee) c.uint.preencode(state, m.fee)
-+    if (m.fee) c.string.preencode(state, m.fee)
-   },
-   encode (state, m) {
-     const flags = m.fee ? 1 : 0
- 
-     c.uint.encode(state, flags)
- 
--    if (m.fee) c.uint.encode(state, m.fee)
-+    if (m.fee) c.string.encode(state, m.fee)
-   },
-   decode (state) {
-     const flags = c.uint.decode(state)
- 
-     return {
--      fee: (flags & 1) !== 0 ? c.uint.decode(state) : 0
-+      fee: (flags & 1) !== 0 ? c.string.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/sendTransaction-request-options
--const encoding11 = encoding8
-+const encoding13 = encoding10
- 
- // @wdk-core/sendTransaction-request.options
--const encoding12_2 = c.frame(encoding11)
-+const encoding14_2 = c.frame(encoding13)
- 
- // @wdk-core/sendTransaction-request
--const encoding12 = {
-+const encoding14 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
--    encoding12_2.preencode(state, m.options)
-+    encoding14_2.preencode(state, m.options)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.network)
-     c.uint.encode(state, m.accountIndex)
--    encoding12_2.encode(state, m.options)
-+    encoding14_2.encode(state, m.options)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.uint.decode(state)
--    const r2 = encoding12_2.decode(state)
-+    const r2 = encoding14_2.decode(state)
- 
-     return {
-       network: r0,
-@@ -290,11 +296,11 @@ const encoding12 = {
- }
- 
- // @wdk-core/sendTransaction-response
--const encoding13 = {
-+const encoding15 = {
-   preencode (state, m) {
-     state.end++ // max flag is 2 so always one byte
- 
--    if (m.fee) c.uint.preencode(state, m.fee)
-+    if (m.fee) c.string.preencode(state, m.fee)
-     if (m.hash) c.string.preencode(state, m.hash)
-   },
-   encode (state, m) {
-@@ -304,33 +310,33 @@ const encoding13 = {
- 
-     c.uint.encode(state, flags)
- 
--    if (m.fee) c.uint.encode(state, m.fee)
-+    if (m.fee) c.string.encode(state, m.fee)
-     if (m.hash) c.string.encode(state, m.hash)
-   },
-   decode (state) {
-     const flags = c.uint.decode(state)
- 
-     return {
--      fee: (flags & 1) !== 0 ? c.uint.decode(state) : 0,
-+      fee: (flags & 1) !== 0 ? c.string.decode(state) : null,
-       hash: (flags & 2) !== 0 ? c.string.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/getAbstractedAddress-request
--const encoding14 = encoding4
-+const encoding16 = encoding4
- 
- // @wdk-core/getAbstractedAddress-response
--const encoding15 = encoding5
-+const encoding17 = encoding5
- 
- // @wdk-core/getAbstractedAddressBalance-request
--const encoding16 = encoding4
-+const encoding18 = encoding4
- 
- // @wdk-core/getAbstractedAddressBalance-response
--const encoding17 = encoding7
-+const encoding19 = encoding9
- 
- // @wdk-core/getAbstractedAddressTokenBalance-request
--const encoding18 = {
-+const encoding20 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
-@@ -355,24 +361,24 @@ const encoding18 = {
- }
- 
- // @wdk-core/getAbstractedAddressTokenBalance-response
--const encoding19 = encoding7
-+const encoding21 = encoding9
- 
- // @wdk-core/abstractedAccountTransfer-request-options
--const encoding20 = {
-+const encoding22 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.token)
-     c.string.preencode(state, m.recipient)
--    c.uint.preencode(state, m.amount)
-+    c.string.preencode(state, m.amount)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.token)
-     c.string.encode(state, m.recipient)
--    c.uint.encode(state, m.amount)
-+    c.string.encode(state, m.amount)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.string.decode(state)
--    const r2 = c.uint.decode(state)
-+    const r2 = c.string.decode(state)
- 
-     return {
-       token: r0,
-@@ -382,41 +388,96 @@ const encoding20 = {
-   }
- }
- 
-+// @wdk-core/abstractedAccountTransfer-request-config-paymasterToken
-+const encoding23 = {
-+  preencode (state, m) {
-+    c.string.preencode(state, m.address)
-+  },
-+  encode (state, m) {
-+    c.string.encode(state, m.address)
-+  },
-+  decode (state) {
-+    const r0 = c.string.decode(state)
-+
-+    return {
-+      address: r0
-+    }
-+  }
-+}
-+
-+// @wdk-core/abstractedAccountTransfer-request-config.paymasterToken
-+const encoding24_0 = c.frame(encoding23)
-+
-+// @wdk-core/abstractedAccountTransfer-request-config
-+const encoding24 = {
-+  preencode (state, m) {
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.paymasterToken) encoding24_0.preencode(state, m.paymasterToken)
-+  },
-+  encode (state, m) {
-+    const flags = m.paymasterToken ? 1 : 0
-+
-+    c.uint.encode(state, flags)
-+
-+    if (m.paymasterToken) encoding24_0.encode(state, m.paymasterToken)
-+  },
-+  decode (state) {
-+    const flags = c.uint.decode(state)
-+
-+    return {
-+      paymasterToken: (flags & 1) !== 0 ? encoding24_0.decode(state) : null
-+    }
-+  }
-+}
-+
- // @wdk-core/abstractedAccountTransfer-request.options
--const encoding21_2 = c.frame(encoding20)
-+const encoding25_2 = c.frame(encoding22)
-+// @wdk-core/abstractedAccountTransfer-request.config
-+const encoding25_3 = c.frame(encoding24)
- 
- // @wdk-core/abstractedAccountTransfer-request
--const encoding21 = {
-+const encoding25 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
--    encoding21_2.preencode(state, m.options)
-+    encoding25_2.preencode(state, m.options)
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.config) encoding25_3.preencode(state, m.config)
-   },
-   encode (state, m) {
-+    const flags = m.config ? 1 : 0
-+
-     c.string.encode(state, m.network)
-     c.uint.encode(state, m.accountIndex)
--    encoding21_2.encode(state, m.options)
-+    encoding25_2.encode(state, m.options)
-+    c.uint.encode(state, flags)
-+
-+    if (m.config) encoding25_3.encode(state, m.config)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.uint.decode(state)
--    const r2 = encoding21_2.decode(state)
-+    const r2 = encoding25_2.decode(state)
-+    const flags = c.uint.decode(state)
- 
-     return {
-       network: r0,
-       accountIndex: r1,
--      options: r2
-+      options: r2,
-+      config: (flags & 1) !== 0 ? encoding25_3.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/abstractedAccountTransfer-response
--const encoding22 = {
-+const encoding26 = {
-   preencode (state, m) {
-     state.end++ // max flag is 2 so always one byte
- 
-     if (m.hash) c.string.preencode(state, m.hash)
--    if (m.fee) c.uint.preencode(state, m.fee)
-+    if (m.fee) c.string.preencode(state, m.fee)
-   },
-   encode (state, m) {
-     const flags =
-@@ -426,36 +487,36 @@ const encoding22 = {
-     c.uint.encode(state, flags)
- 
-     if (m.hash) c.string.encode(state, m.hash)
--    if (m.fee) c.uint.encode(state, m.fee)
-+    if (m.fee) c.string.encode(state, m.fee)
-   },
-   decode (state) {
-     const flags = c.uint.decode(state)
- 
-     return {
-       hash: (flags & 1) !== 0 ? c.string.decode(state) : null,
--      fee: (flags & 2) !== 0 ? c.uint.decode(state) : 0
-+      fee: (flags & 2) !== 0 ? c.string.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/getApproveTransaction-request
--const encoding23 = encoding20
-+const encoding27 = encoding22
- 
- // @wdk-core/getApproveTransaction-response
--const encoding24 = {
-+const encoding28 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.to)
--    c.uint.preencode(state, m.value)
-+    c.string.preencode(state, m.value)
-     c.string.preencode(state, m.data)
-   },
-   encode (state, m) {
-     c.string.encode(state, m.to)
--    c.uint.encode(state, m.value)
-+    c.string.encode(state, m.value)
-     c.string.encode(state, m.data)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
--    const r1 = c.uint.decode(state)
-+    const r1 = c.string.decode(state)
-     const r2 = c.string.decode(state)
- 
-     return {
-@@ -466,38 +527,47 @@ const encoding24 = {
-   }
- }
- 
--// @wdk-core/abstractedSendTransaction-request-options
--const encoding25 = encoding24
-+// @wdk-core/abstractedSendTransaction-request-config-paymasterToken
-+const encoding29 = encoding23
-+
-+// @wdk-core/abstractedSendTransaction-request-config.paymasterToken
-+const encoding30_0 = c.frame(encoding29)
- 
- // @wdk-core/abstractedSendTransaction-request-config
--const encoding26 = {
-+const encoding30 = {
-   preencode (state, m) {
--    c.string.preencode(state, m.paymasterToken)
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.paymasterToken) encoding30_0.preencode(state, m.paymasterToken)
-   },
-   encode (state, m) {
--    c.string.encode(state, m.paymasterToken)
-+    const flags = m.paymasterToken ? 1 : 0
-+
-+    c.uint.encode(state, flags)
-+
-+    if (m.paymasterToken) encoding30_0.encode(state, m.paymasterToken)
-   },
-   decode (state) {
--    const r0 = c.string.decode(state)
-+    const flags = c.uint.decode(state)
- 
-     return {
--      paymasterToken: r0
-+      paymasterToken: (flags & 1) !== 0 ? encoding30_0.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/abstractedSendTransaction-request.config
--const encoding27_3 = c.frame(encoding26)
-+const encoding31_3 = c.frame(encoding30)
- 
- // @wdk-core/abstractedSendTransaction-request
--const encoding27 = {
-+const encoding31 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
-     c.string.preencode(state, m.options)
-     state.end++ // max flag is 1 so always one byte
- 
--    if (m.config) encoding27_3.preencode(state, m.config)
-+    if (m.config) encoding31_3.preencode(state, m.config)
-   },
-   encode (state, m) {
-     const flags = m.config ? 1 : 0
-@@ -507,7 +577,7 @@ const encoding27 = {
-     c.string.encode(state, m.options)
-     c.uint.encode(state, flags)
- 
--    if (m.config) encoding27_3.encode(state, m.config)
-+    if (m.config) encoding31_3.encode(state, m.config)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-@@ -519,50 +589,91 @@ const encoding27 = {
-       network: r0,
-       accountIndex: r1,
-       options: r2,
--      config: (flags & 1) !== 0 ? encoding27_3.decode(state) : null
-+      config: (flags & 1) !== 0 ? encoding31_3.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/abstractedSendTransaction-response
--const encoding28 = encoding22
-+const encoding32 = encoding26
- 
- // @wdk-core/abstractedAccountQuoteTransfer-request-options
--const encoding29 = encoding20
-+const encoding33 = encoding22
-+
-+// @wdk-core/abstractedAccountQuoteTransfer-request-config-paymasterToken
-+const encoding34 = encoding23
-+
-+// @wdk-core/abstractedAccountQuoteTransfer-request-config.paymasterToken
-+const encoding35_0 = c.frame(encoding34)
-+
-+// @wdk-core/abstractedAccountQuoteTransfer-request-config
-+const encoding35 = {
-+  preencode (state, m) {
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.paymasterToken) encoding35_0.preencode(state, m.paymasterToken)
-+  },
-+  encode (state, m) {
-+    const flags = m.paymasterToken ? 1 : 0
-+
-+    c.uint.encode(state, flags)
-+
-+    if (m.paymasterToken) encoding35_0.encode(state, m.paymasterToken)
-+  },
-+  decode (state) {
-+    const flags = c.uint.decode(state)
-+
-+    return {
-+      paymasterToken: (flags & 1) !== 0 ? encoding35_0.decode(state) : null
-+    }
-+  }
-+}
- 
- // @wdk-core/abstractedAccountQuoteTransfer-request.options
--const encoding30_2 = c.frame(encoding29)
-+const encoding36_2 = c.frame(encoding33)
-+// @wdk-core/abstractedAccountQuoteTransfer-request.config
-+const encoding36_3 = c.frame(encoding35)
- 
- // @wdk-core/abstractedAccountQuoteTransfer-request
--const encoding30 = {
-+const encoding36 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
--    encoding30_2.preencode(state, m.options)
-+    encoding36_2.preencode(state, m.options)
-+    state.end++ // max flag is 1 so always one byte
-+
-+    if (m.config) encoding36_3.preencode(state, m.config)
-   },
-   encode (state, m) {
-+    const flags = m.config ? 1 : 0
-+
-     c.string.encode(state, m.network)
-     c.uint.encode(state, m.accountIndex)
--    encoding30_2.encode(state, m.options)
-+    encoding36_2.encode(state, m.options)
-+    c.uint.encode(state, flags)
-+
-+    if (m.config) encoding36_3.encode(state, m.config)
-   },
-   decode (state) {
-     const r0 = c.string.decode(state)
-     const r1 = c.uint.decode(state)
--    const r2 = encoding30_2.decode(state)
-+    const r2 = encoding36_2.decode(state)
-+    const flags = c.uint.decode(state)
- 
-     return {
-       network: r0,
-       accountIndex: r1,
--      options: r2
-+      options: r2,
-+      config: (flags & 1) !== 0 ? encoding36_3.decode(state) : null
-     }
-   }
- }
- 
- // @wdk-core/abstractedAccountQuoteTransfer-response
--const encoding31 = encoding10
-+const encoding37 = encoding12
- 
- // @wdk-core/getTransactionReceipt-request
--const encoding32 = {
-+const encoding38 = {
-   preencode (state, m) {
-     c.string.preencode(state, m.network)
-     c.uint.preencode(state, m.accountIndex)
-@@ -587,7 +698,7 @@ const encoding32 = {
- }
- 
- // @wdk-core/getTransactionReceipt-response
--const encoding33 = {
++// @wdk-core/arkadeGetBoardingAddress-request
 +const encoding39 = {
-   preencode (state, m) {
-     state.end++ // max flag is 1 so always one byte
- 
-@@ -609,8 +720,97 @@ const encoding33 = {
-   }
- }
- 
-+// @wdk-core/createLightningInvoice-request
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++  },
++  encode (state, m) {
++    c.uint.encode(state, m.accountIndex)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++
++    return {
++      accountIndex: r0
++    }
++  }
++}
++
++// @wdk-core/arkadeGetBoardingAddress-response
 +const encoding40 = {
 +  preencode (state, m) {
-+    c.string.preencode(state, m.network)
-+    c.uint.preencode(state, m.accountIndex)
-+    c.uint.preencode(state, m.amountSats)
 +    state.end++ // max flag is 1 so always one byte
 +
-+    if (m.description) c.string.preencode(state, m.description)
++    if (version >= 2 && m.address) c.string.preencode(state, m.address)
 +  },
 +  encode (state, m) {
-+    const flags = m.description ? 1 : 0
++    const flags = (version >= 2 && m.address) ? 1 : 0
 +
-+    c.string.encode(state, m.network)
-+    c.uint.encode(state, m.accountIndex)
-+    c.uint.encode(state, m.amountSats)
 +    c.uint.encode(state, flags)
 +
-+    if (m.description) c.string.encode(state, m.description)
++    if (version >= 2 && m.address) c.string.encode(state, m.address)
 +  },
 +  decode (state) {
-+    const r0 = c.string.decode(state)
-+    const r1 = c.uint.decode(state)
-+    const r2 = c.uint.decode(state)
 +    const flags = c.uint.decode(state)
 +
 +    return {
-+      network: r0,
-+      accountIndex: r1,
-+      amountSats: r2,
-+      description: (flags & 1) !== 0 ? c.string.decode(state) : null
++      address: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
 +    }
 +  }
 +}
 +
-+// @wdk-core/createLightningInvoice-response
++// @wdk-core/arkadeCreateLightningInvoice-request
 +const encoding41 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++    c.uint.preencode(state, m.amount)
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.description) c.string.preencode(state, m.description)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.description) ? 1 : 0
++
++    c.uint.encode(state, m.accountIndex)
++    c.uint.encode(state, m.amount)
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.description) c.string.encode(state, m.description)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++    const r1 = c.uint.decode(state)
++    const flags = c.uint.decode(state)
++
++    return {
++      accountIndex: r0,
++      amount: r1,
++      description: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeCreateLightningInvoice-response
++const encoding42 = {
 +  preencode (state, m) {
 +    state.end++ // max flag is 2 so always one byte
 +
-+    if (m.invoice) c.string.preencode(state, m.invoice)
-+    if (m.paymentHash) c.string.preencode(state, m.paymentHash)
++    if (version >= 2 && m.invoice) c.string.preencode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.preencode(state, m.paymentHash)
 +  },
 +  encode (state, m) {
 +    const flags =
-+      (m.invoice ? 1 : 0) |
-+      (m.paymentHash ? 2 : 0)
++      ((version >= 2 && m.invoice) ? 1 : 0) |
++      ((version >= 2 && m.paymentHash) ? 2 : 0)
 +
 +    c.uint.encode(state, flags)
 +
-+    if (m.invoice) c.string.encode(state, m.invoice)
-+    if (m.paymentHash) c.string.encode(state, m.paymentHash)
++    if (version >= 2 && m.invoice) c.string.encode(state, m.invoice)
++    if (version >= 2 && m.paymentHash) c.string.encode(state, m.paymentHash)
 +  },
 +  decode (state) {
 +    const flags = c.uint.decode(state)
 +
 +    return {
-+      invoice: (flags & 1) !== 0 ? c.string.decode(state) : null,
-+      paymentHash: (flags & 2) !== 0 ? c.string.decode(state) : null
++      invoice: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null,
++      paymentHash: (version >= 2 && (flags & 2) !== 0) ? c.string.decode(state) : null
 +    }
 +  }
 +}
 +
-+// @wdk-core/getTransactionHistory-request
-+const encoding42 = encoding4
++// @wdk-core/arkadeGetPendingLightningReceives-request
++const encoding43 = encoding39
 +
-+// @wdk-core/getTransactionHistory-response
-+const encoding43 = {
++// @wdk-core/arkadeGetPendingLightningReceives-response
++const encoding44 = {
 +  preencode (state, m) {
 +    state.end++ // max flag is 1 so always one byte
 +
-+    if (m.transactions) c.string.preencode(state, m.transactions)
++    if (version >= 2 && m.swaps) c.string.preencode(state, m.swaps)
 +  },
 +  encode (state, m) {
-+    const flags = m.transactions ? 1 : 0
++    const flags = (version >= 2 && m.swaps) ? 1 : 0
 +
 +    c.uint.encode(state, flags)
 +
-+    if (m.transactions) c.string.encode(state, m.transactions)
++    if (version >= 2 && m.swaps) c.string.encode(state, m.swaps)
 +  },
 +  decode (state) {
 +    const flags = c.uint.decode(state)
 +
 +    return {
-+      transactions: (flags & 1) !== 0 ? c.string.decode(state) : null
++      swaps: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
 +    }
 +  }
 +}
 +
- // @wdk-core/dispose-request
--const encoding34 = {
-+const encoding44 = {
-   preencode (state, m) {
- 
-   },
-@@ -652,35 +852,45 @@ function getEncoding (name) {
-     case '@wdk-core/workletStart-response': return encoding3
-     case '@wdk-core/getAddress-request': return encoding4
-     case '@wdk-core/getAddress-response': return encoding5
--    case '@wdk-core/getAddressBalance-request': return encoding6
--    case '@wdk-core/getAddressBalance-response': return encoding7
--    case '@wdk-core/quoteSendTransaction-request-options': return encoding8
--    case '@wdk-core/quoteSendTransaction-request': return encoding9
--    case '@wdk-core/quoteSendTransaction-response': return encoding10
--    case '@wdk-core/sendTransaction-request-options': return encoding11
--    case '@wdk-core/sendTransaction-request': return encoding12
--    case '@wdk-core/sendTransaction-response': return encoding13
--    case '@wdk-core/getAbstractedAddress-request': return encoding14
--    case '@wdk-core/getAbstractedAddress-response': return encoding15
--    case '@wdk-core/getAbstractedAddressBalance-request': return encoding16
--    case '@wdk-core/getAbstractedAddressBalance-response': return encoding17
--    case '@wdk-core/getAbstractedAddressTokenBalance-request': return encoding18
--    case '@wdk-core/getAbstractedAddressTokenBalance-response': return encoding19
--    case '@wdk-core/abstractedAccountTransfer-request-options': return encoding20
--    case '@wdk-core/abstractedAccountTransfer-request': return encoding21
--    case '@wdk-core/abstractedAccountTransfer-response': return encoding22
--    case '@wdk-core/getApproveTransaction-request': return encoding23
--    case '@wdk-core/getApproveTransaction-response': return encoding24
--    case '@wdk-core/abstractedSendTransaction-request-options': return encoding25
--    case '@wdk-core/abstractedSendTransaction-request-config': return encoding26
--    case '@wdk-core/abstractedSendTransaction-request': return encoding27
--    case '@wdk-core/abstractedSendTransaction-response': return encoding28
--    case '@wdk-core/abstractedAccountQuoteTransfer-request-options': return encoding29
--    case '@wdk-core/abstractedAccountQuoteTransfer-request': return encoding30
--    case '@wdk-core/abstractedAccountQuoteTransfer-response': return encoding31
--    case '@wdk-core/getTransactionReceipt-request': return encoding32
--    case '@wdk-core/getTransactionReceipt-response': return encoding33
--    case '@wdk-core/dispose-request': return encoding34
-+    case '@wdk-core/getBoardingAddress-request': return encoding6
-+    case '@wdk-core/getBoardingAddress-response': return encoding7
-+    case '@wdk-core/getAddressBalance-request': return encoding8
-+    case '@wdk-core/getAddressBalance-response': return encoding9
-+    case '@wdk-core/quoteSendTransaction-request-options': return encoding10
-+    case '@wdk-core/quoteSendTransaction-request': return encoding11
-+    case '@wdk-core/quoteSendTransaction-response': return encoding12
-+    case '@wdk-core/sendTransaction-request-options': return encoding13
-+    case '@wdk-core/sendTransaction-request': return encoding14
-+    case '@wdk-core/sendTransaction-response': return encoding15
-+    case '@wdk-core/getAbstractedAddress-request': return encoding16
-+    case '@wdk-core/getAbstractedAddress-response': return encoding17
-+    case '@wdk-core/getAbstractedAddressBalance-request': return encoding18
-+    case '@wdk-core/getAbstractedAddressBalance-response': return encoding19
-+    case '@wdk-core/getAbstractedAddressTokenBalance-request': return encoding20
-+    case '@wdk-core/getAbstractedAddressTokenBalance-response': return encoding21
-+    case '@wdk-core/abstractedAccountTransfer-request-options': return encoding22
-+    case '@wdk-core/abstractedAccountTransfer-request-config-paymasterToken': return encoding23
-+    case '@wdk-core/abstractedAccountTransfer-request-config': return encoding24
-+    case '@wdk-core/abstractedAccountTransfer-request': return encoding25
-+    case '@wdk-core/abstractedAccountTransfer-response': return encoding26
-+    case '@wdk-core/getApproveTransaction-request': return encoding27
-+    case '@wdk-core/getApproveTransaction-response': return encoding28
-+    case '@wdk-core/abstractedSendTransaction-request-config-paymasterToken': return encoding29
-+    case '@wdk-core/abstractedSendTransaction-request-config': return encoding30
-+    case '@wdk-core/abstractedSendTransaction-request': return encoding31
-+    case '@wdk-core/abstractedSendTransaction-response': return encoding32
-+    case '@wdk-core/abstractedAccountQuoteTransfer-request-options': return encoding33
-+    case '@wdk-core/abstractedAccountQuoteTransfer-request-config-paymasterToken': return encoding34
-+    case '@wdk-core/abstractedAccountQuoteTransfer-request-config': return encoding35
-+    case '@wdk-core/abstractedAccountQuoteTransfer-request': return encoding36
-+    case '@wdk-core/abstractedAccountQuoteTransfer-response': return encoding37
-+    case '@wdk-core/getTransactionReceipt-request': return encoding38
-+    case '@wdk-core/getTransactionReceipt-response': return encoding39
-+    case '@wdk-core/createLightningInvoice-request': return encoding40
-+    case '@wdk-core/createLightningInvoice-response': return encoding41
-+    case '@wdk-core/getTransactionHistory-request': return encoding42
-+    case '@wdk-core/getTransactionHistory-response': return encoding43
-+    case '@wdk-core/dispose-request': return encoding44
++// @wdk-core/arkadeGetPendingLightningSends-request
++const encoding45 = encoding39
++
++// @wdk-core/arkadeGetPendingLightningSends-response
++const encoding46 = encoding44
++
++// @wdk-core/arkadeGetSwapHistory-request
++const encoding47 = encoding39
++
++// @wdk-core/arkadeGetSwapHistory-response
++const encoding48 = encoding44
++
++// @wdk-core/arkadeGetLightningLimits-request
++const encoding49 = encoding39
++
++// @wdk-core/arkadeGetLightningLimits-response
++const encoding50 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.limits) c.string.preencode(state, m.limits)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.limits) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.limits) c.string.encode(state, m.limits)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      limits: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetLightningFees-request
++const encoding51 = encoding39
++
++// @wdk-core/arkadeGetLightningFees-response
++const encoding52 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.fees) c.string.preencode(state, m.fees)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.fees) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.fees) c.string.encode(state, m.fees)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      fees: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeGetTransactionHistory-request
++const encoding53 = encoding39
++
++// @wdk-core/arkadeGetTransactionHistory-response
++const encoding54 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.transactions) c.string.preencode(state, m.transactions)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.transactions) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.transactions) c.string.encode(state, m.transactions)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      transactions: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
++// @wdk-core/arkadeWaitForLightningPayment-request
++const encoding55 = {
++  preencode (state, m) {
++    c.uint.preencode(state, m.accountIndex)
++    c.string.preencode(state, m.invoice)
++  },
++  encode (state, m) {
++    c.uint.encode(state, m.accountIndex)
++    c.string.encode(state, m.invoice)
++  },
++  decode (state) {
++    const r0 = c.uint.decode(state)
++    const r1 = c.string.decode(state)
++
++    return {
++      accountIndex: r0,
++      invoice: r1
++    }
++  }
++}
++
++// @wdk-core/arkadeWaitForLightningPayment-response
++const encoding56 = {
++  preencode (state, m) {
++    state.end++ // max flag is 1 so always one byte
++
++    if (version >= 2 && m.txid) c.string.preencode(state, m.txid)
++  },
++  encode (state, m) {
++    const flags = (version >= 2 && m.txid) ? 1 : 0
++
++    c.uint.encode(state, flags)
++
++    if (version >= 2 && m.txid) c.string.encode(state, m.txid)
++  },
++  decode (state) {
++    const flags = c.uint.decode(state)
++
++    return {
++      txid: (version >= 2 && (flags & 1) !== 0) ? c.string.decode(state) : null
++    }
++  }
++}
++
+ function setVersion (v) {
+   version = v
+ }
+@@ -790,6 +1049,24 @@ function getEncoding (name) {
+     case '@wdk-core/getTransactionReceipt-request': return encoding36
+     case '@wdk-core/getTransactionReceipt-response': return encoding37
+     case '@wdk-core/dispose-request': return encoding38
++    case '@wdk-core/arkadeGetBoardingAddress-request': return encoding39
++    case '@wdk-core/arkadeGetBoardingAddress-response': return encoding40
++    case '@wdk-core/arkadeCreateLightningInvoice-request': return encoding41
++    case '@wdk-core/arkadeCreateLightningInvoice-response': return encoding42
++    case '@wdk-core/arkadeGetPendingLightningReceives-request': return encoding43
++    case '@wdk-core/arkadeGetPendingLightningReceives-response': return encoding44
++    case '@wdk-core/arkadeGetPendingLightningSends-request': return encoding45
++    case '@wdk-core/arkadeGetPendingLightningSends-response': return encoding46
++    case '@wdk-core/arkadeGetSwapHistory-request': return encoding47
++    case '@wdk-core/arkadeGetSwapHistory-response': return encoding48
++    case '@wdk-core/arkadeGetLightningLimits-request': return encoding49
++    case '@wdk-core/arkadeGetLightningLimits-response': return encoding50
++    case '@wdk-core/arkadeGetLightningFees-request': return encoding51
++    case '@wdk-core/arkadeGetLightningFees-response': return encoding52
++    case '@wdk-core/arkadeGetTransactionHistory-request': return encoding53
++    case '@wdk-core/arkadeGetTransactionHistory-response': return encoding54
++    case '@wdk-core/arkadeWaitForLightningPayment-request': return encoding55
++    case '@wdk-core/arkadeWaitForLightningPayment-response': return encoding56
      default: throw new Error('Encoder not found ' + name)
    }
  }
 diff --git a/spec/schema/schema.json b/spec/schema/schema.json
-index b0163ee..1e1bbe8 100644
+index 340edf0..69009b3 100644
 --- a/spec/schema/schema.json
 +++ b/spec/schema/schema.json
-@@ -59,7 +59,7 @@
-         {
-           "name": "seedBuffer",
-           "required": false,
--          "type": "string",
-+          "type": "buffer",
-           "version": 1
-         },
-         {
-@@ -116,6 +116,39 @@
-         }
-       ]
-     },
+@@ -1,5 +1,5 @@
+ {
+-  "version": 1,
++  "version": 2,
+   "schema": [
+     {
+       "name": "log-type-enum",
+@@ -755,6 +755,272 @@
+       "compact": false,
+       "flagsPosition": -1,
+       "fields": []
++    },
 +    {
-+      "name": "getBoardingAddress-request",
++      "name": "arkadeGetBoardingAddress-request",
 +      "namespace": "wdk-core",
 +      "compact": false,
 +      "flagsPosition": -1,
 +      "fields": [
 +        {
-+          "name": "network",
++          "name": "accountIndex",
 +          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetBoardingAddress-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "address",
 +          "type": "string",
-+          "version": 1
-+        },
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeCreateLightningInvoice-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 2,
++      "fields": [
 +        {
 +          "name": "accountIndex",
 +          "required": true,
 +          "type": "uint",
-+          "version": 1
-+        }
-+      ]
-+    },
-+    {
-+      "name": "getBoardingAddress-response",
-+      "namespace": "wdk-core",
-+      "compact": false,
-+      "flagsPosition": 0,
-+      "fields": [
-+        {
-+          "name": "address",
-+          "type": "string",
-+          "version": 1
-+        }
-+      ]
-+    },
-     {
-       "name": "getAddressBalance-request",
-       "namespace": "wdk-core",
-@@ -164,7 +197,7 @@
-         {
-           "name": "value",
-           "required": true,
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-@@ -203,7 +236,7 @@
-       "fields": [
-         {
-           "name": "fee",
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-@@ -223,7 +256,7 @@
-         {
-           "name": "value",
-           "required": true,
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-@@ -262,7 +295,7 @@
-       "fields": [
-         {
-           "name": "fee",
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         },
-         {
-@@ -398,16 +431,44 @@
-         {
-           "name": "amount",
-           "required": true,
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-     },
-     {
--      "name": "abstractedAccountTransfer-request",
-+      "name": "abstractedAccountTransfer-request-config-paymasterToken",
-       "namespace": "wdk-core",
-       "compact": false,
-       "flagsPosition": -1,
-+      "fields": [
-+        {
-+          "name": "address",
-+          "required": true,
-+          "type": "string",
-+          "version": 1
-+        }
-+      ]
-+    },
-+    {
-+      "name": "abstractedAccountTransfer-request-config",
-+      "namespace": "wdk-core",
-+      "compact": false,
-+      "flagsPosition": 0,
-+      "fields": [
-+        {
-+          "name": "paymasterToken",
-+          "required": false,
-+          "type": "@wdk-core/abstractedAccountTransfer-request-config-paymasterToken",
-+          "version": 1
-+        }
-+      ]
-+    },
-+    {
-+      "name": "abstractedAccountTransfer-request",
-+      "namespace": "wdk-core",
-+      "compact": false,
-+      "flagsPosition": 3,
-       "fields": [
-         {
-           "name": "network",
-@@ -426,6 +487,12 @@
-           "required": true,
-           "type": "@wdk-core/abstractedAccountTransfer-request-options",
-           "version": 1
++          "version": 2
 +        },
 +        {
-+          "name": "config",
-+          "required": false,
-+          "type": "@wdk-core/abstractedAccountTransfer-request-config",
-+          "version": 1
-         }
-       ]
-     },
-@@ -442,7 +509,7 @@
-         },
-         {
-           "name": "fee",
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-@@ -468,7 +535,7 @@
-         {
-           "name": "amount",
-           "required": true,
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-@@ -488,7 +555,7 @@
-         {
-           "name": "value",
-           "required": true,
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         },
-         {
-@@ -500,25 +567,13 @@
-       ]
-     },
-     {
--      "name": "abstractedSendTransaction-request-options",
-+      "name": "abstractedSendTransaction-request-config-paymasterToken",
-       "namespace": "wdk-core",
-       "compact": false,
-       "flagsPosition": -1,
-       "fields": [
-         {
--          "name": "to",
--          "required": true,
--          "type": "string",
--          "version": 1
--        },
--        {
--          "name": "value",
--          "required": true,
--          "type": "uint",
--          "version": 1
--        },
--        {
--          "name": "data",
-+          "name": "address",
-           "required": true,
-           "type": "string",
-           "version": 1
-@@ -529,12 +584,12 @@
-       "name": "abstractedSendTransaction-request-config",
-       "namespace": "wdk-core",
-       "compact": false,
--      "flagsPosition": -1,
-+      "flagsPosition": 0,
-       "fields": [
-         {
-           "name": "paymasterToken",
--          "required": true,
--          "type": "string",
-+          "required": false,
-+          "type": "@wdk-core/abstractedSendTransaction-request-config-paymasterToken",
-           "version": 1
-         }
-       ]
-@@ -584,7 +639,7 @@
-         },
-         {
-           "name": "fee",
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-@@ -610,16 +665,44 @@
-         {
-           "name": "amount",
-           "required": true,
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-     },
-     {
--      "name": "abstractedAccountQuoteTransfer-request",
-+      "name": "abstractedAccountQuoteTransfer-request-config-paymasterToken",
-       "namespace": "wdk-core",
-       "compact": false,
-       "flagsPosition": -1,
-+      "fields": [
-+        {
-+          "name": "address",
-+          "required": true,
-+          "type": "string",
-+          "version": 1
-+        }
-+      ]
-+    },
-+    {
-+      "name": "abstractedAccountQuoteTransfer-request-config",
-+      "namespace": "wdk-core",
-+      "compact": false,
-+      "flagsPosition": 0,
-+      "fields": [
-+        {
-+          "name": "paymasterToken",
-+          "required": false,
-+          "type": "@wdk-core/abstractedAccountQuoteTransfer-request-config-paymasterToken",
-+          "version": 1
-+        }
-+      ]
-+    },
-+    {
-+      "name": "abstractedAccountQuoteTransfer-request",
-+      "namespace": "wdk-core",
-+      "compact": false,
-+      "flagsPosition": 3,
-       "fields": [
-         {
-           "name": "network",
-@@ -638,6 +721,12 @@
-           "required": true,
-           "type": "@wdk-core/abstractedAccountQuoteTransfer-request-options",
-           "version": 1
-+        },
-+        {
-+          "name": "config",
-+          "required": false,
-+          "type": "@wdk-core/abstractedAccountQuoteTransfer-request-config",
-+          "version": 1
-         }
-       ]
-     },
-@@ -649,7 +738,7 @@
-       "fields": [
-         {
-           "name": "fee",
--          "type": "uint",
-+          "type": "string",
-           "version": 1
-         }
-       ]
-@@ -693,6 +782,89 @@
-         }
-       ]
-     },
-+    {
-+      "name": "createLightningInvoice-request",
-+      "namespace": "wdk-core",
-+      "compact": false,
-+      "flagsPosition": 3,
-+      "fields": [
-+        {
-+          "name": "network",
-+          "required": true,
-+          "type": "string",
-+          "version": 1
-+        },
-+        {
-+          "name": "accountIndex",
++          "name": "amount",
 +          "required": true,
 +          "type": "uint",
-+          "version": 1
-+        },
-+        {
-+          "name": "amountSats",
-+          "required": true,
-+          "type": "uint",
-+          "version": 1
++          "version": 2
 +        },
 +        {
 +          "name": "description",
 +          "required": false,
 +          "type": "string",
-+          "version": 1
++          "version": 2
 +        }
 +      ]
 +    },
 +    {
-+      "name": "createLightningInvoice-response",
++      "name": "arkadeCreateLightningInvoice-response",
 +      "namespace": "wdk-core",
 +      "compact": false,
 +      "flagsPosition": 0,
@@ -2928,37 +1711,166 @@ index b0163ee..1e1bbe8 100644
 +        {
 +          "name": "invoice",
 +          "type": "string",
-+          "version": 1
++          "version": 2
 +        },
 +        {
 +          "name": "paymentHash",
 +          "type": "string",
-+          "version": 1
++          "version": 2
 +        }
 +      ]
 +    },
 +    {
-+      "name": "getTransactionHistory-request",
++      "name": "arkadeGetPendingLightningReceives-request",
 +      "namespace": "wdk-core",
 +      "compact": false,
 +      "flagsPosition": -1,
 +      "fields": [
 +        {
-+          "name": "network",
-+          "required": true,
-+          "type": "string",
-+          "version": 1
-+        },
-+        {
 +          "name": "accountIndex",
 +          "required": true,
 +          "type": "uint",
-+          "version": 1
++          "version": 2
 +        }
 +      ]
 +    },
 +    {
-+      "name": "getTransactionHistory-response",
++      "name": "arkadeGetPendingLightningReceives-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "swaps",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetPendingLightningSends-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetPendingLightningSends-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "swaps",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetSwapHistory-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetSwapHistory-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "swaps",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetLightningLimits-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetLightningLimits-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "limits",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetLightningFees-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetLightningFees-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "fees",
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetTransactionHistory-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeGetTransactionHistory-response",
 +      "namespace": "wdk-core",
 +      "compact": false,
 +      "flagsPosition": 0,
@@ -2966,354 +1878,286 @@ index b0163ee..1e1bbe8 100644
 +        {
 +          "name": "transactions",
 +          "type": "string",
-+          "version": 1
++          "version": 2
 +        }
 +      ]
 +    },
-     {
-       "name": "dispose-request",
-       "namespace": "wdk-core",
++    {
++      "name": "arkadeWaitForLightningPayment-request",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": -1,
++      "fields": [
++        {
++          "name": "accountIndex",
++          "required": true,
++          "type": "uint",
++          "version": 2
++        },
++        {
++          "name": "invoice",
++          "required": true,
++          "type": "string",
++          "version": 2
++        }
++      ]
++    },
++    {
++      "name": "arkadeWaitForLightningPayment-response",
++      "namespace": "wdk-core",
++      "compact": false,
++      "flagsPosition": 0,
++      "fields": [
++        {
++          "name": "txid",
++          "type": "string",
++          "version": 2
++        }
++      ]
+     }
+   ]
+-}
++}
+\ No newline at end of file
 diff --git a/src/schema/schema.js b/src/schema/schema.js
-index db21fe4..32dbb27 100644
+index 066f296..f61172f 100644
 --- a/src/schema/schema.js
 +++ b/src/schema/schema.js
-@@ -29,7 +29,7 @@ schemaNs.register({
-   fields: [
-     { name: 'enableDebugLogs', type: 'uint', required: false },
-     { name: 'seedPhrase', type: 'string', required: false },
--    { name: 'seedBuffer', type: 'string', required: false },
-+    { name: 'seedBuffer', type: 'buffer', required: false },
-     { name: 'config', type: 'string', required: true }
-   ]
- })
-@@ -59,6 +59,24 @@ schemaNs.register({
-   ]
+@@ -346,6 +346,148 @@ schemaNs.register({
+   fields: []
  })
  
 +/**
-+ * Get boarding (on-chain deposit) address based on network
++ * ============================================================================
++ * Arkade-specific routes
++ *
++ * These cover the parts of WalletAccountArkade that don't fit the generic
++ * getAddress / sendTransaction surface (boarding addresses, Lightning swaps,
++ * pending swap state). Each request carries an accountIndex; complex
++ * responses are encoded as JSON strings the same way abstractedSendTransaction
++ * does, so we don't have to mirror upstream PendingSwap shapes here.
++ * ============================================================================
 + */
++
++// arkadeGetBoardingAddress
 +schemaNs.register({
-+  name: 'getBoardingAddress-request',
++  name: 'arkadeGetBoardingAddress-request',
 +  fields: [
-+    { name: 'network', type: 'string', required: true },
 +    { name: 'accountIndex', type: 'uint', required: true }
 +  ]
 +})
-+
 +schemaNs.register({
-+  name: 'getBoardingAddress-response',
++  name: 'arkadeGetBoardingAddress-response',
 +  fields: [
 +    { name: 'address', type: 'string' }
 +  ]
 +})
 +
- /**
-  * Get address balance based on network
-  */
-@@ -84,7 +102,7 @@ schemaNs.register({
-   name: 'quoteSendTransaction-request-options',
-   fields: [
-     { name: 'to', type: 'string', required: true },
--    { name: 'value', type: 'uint', required: true }
-+    { name: 'value', type: 'string', required: true }
-   ]
- })
- schemaNs.register({
-@@ -99,7 +117,7 @@ schemaNs.register({
- schemaNs.register({
-   name: 'quoteSendTransaction-response',
-   fields: [
--    { name: 'fee', type: 'uint' }
-+    { name: 'fee', type: 'string' }
-   ]
- })
- 
-@@ -110,7 +128,7 @@ schemaNs.register({
-   name: 'sendTransaction-request-options',
-   fields: [
-     { name: 'to', type: 'string', required: true },
--    { name: 'value', type: 'uint', required: true }
-+    { name: 'value', type: 'string', required: true }
-   ]
- })
- schemaNs.register({
-@@ -125,7 +143,7 @@ schemaNs.register({
- schemaNs.register({
-   name: 'sendTransaction-response',
-   fields: [
--    { name: 'fee', type: 'uint' },
-+    { name: 'fee', type: 'string' },
-     { name: 'hash', type: 'string' }
-   ]
- })
-@@ -198,7 +216,19 @@ schemaNs.register({
-   fields: [
-     { name: 'token', type: 'string', required: true },
-     { name: 'recipient', type: 'string', required: true },
--    { name: 'amount', type: 'uint', required: true }
-+    { name: 'amount', type: 'string', required: true }
-+  ]
-+})
++// arkadeCreateLightningInvoice
 +schemaNs.register({
-+  name: 'abstractedAccountTransfer-request-config-paymasterToken',
++  name: 'arkadeCreateLightningInvoice-request',
 +  fields: [
-+    { name: 'address', type: 'string', required: true }
-+  ]
-+})
-+schemaNs.register({
-+  name: 'abstractedAccountTransfer-request-config',
-+  fields: [
-+    { name: 'paymasterToken', type: '@wdk-core/abstractedAccountTransfer-request-config-paymasterToken', required: false }
-   ]
- })
- schemaNs.register({
-@@ -206,7 +236,8 @@ schemaNs.register({
-   fields: [
-     { name: 'network', type: 'string', required: true },
-     { name: 'accountIndex', type: 'uint', required: true },
--    { name: 'options', type: '@wdk-core/abstractedAccountTransfer-request-options', required: true }
-+    { name: 'options', type: '@wdk-core/abstractedAccountTransfer-request-options', required: true },
-+    { name: 'config', type: '@wdk-core/abstractedAccountTransfer-request-config', required: false }
-   ]
- })
- 
-@@ -214,7 +245,7 @@ schemaNs.register({
-   name: 'abstractedAccountTransfer-response',
-   fields: [
-     { name: 'hash', type: 'string' },
--    { name: 'fee', type: 'uint' }
-+    { name: 'fee', type: 'string' }
-   ]
- })
- 
-@@ -226,7 +257,7 @@ schemaNs.register({
-   fields: [
-     { name: 'token', type: 'string', required: true },
-     { name: 'recipient', type: 'string', required: true },
--    { name: 'amount', type: 'uint', required: true }
-+    { name: 'amount', type: 'string', required: true }
-   ]
- })
- 
-@@ -234,7 +265,7 @@ schemaNs.register({
-   name: 'getApproveTransaction-response',
-   fields: [
-     { name: 'to', type: 'string', required: true },
--    { name: 'value', type: 'uint', required: true },
-+    { name: 'value', type: 'string', required: true },
-     { name: 'data', type: 'string', required: true }
-   ]
- })
-@@ -243,17 +274,15 @@ schemaNs.register({
-  * abstractedSendTransaction
-  */
- schemaNs.register({
--  name: 'abstractedSendTransaction-request-options',
-+  name: 'abstractedSendTransaction-request-config-paymasterToken',
-   fields: [
--    { name: 'to', type: 'string', required: true },
--    { name: 'value', type: 'uint', required: true },
--    { name: 'data', type: 'string', required: true }
-+    { name: 'address', type: 'string', required: true }
-   ]
- })
- schemaNs.register({
-   name: 'abstractedSendTransaction-request-config',
-   fields: [
--    { name: 'paymasterToken', type: 'string', required: true }
-+    { name: 'paymasterToken', type: '@wdk-core/abstractedSendTransaction-request-config-paymasterToken', required: false }
-   ]
- })
- schemaNs.register({
-@@ -270,7 +299,7 @@ schemaNs.register({
-   name: 'abstractedSendTransaction-response',
-   fields: [
-     { name: 'hash', type: 'string' },
--    { name: 'fee', type: 'uint' }
-+    { name: 'fee', type: 'string' }
-   ]
- })
- 
-@@ -282,7 +311,19 @@ schemaNs.register({
-   fields: [
-     { name: 'token', type: 'string', required: true },
-     { name: 'recipient', type: 'string', required: true },
--    { name: 'amount', type: 'uint', required: true }
-+    { name: 'amount', type: 'string', required: true }
-+  ]
-+})
-+schemaNs.register({
-+  name: 'abstractedAccountQuoteTransfer-request-config-paymasterToken',
-+  fields: [
-+    { name: 'address', type: 'string', required: true }
-+  ]
-+})
-+schemaNs.register({
-+  name: 'abstractedAccountQuoteTransfer-request-config',
-+  fields: [
-+    { name: 'paymasterToken', type: '@wdk-core/abstractedAccountQuoteTransfer-request-config-paymasterToken', required: false }
-   ]
- })
- schemaNs.register({
-@@ -290,14 +331,15 @@ schemaNs.register({
-   fields: [
-     { name: 'network', type: 'string', required: true },
-     { name: 'accountIndex', type: 'uint', required: true },
--    { name: 'options', type: '@wdk-core/abstractedAccountQuoteTransfer-request-options', required: true }
-+    { name: 'options', type: '@wdk-core/abstractedAccountQuoteTransfer-request-options', required: true },
-+    { name: 'config', type: '@wdk-core/abstractedAccountQuoteTransfer-request-config', required: false }
-   ]
- })
- 
- schemaNs.register({
-   name: 'abstractedAccountQuoteTransfer-response',
-   fields: [
--    { name: 'fee', type: 'uint' }
-+    { name: 'fee', type: 'string' }
-   ]
- })
- 
-@@ -317,6 +359,39 @@ schemaNs.register({
-   ]
- })
- 
-+schemaNs.register({
-+  name: 'createLightningInvoice-request',
-+  fields: [
-+    { name: 'network', type: 'string', required: true },
 +    { name: 'accountIndex', type: 'uint', required: true },
-+    { name: 'amountSats', type: 'uint', required: true },
++    { name: 'amount', type: 'uint', required: true },
 +    { name: 'description', type: 'string', required: false }
 +  ]
 +})
-+
 +schemaNs.register({
-+  name: 'createLightningInvoice-response',
++  name: 'arkadeCreateLightningInvoice-response',
 +  fields: [
 +    { name: 'invoice', type: 'string' },
 +    { name: 'paymentHash', type: 'string' }
 +  ]
 +})
 +
++// arkadeGetPendingLightningReceives
 +schemaNs.register({
-+  name: 'getTransactionHistory-request',
++  name: 'arkadeGetPendingLightningReceives-request',
 +  fields: [
-+    { name: 'network', type: 'string', required: true },
 +    { name: 'accountIndex', type: 'uint', required: true }
 +  ]
 +})
-+
 +schemaNs.register({
-+  name: 'getTransactionHistory-response',
++  name: 'arkadeGetPendingLightningReceives-response',
++  fields: [
++    { name: 'swaps', type: 'string' }
++  ]
++})
++
++// arkadeGetPendingLightningSends
++schemaNs.register({
++  name: 'arkadeGetPendingLightningSends-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetPendingLightningSends-response',
++  fields: [
++    { name: 'swaps', type: 'string' }
++  ]
++})
++
++// arkadeGetSwapHistory
++schemaNs.register({
++  name: 'arkadeGetSwapHistory-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetSwapHistory-response',
++  fields: [
++    { name: 'swaps', type: 'string' }
++  ]
++})
++
++// arkadeGetLightningLimits
++schemaNs.register({
++  name: 'arkadeGetLightningLimits-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetLightningLimits-response',
++  fields: [
++    { name: 'limits', type: 'string' }
++  ]
++})
++
++// arkadeGetLightningFees
++schemaNs.register({
++  name: 'arkadeGetLightningFees-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetLightningFees-response',
++  fields: [
++    { name: 'fees', type: 'string' }
++  ]
++})
++
++// arkadeGetTransactionHistory
++schemaNs.register({
++  name: 'arkadeGetTransactionHistory-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeGetTransactionHistory-response',
 +  fields: [
 +    { name: 'transactions', type: 'string' }
 +  ]
 +})
 +
- schemaNs.register({
-   name: 'dispose-request',
-   fields: []
-@@ -346,6 +421,12 @@ ns.register({
-   response: { name: '@wdk-core/getAddress-response', stream: false }
- })
- 
-+ns.register({
-+  name: 'getBoardingAddress',
-+  request: { name: '@wdk-core/getBoardingAddress-request', stream: false },
-+  response: { name: '@wdk-core/getBoardingAddress-response', stream: false }
++// arkadeWaitForLightningPayment
++schemaNs.register({
++  name: 'arkadeWaitForLightningPayment-request',
++  fields: [
++    { name: 'accountIndex', type: 'uint', required: true },
++    { name: 'invoice', type: 'string', required: true }
++  ]
++})
++schemaNs.register({
++  name: 'arkadeWaitForLightningPayment-response',
++  fields: [
++    { name: 'txid', type: 'string' }
++  ]
 +})
 +
- ns.register({
-   name: 'getAddressBalance',
-   request: { name: '@wdk-core/getAddressBalance-request', stream: false },
-@@ -406,6 +487,16 @@ ns.register({
-   request: { name: '@wdk-core/getTransactionReceipt-request', stream: false },
-   response: { name: '@wdk-core/getTransactionReceipt-response', stream: false }
- })
-+ns.register({
-+  name: 'createLightningInvoice',
-+  request: { name: '@wdk-core/createLightningInvoice-request', stream: false },
-+  response: { name: '@wdk-core/createLightningInvoice-response', stream: false }
-+})
-+ns.register({
-+  name: 'getTransactionHistory',
-+  request: { name: '@wdk-core/getTransactionHistory-request', stream: false },
-+  response: { name: '@wdk-core/getTransactionHistory-response', stream: false }
-+})
- ns.register({
+ Hyperschema.toDisk(schema)
+ 
+ // Load and build interface
+@@ -434,5 +576,55 @@ ns.register({
    name: 'dispose',
    request: { name: '@wdk-core/dispose-request', send: true }
-diff --git a/src/wdk-core/wdk-manager.d.ts b/src/wdk-core/wdk-manager.d.ts
-index b3f522d..0e4fba3 100644
---- a/src/wdk-core/wdk-manager.d.ts
-+++ b/src/wdk-core/wdk-manager.d.ts
-@@ -11,6 +11,7 @@ export type TonGaslessWalletConfig = import("@wdk/wallet-ton-gasless").TonGasles
- export type TronWalletConfig = import("@wdk/wallet-tron").TronWalletConfig;
- export type TronGasfreeWalletConfig = import("@wdk/wallet-tron-gasfree").TronGasfreeWalletConfig;
- export type BtcWalletConfig = import("@wdk/wallet-btc").BtcWalletConfig;
-+export type ArkadeWalletConfig = import("@arkade-os/wdk").ArkadeWalletConfig;
- export type SolanaWalletConfig = import("@wdk/wallet-solana").SolanaWalletConfig;
- export type Seed = string | Uint8Array;
- export type Seeds = {
-@@ -38,6 +39,10 @@ export type Seeds = {
-      * - The bitcoin's wallet seed phrase.
-      */
-     bitcoin: Seed;
-+    /**
-+     * - The arkade's wallet seed phrase.
-+     */
-+    arkade: Seed;
-     /**
-      * - The solana's wallet seed phrase.
-      */
-@@ -68,6 +73,10 @@ export type WdkConfig = {
-      * - The bitcoin blockchain configuration.
-      */
-     bitcoin: BtcWalletConfig;
-+    /**
-+     * - The arkade blockchain configuration.
-+     */
-+    arkade: ArkadeWalletConfig;
-     /**
-      * - The solana blockchain configuration.
-      */
-@@ -298,5 +307,6 @@ export namespace Blockchain {
-     let Ton: string;
-     let Tron: string;
-     let Bitcoin: string;
-+    let Arkade: string;
-     let Solana: string;
- }
+ })
++
++// ============================================================================
++// Arkade-specific routes
++// ============================================================================
++ns.register({
++  name: 'arkadeGetBoardingAddress',
++  request: { name: '@wdk-core/arkadeGetBoardingAddress-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetBoardingAddress-response', stream: false }
++})
++ns.register({
++  name: 'arkadeCreateLightningInvoice',
++  request: { name: '@wdk-core/arkadeCreateLightningInvoice-request', stream: false },
++  response: { name: '@wdk-core/arkadeCreateLightningInvoice-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetPendingLightningReceives',
++  request: { name: '@wdk-core/arkadeGetPendingLightningReceives-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetPendingLightningReceives-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetPendingLightningSends',
++  request: { name: '@wdk-core/arkadeGetPendingLightningSends-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetPendingLightningSends-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetSwapHistory',
++  request: { name: '@wdk-core/arkadeGetSwapHistory-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetSwapHistory-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetLightningLimits',
++  request: { name: '@wdk-core/arkadeGetLightningLimits-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetLightningLimits-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetLightningFees',
++  request: { name: '@wdk-core/arkadeGetLightningFees-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetLightningFees-response', stream: false }
++})
++ns.register({
++  name: 'arkadeGetTransactionHistory',
++  request: { name: '@wdk-core/arkadeGetTransactionHistory-request', stream: false },
++  response: { name: '@wdk-core/arkadeGetTransactionHistory-response', stream: false }
++})
++ns.register({
++  name: 'arkadeWaitForLightningPayment',
++  request: { name: '@wdk-core/arkadeWaitForLightningPayment-request', stream: false },
++  response: { name: '@wdk-core/arkadeWaitForLightningPayment-response', stream: false }
++})
++
+ // Save interface to disk
+ HRPCBuilder.toDisk(builder)
 diff --git a/src/wdk-core/wdk-manager.js b/src/wdk-core/wdk-manager.js
-index 2b5949c..ac0843d 100644
+index ab55aea..99a6d1f 100644
 --- a/src/wdk-core/wdk-manager.js
 +++ b/src/wdk-core/wdk-manager.js
-@@ -31,6 +31,7 @@
- /** @typedef {import('@wdk/wallet-tron-gasfree').TronGasfreeWalletConfig} TronGasfreeWalletConfig */
+@@ -32,6 +32,8 @@
  
  /** @typedef {import('@wdk/wallet-btc').BtcWalletConfig} BtcWalletConfig */
-+/** @typedef {import('@arkade-os/wdk').ArkadeWalletConfig} ArkadeWalletConfig */
  
++/** @typedef {import('@arkade-os/wdk').ArkadeWalletConfig} ArkadeWalletConfig */
++
  /** @typedef {import('@wdk/wallet-solana').SolanaWalletConfig} SolanaWalletConfig */
  
-@@ -44,6 +45,7 @@
+ /** @typedef {string | Uint8Array} Seed */
+@@ -44,6 +46,7 @@
   * @property {Seed} ton - The ton's wallet seed phrase.
   * @property {Seed} tron - The tron's wallet seed phrase.
   * @property {Seed} bitcoin - The bitcoin's wallet seed phrase.
-+ * @property {Seed} arkade - The arkade's wallet seed phrase.
++ * @property {Seed} arkade - The arkade (Ark protocol) wallet seed phrase.
   * @property {Seed} solana - The solana's wallet seed phrase.
   */
  
-@@ -55,6 +57,7 @@
+@@ -55,6 +58,7 @@
   * @property {TonWalletConfig | TonGaslessWalletConfig} ton - The ton blockchain configuration.
   * @property {TronWalletConfig | TronGasfreeWalletConfig} tron - The tron blockchain configuration.
   * @property {BtcWalletConfig} bitcoin - The bitcoin blockchain configuration.
-+ * @property {ArkadeWalletConfig} arkade - The arkade blockchain configuration.
++ * @property {ArkadeWalletConfig} arkade - The arkade (Ark protocol) blockchain configuration.
   * @property {SolanaWalletConfig} solana - The solana blockchain configuration.
   */
  
-@@ -84,6 +87,7 @@ const Blockchain = {
+@@ -84,6 +88,7 @@ const Blockchain = {
    Ton: 'ton',
    Tron: 'tron',
    Bitcoin: 'bitcoin',
@@ -3321,214 +2165,165 @@ index 2b5949c..ac0843d 100644
    Solana: 'solana'
  }
  
-@@ -113,9 +117,6 @@ class WdkManager {
- 
-     /** @private */
-     this._account_abstraction_wallets = { }
--
--    /** @private */
--    this._imports = { }
+@@ -420,6 +425,111 @@ class WdkManager {
+     return await account.getTransactionReceipt(hash)
    }
  
-   /**
-@@ -214,11 +215,11 @@ class WdkManager {
-      *
-      * @param {Blockchain} blockchain - A blockchain identifier (e.g., "ethereum").
-      * @param {number} accountIndex - The index of the account to use (see [BIP-44](https://en.bitcoin.it/wiki/BIP_0044)).
--     * @returns {Promise<string>} The abstracted address.
-+     * @returns {Promise<string>} The address.
-      *
-      * @example
--     * // Get the abstracted address of the ethereum wallet's account at m/44'/60'/0'/0/3
--     * const abstractedAddress = await wdk.getAbstractedAddress("ethereum", 3);
-+     * // Get the address of the ethereum wallet's account at m/44'/60'/0'/0/3
-+     * const address = await wdk.getAddress("ethereum", 3);
-      */
-   async getAddress (blockchain, accountIndex) {
-     const account = await this.getAccount(blockchain, accountIndex)
-@@ -226,6 +227,20 @@ class WdkManager {
-     return await account.getAddress()
-   }
- 
-+  /**
-+     * Returns the boarding (on-chain deposit) address of an account.
-+     * Only applicable to blockchains that support boarding addresses (e.g., Arkade).
-+     *
-+     * @param {Blockchain} blockchain - A blockchain identifier (e.g., "arkade").
-+     * @param {number} accountIndex - The index of the account to use.
-+     * @returns {Promise<string>} The boarding address.
-+     */
-+  async getBoardingAddress (blockchain, accountIndex) {
-+    const account = await this.getAccount(blockchain, accountIndex)
++  // ==========================================================================
++  // Arkade-specific delegations
++  //
++  // Each method resolves the arkade account for the given index and forwards
++  // to the matching method on WalletAccountArkade. These exist because the
++  // generic getAddress / sendTransaction routes don't cover Arkade-only
++  // surfaces (boarding addresses, Lightning invoices, swap state).
++  // ==========================================================================
 +
++  /**
++   * Returns the on-chain BTC boarding address for an Arkade account.
++   * @param {number} accountIndex
++   * @returns {Promise<string>}
++   */
++  async arkadeGetBoardingAddress (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
 +    return await account.getBoardingAddress()
 +  }
 +
-   /**
-      * Returns the native token balance of an address.
-      *
-@@ -407,7 +422,7 @@ class WdkManager {
-      */
-   async abstractedAccountQuoteTransfer (blockchain, accountIndex, options, config) {
-     const account = await this.getAbstractedAccount(blockchain, accountIndex)
--    return await account.quoteTransfer(options)
-+    return await account.quoteTransfer(options, config)
-   }
- 
-   /**
-@@ -443,6 +458,34 @@ class WdkManager {
-     }
-   }
- 
 +  /**
-+   * Creates a Lightning invoice to receive payment.
-+   *
-+   * @param {Blockchain} blockchain - A blockchain identifier (e.g., "arkade").
-+   * @param {number} accountIndex - The index of the account to use.
-+   * @param {number} amountSats - Amount in satoshis.
-+   * @param {string} [description] - Optional invoice description.
-+   * @returns {Promise<{ invoice: string, paymentHash: string }>} The BOLT11 invoice and payment hash.
++   * Creates a Lightning invoice for an Arkade account via the Boltz swap provider.
++   * Requires `swapProviderUrl` in the arkade config.
++   * @param {number} accountIndex
++   * @param {number} amount - sats
++   * @param {string} [description]
++   * @returns {Promise<{ invoice: string; paymentHash: string }>}
 +   */
-+  async createLightningInvoice (blockchain, accountIndex, amountSats, description) {
-+    const account = await this.getAccount(blockchain, accountIndex)
-+
-+    return await account.createLightningInvoice(amountSats, description)
++  async arkadeCreateLightningInvoice (accountIndex, amount, description) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.createLightningInvoice(amount, description)
 +  }
 +
 +  /**
-+   * Returns the transaction history for a specific blockchain account.
-+   *
-+   * @param {Blockchain} blockchain - A blockchain identifier.
-+   * @param {number} accountIndex - The index of the account.
-+   * @returns {Promise<unknown[]>} The transaction history.
++   * Pending Lightning receives (reverse swaps awaiting settlement).
++   * @param {number} accountIndex
++   * @returns {Promise<unknown[]>}
 +   */
-+  async getTransactionHistory (blockchain, accountIndex) {
-+    const account = await this.getAccount(blockchain, accountIndex)
++  async arkadeGetPendingLightningReceives (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getPendingLightningReceives()
++  }
 +
++  /**
++   * Pending Lightning sends (submarine swaps awaiting settlement).
++   * @param {number} accountIndex
++   * @returns {Promise<unknown[]>}
++   */
++  async arkadeGetPendingLightningSends (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getPendingLightningSends()
++  }
++
++  /**
++   * Full swap history (reverse + submarine + chain).
++   * @param {number} accountIndex
++   * @returns {Promise<unknown[]>}
++   */
++  async arkadeGetSwapHistory (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getSwapHistory()
++  }
++
++  /**
++   * Lightning swap min/max limits from the swap provider.
++   * @param {number} accountIndex
++   * @returns {Promise<unknown>}
++   */
++  async arkadeGetLightningLimits (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getLightningLimits()
++  }
++
++  /**
++   * Lightning swap fee schedule from the swap provider.
++   * @param {number} accountIndex
++   * @returns {Promise<unknown>}
++   */
++  async arkadeGetLightningFees (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.getLightningFees()
++  }
++
++  /**
++   * Arkade transaction history (ArkTransaction[]). Used by the RN provider as
++   * the source of truth for arkade-keyed entries since the WDK indexer at
++   * wdk-api.tether.io does not understand the arkade chain.
++   * @param {number} accountIndex
++   * @returns {Promise<unknown[]>}
++   */
++  async arkadeGetTransactionHistory (accountIndex) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
 +    return await account.getTransactionHistory()
 +  }
 +
-   /** Disposes all the wallet accounts, erasing their private keys from the memory. */
-   dispose () {
-     for (const blockchain in this._wallets) {
-@@ -487,6 +530,12 @@ class WdkManager {
++  /**
++   * Wait for an incoming Lightning payment to settle and claim the resulting VTXO.
++   * @param {number} accountIndex
++   * @param {string} invoice - BOLT11 invoice previously created via arkadeCreateLightningInvoice
++   * @returns {Promise<{ txid: string }>}
++   */
++  async arkadeWaitForLightningPayment (accountIndex, invoice) {
++    const account = /** @type {any} */ (await this.getAccount(Blockchain.Arkade, accountIndex))
++    return await account.waitForLightningPayment(invoice)
++  }
++
+   /**
+      * Returns an evm transaction to approve the interaction transaction.
+      *
+@@ -484,6 +594,16 @@ class WdkManager {
          const { default: WalletManagerBtc } = await import('@wdk/wallet-btc')
  
          this._wallets.bitcoin = new WalletManagerBtc(seed, config.bitcoin)
 +      } else if (blockchain === 'arkade') {
-+        // Keep lazy loading, but use a literal specifier so bare-pack can include the module in the bundle graph.
-+        const arkadeModule = await import('@arkade-os/wdk')
-+        const WalletManagerArkade = arkadeModule.default || arkadeModule.WalletManagerArkade || arkadeModule
++        if (!config.arkade || !config.arkade.arkServerUrl) {
++          throw new Error(
++            'Arkade chain config missing or arkServerUrl not set. ' +
++            'Set EXPO_PUBLIC_ARKADE_SERVER_URL in your .env file.'
++          )
++        }
++        const { default: WalletManagerArkade } = await import('@arkade-os/wdk')
 +
 +        this._wallets.arkade = new WalletManagerArkade(seed, config.arkade)
        } else if (blockchain === 'solana') {
          const { default: WalletManagerSolana } = await import('@wdk/wallet-solana')
  
 diff --git a/src/wdk-worklet.js b/src/wdk-worklet.js
-index f6035f0..5295b4f 100644
+index 630ec9d..1b43358 100644
 --- a/src/wdk-worklet.js
 +++ b/src/wdk-worklet.js
-@@ -15,7 +15,7 @@ let wdk = null
- rpc.onWorkletStart(async init => {
-   try {
-     if (wdk) wdk.dispose() // cleanup existing;
--    wdk = new WdkManager(init.seedPhrase, JSON.parse(init.config))
-+    wdk = new WdkManager(init.seedPhrase || init.seedBuffer, JSON.parse(init.config))
-     return { status: 'started' }
-   } catch (error) {
+@@ -156,3 +156,97 @@ rpc.onDispose(() => {
      throw new Error(rpcException.stringifyError(error))
-@@ -30,6 +30,14 @@ rpc.onGetAddress(async payload => {
    }
  })
- 
-+rpc.onGetBoardingAddress(async payload => {
++
++/*****************
++ *
++ * ARKADE
++ *
++ *****************/
++
++rpc.onArkadeGetBoardingAddress(async payload => {
 +  try {
-+    return { address: await wdk.getBoardingAddress(payload.network, payload.accountIndex) }
++    const address = await wdk.arkadeGetBoardingAddress(payload.accountIndex)
++    return { address }
 +  } catch (error) {
 +    throw new Error(rpcException.stringifyError(error))
 +  }
 +})
 +
- rpc.onGetAddressBalance(async payload => {
-   try {
-     const balance = await wdk.getAddressBalance(payload.network, payload.accountIndex)
-@@ -41,8 +49,10 @@ rpc.onGetAddressBalance(async payload => {
- 
- rpc.onQuoteSendTransaction(async payload => {
-   try {
-+    // Convert amount value to number
-+    payload.options.value = Number(payload.options.value)
-     const transaction = await wdk.quoteSendTransaction(payload.network, payload.accountIndex, payload.options)
--    return { fee: transaction.fee }
-+    return { fee: transaction.fee.toString() }
-   } catch (error) {
-     throw new Error(rpcException.stringifyError(error))
-   }
-@@ -50,8 +60,9 @@ rpc.onQuoteSendTransaction(async payload => {
- 
- rpc.onSendTransaction(async payload => {
-   try {
-+    payload.options.value = Number(payload.options.value)
-     const transaction = await wdk.sendTransaction(payload.network, payload.accountIndex, payload.options)
--    return { fee: transaction.fee, hash: transaction.hash }
-+    return { fee: transaction.fee.toString(), hash: transaction.hash }
-   } catch (error) {
-     throw new Error(rpcException.stringifyError(error))
-   }
-@@ -90,8 +101,9 @@ rpc.onGetAbstractedAddressTokenBalance(async payload => {
- 
- rpc.onAbstractedAccountTransfer(async payload => {
-   try {
--    const transfer = await wdk.abstractedAccountTransfer(payload.network, payload.accountIndex, payload.options)
--    return { fee: transfer.fee, hash: transfer.hash }
-+    payload.options.amount = Number(payload.options.amount)
-+    const transfer = await wdk.abstractedAccountTransfer(payload.network, payload.accountIndex, payload.options, payload.config)
-+    return { fee: transfer.fee.toString(), hash: transfer.hash }
-   } catch (error) {
-     throw new Error(rpcException.stringifyError(error))
-   }
-@@ -101,7 +113,7 @@ rpc.onAbstractedSendTransaction(async payload => {
-   try {
-     const options = JSON.parse(payload.options)
-     const transfer = await wdk.abstractedSendTransaction(payload.network, payload.accountIndex, options, payload.config)
--    return { fee: transfer.fee, hash: transfer.hash }
-+    return { fee: transfer.fee.toString(), hash: transfer.hash }
-   } catch (error) {
-     throw new Error(rpcException.stringifyError(error))
-   }
-@@ -109,8 +121,10 @@ rpc.onAbstractedSendTransaction(async payload => {
- 
- rpc.onAbstractedAccountQuoteTransfer(async payload => {
-   try {
--    const transfer = await wdk.abstractedAccountQuoteTransfer(payload.network, payload.accountIndex, payload.options)
--    return { fee: transfer.fee }
-+    payload.options.amount = Number(payload.options.amount)
-+    console.log(payload)
-+    const transfer = await wdk.abstractedAccountQuoteTransfer(payload.network, payload.accountIndex, payload.options, payload.config)
-+    return { fee: transfer.fee.toString() }
-   } catch (error) {
-     throw new Error(rpcException.stringifyError(error))
-   }
-@@ -130,8 +144,10 @@ rpc.onGetTransactionReceipt(async payload => {
- 
- rpc.onGetApproveTransaction(async payload => {
-   try {
-+    payload.amount = Number(payload.amount)
-     const approveTx = await wdk.getApproveTransaction(payload)
-     if (approveTx) {
-+      approveTx.value = approveTx.value.toString()
-       return approveTx
-     }
-     return {}
-@@ -140,6 +156,27 @@ rpc.onGetApproveTransaction(async payload => {
-   }
- })
- 
-+rpc.onCreateLightningInvoice(async payload => {
++rpc.onArkadeCreateLightningInvoice(async payload => {
 +  try {
-+    const result = await wdk.createLightningInvoice(
-+      payload.network, payload.accountIndex,
-+      payload.amountSats, payload.description || undefined
++    const result = await wdk.arkadeCreateLightningInvoice(
++      payload.accountIndex,
++      Number(payload.amount),
++      payload.description
 +    )
 +    return { invoice: result.invoice, paymentHash: result.paymentHash }
 +  } catch (error) {
@@ -3536,98 +2331,68 @@ index f6035f0..5295b4f 100644
 +  }
 +})
 +
-+rpc.onGetTransactionHistory(async payload => {
++rpc.onArkadeGetPendingLightningReceives(async payload => {
 +  try {
-+    const history = await wdk.getTransactionHistory(payload.network, payload.accountIndex)
-+    return { transactions: JSON.stringify(history) }
++    const swaps = await wdk.arkadeGetPendingLightningReceives(payload.accountIndex)
++    return { swaps: JSON.stringify(swaps) }
 +  } catch (error) {
 +    throw new Error(rpcException.stringifyError(error))
 +  }
 +})
 +
- rpc.onDispose(() => {
-   try {
-     wdk.dispose()
-diff --git a/src/worklet.mjs b/src/worklet.mjs
-index d1930ee..6ec817f 100644
---- a/src/worklet.mjs
-+++ b/src/worklet.mjs
-@@ -16,7 +16,7 @@ let wdk = null
- rpc.onWorkletStart(async init => {
-   try {
-     if (wdk) wdk.dispose() // cleanup existing;
--    wdk = new WdkManager(init.seedPhrase, JSON.parse(init.config))
-+    wdk = new WdkManager(init.seedPhrase || init.seedBuffer, JSON.parse(init.config))
-     return { status: 'started' }
-   } catch (error) {
-     throw new Error(stringifyError(error))
-@@ -148,6 +148,27 @@ rpc.onGetApproveTransaction(async payload => {
-   }
- })
- 
-+rpc.onCreateLightningInvoice(async payload => {
++rpc.onArkadeGetPendingLightningSends(async payload => {
 +  try {
-+    const result = await wdk.createLightningInvoice(
-+      payload.network, payload.accountIndex,
-+      payload.amountSats, payload.description || undefined
++    const swaps = await wdk.arkadeGetPendingLightningSends(payload.accountIndex)
++    return { swaps: JSON.stringify(swaps) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetSwapHistory(async payload => {
++  try {
++    const swaps = await wdk.arkadeGetSwapHistory(payload.accountIndex)
++    return { swaps: JSON.stringify(swaps) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetLightningLimits(async payload => {
++  try {
++    const limits = await wdk.arkadeGetLightningLimits(payload.accountIndex)
++    return { limits: JSON.stringify(limits) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetLightningFees(async payload => {
++  try {
++    const fees = await wdk.arkadeGetLightningFees(payload.accountIndex)
++    return { fees: JSON.stringify(fees) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeGetTransactionHistory(async payload => {
++  try {
++    const transactions = await wdk.arkadeGetTransactionHistory(payload.accountIndex)
++    return { transactions: JSON.stringify(transactions) }
++  } catch (error) {
++    throw new Error(rpcException.stringifyError(error))
++  }
++})
++
++rpc.onArkadeWaitForLightningPayment(async payload => {
++  try {
++    const result = await wdk.arkadeWaitForLightningPayment(
++      payload.accountIndex,
++      payload.invoice
 +    )
-+    return { invoice: result.invoice, paymentHash: result.paymentHash }
++    return { txid: result.txid }
 +  } catch (error) {
-+    throw new Error(stringifyError(error))
++    throw new Error(rpcException.stringifyError(error))
 +  }
 +})
-+
-+rpc.onGetTransactionHistory(async payload => {
-+  try {
-+    const history = await wdk.getTransactionHistory(payload.network, payload.accountIndex)
-+    return { transactions: JSON.stringify(history) }
-+  } catch (error) {
-+    throw new Error(stringifyError(error))
-+  }
-+})
-+
- rpc.onDispose(() => {
-   try {
-     wdk.dispose()
-diff --git a/types/src/wdk-core/wdk-manager.d.ts b/types/src/wdk-core/wdk-manager.d.ts
-index 7b98d33..377d1a5 100644
---- a/types/src/wdk-core/wdk-manager.d.ts
-+++ b/types/src/wdk-core/wdk-manager.d.ts
-@@ -255,6 +255,7 @@ export type TonGaslessWalletConfig = import("@tetherto/wdk-wallet-ton-gasless").
- export type TronWalletConfig = import("@tetherto/wdk-wallet-tron").TronWalletConfig;
- export type TronGasfreeWalletConfig = import("@tetherto/wdk-wallet-tron-gasfree").TronGasfreeWalletConfig;
- export type BtcWalletConfig = import("@tetherto/wdk-wallet-btc").BtcWalletConfig;
-+export type ArkadeWalletConfig = import("@arkade-os/wdk").ArkadeWalletConfig;
- export type SolanaWalletConfig = import("@tetherto/wdk-wallet-solana").SolanaWalletConfig;
- export type Seed = string | Uint8Array;
- export type Seeds = {
-@@ -282,6 +283,10 @@ export type Seeds = {
-      * - The bitcoin's wallet seed phrase.
-      */
-     bitcoin: Seed;
-+    /**
-+     * - The arkade's wallet seed phrase.
-+     */
-+    arkade: Seed;
-     /**
-      * - The solana's wallet seed phrase.
-      */
-@@ -312,6 +317,10 @@ export type WdkConfig = {
-      * - The bitcoin blockchain configuration.
-      */
-     bitcoin: BtcWalletConfig;
-+    /**
-+     * - The arkade blockchain configuration.
-+     */
-+    arkade: ArkadeWalletConfig;
-     /**
-      * - The solana blockchain configuration.
-      */
-@@ -345,6 +354,7 @@ declare namespace Blockchain {
-     let Ton: string;
-     let Tron: string;
-     let Bitcoin: string;
-+    let Arkade: string;
-     let Solana: string;
- }
- export {};
