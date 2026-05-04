@@ -17,12 +17,7 @@ Implemented:
 - Arkade balance fetching via direct REST calls to Ark indexer and Esplora
 
 `TODO` (known gaps in current implementation):
-- `getFeeRates()` currently returns placeholder values (`normal: 0n`, `fast: 0n`)
-- Lightning swap lifecycle helpers are not implemented yet (needs evaluation whether these are needed):
-  `waitForLightningPayment`, `getPendingLightningReceives`, `getPendingLightningSends`,
-  `getSwapHistory`, `getLightningLimits`, `getLightningFees`
 - Transaction routing enum includes `EMAIL`, but email payments are not implemented
-- BIP21 helpers are implemented, but `sendTransaction`/`quoteSendTransaction` currently expect direct destination values (Ark/BTC/BOLT11), not a BIP21 URI
 
 ## Account Model
 
@@ -42,10 +37,11 @@ The wallet manager exposes three account indices, all sharing the same underlyin
 arkade-wdk/
 ├── src/
 │   ├── lib/                      # address, bip21, bolt11, lnurl, fees, formatting, send routing
-│   ├── wallet-manager-arkade.ts  # WDK wallet manager implementation
-│   ├── wallet-account-arkade.ts  # WDK account + read-only account implementations
-│   ├── types.ts                  # ArkadeWalletConfig type
-│   └── index.ts                  # package exports
+│   ├── wallet-manager-arkade.js  # WDK wallet manager implementation
+│   ├── wallet-account-arkade.js  # WDK account implementation
+│   ├── wallet-account-read-only-arkade.js  # WDK read-only account implementation
+│   ├── types.js                  # ArkadeWalletConfig type
+│   └── index.js                  # package exports
 ├── packages/
 │   ├── pear-wrk-wdk/             # submodule: bare-kit worklet runtime (HRPC schema + handlers)
 │   └── wdk-react-native-provider/# submodule: React Native provider (WDK service, contexts, UI wiring)
@@ -156,40 +152,47 @@ class WalletManagerArkade extends WalletManager {
 }
 ```
 
-### WalletAccountArkadeReadOnly
+### WalletAccountReadOnlyArkade
 
 ```typescript
-class WalletAccountArkadeReadOnly {
+class WalletAccountReadOnlyArkade {
   readonly index: number
   readonly path: string
   readonly keyPair: { publicKey: Uint8Array }
 
   getAddress(): Promise<string> // returns '' for lightning accounts
+  getBoardingAddress(): Promise<string>
   getBalance(): Promise<bigint>
   getTransactionHistory(): Promise<ArkTransaction[]>
   verify(message: string, signature: string): Promise<boolean>
   getTransactionReceipt(hash: string): Promise<unknown | null>
-  getTokenBalance(tokenAddress: string): Promise<bigint> // always 0n for Bitcoin
+  getTokenBalance(tokenAddress: string): Promise<bigint>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
-  quoteTransfer(options: TransferOptions): Promise<{ fee: bigint }> // throws (not applicable)
+  quoteTransfer(options: TransferOptions): Promise<{ fee: bigint }>
 }
 ```
 
 ### WalletAccountArkade
 
 ```typescript
-class WalletAccountArkade extends WalletAccountArkadeReadOnly {
+class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   readonly keyPair: { publicKey: Uint8Array; privateKey: Uint8Array | null }
   readonly wallet: IWallet
-  readonly arkadeLightning: ArkadeLightning | null
+  readonly arkadeSwaps: ArkadeSwaps | null
 
   sendTransaction(tx: Transaction): Promise<{ hash: string; fee: bigint }>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
-  transfer(options: TransferOptions): Promise<TransferResult> // throws (not applicable)
+  transfer(options: TransferOptions): Promise<TransferResult>
   sign(message: string): Promise<string>
-  toReadOnlyAccount(): Promise<WalletAccountArkadeReadOnly>
+  toReadOnlyAccount(): Promise<WalletAccountReadOnlyArkade>
   dispose(): void
   createLightningInvoice(amount: number, description?: string): Promise<{ invoice: string; paymentHash: string }>
+  waitForLightningPayment(invoice: string): Promise<{ txid: string }>
+  getPendingLightningReceives(): Promise<PendingReverseSwap[]>
+  getPendingLightningSends(): Promise<PendingSubmarineSwap[]>
+  getSwapHistory(): Promise<(PendingReverseSwap | PendingSubmarineSwap | PendingChainSwap)[]>
+  getLightningLimits(): Promise<LimitsResponse>
+  getLightningFees(): Promise<FeesResponse>
 }
 ```
 
@@ -332,8 +335,6 @@ This re-bundles the worklet (picking up any HRPC schema changes from `pear-wrk-w
 
 ```bash
 npm install
-npm run build
-npm run dev
 npm run lint
 npm run format
 ```
