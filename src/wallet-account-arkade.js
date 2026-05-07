@@ -16,9 +16,9 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @param {import('@tetherto/wdk-wallet').KeyPair} keyPair
    * @param {import('@arkade-os/sdk').IndexerProvider} indexerProvider
    * @param {Promise<import('@arkade-os/sdk').ArkInfo>} arkInfo
-   * @param {import('@arkade-os/boltz-swap').ArkadeSwaps | null} [arkadeSwaps]
+   * @param {import('@arkade-os/boltz-swap').ArkadeSwaps} arkadeSwaps
    */
-  constructor(address, path, wallet, keyPair, indexerProvider, arkInfo, arkadeSwaps = null) {
+  constructor(address, path, wallet, keyPair, indexerProvider, arkInfo, arkadeSwaps) {
     super(address, wallet, indexerProvider, arkInfo);
     /** @readonly */
     this.path = path;
@@ -144,7 +144,6 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
 
   /**
    * Create a Lightning invoice to receive payment.
-   * Requires Lightning support to be configured (swapProviderUrl).
    * @param {number} amount - Amount in satoshis to receive
    * @param {string} [description] - Optional description for the invoice
    * @returns {Promise<{ invoice: string; paymentHash: string }>}
@@ -227,9 +226,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    */
   _requireSwaps() {
     if (!this.arkadeSwaps) {
-      throw new Error(
-        'Lightning support not configured. Provide swapProviderUrl in wallet config.'
-      );
+      throw new Error('Lightning support not available.');
     }
     return this.arkadeSwaps;
   }

@@ -46,7 +46,7 @@ class WalletManagerArkade extends WalletManager {
     /** @private */
     this._disposed = false;
 
-    /** @private @type {{ [path: string]: Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps | null }> | undefined }} */
+    /** @private @type {{ [path: string]: Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps }> | undefined }} */
     this._walletPromises = {};
   }
 
@@ -71,7 +71,7 @@ class WalletManagerArkade extends WalletManager {
   /**
    * @private
    * @param {string} path — full BIP-86 derivation path (e.g. `m/86'/1/0'/0/3`)
-   * @returns {Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps | null }>}
+   * @returns {Promise<{ wallet: Wallet; keyPair: import('@tetherto/wdk-wallet').KeyPair; swaps: ArkadeSwaps }>}
    */
   _getOrCreateWalletForPath(path) {
     if (this._walletPromises[path]) {
@@ -140,31 +140,22 @@ class WalletManagerArkade extends WalletManager {
         publicKey: hdKey.publicKey,
       };
 
-      /** @type {ArkadeSwaps | null} */
-      let swaps = null;
-      if (cfg.swapProviderUrl) {
-        // Resolve the network from the same arkInfo we cached at construction
-        // time so the swap provider speaks to the matching Boltz endpoint.
-        const info = await this._info;
-        const network = /** @type {import('@arkade-os/sdk').NetworkName} */ (info.network);
-        const swapProvider = new BoltzSwapProvider({
-          apiUrl: cfg.swapProviderUrl,
-          network,
-          referralId: 'arkade-wdk-sdk',
-        });
-        /** @type {import('@arkade-os/boltz-swap').ArkadeSwapsCreateConfig} */
-        const swapsConfig = {
-          wallet,
-          swapProvider,
-          swapManager: { autoStart: true, pollInterval: 5_000 },
-        };
-        // Forward swapRepository from config if provided (e.g. a SQLite-
-        // backed repo passed by the RN-side initArkadeWallet).
-        if (cfg.swapRepository) {
-          swapsConfig.swapRepository = cfg.swapRepository;
-        }
-        swaps = await ArkadeSwaps.create(swapsConfig);
+      const info = await this._info;
+      const network = /** @type {import('@arkade-os/sdk').NetworkName} */ (info.network);
+      const swapProvider = new BoltzSwapProvider({ network, referralId: 'arkade-wdk-sdk' });
+
+      /** @type {import('@arkade-os/boltz-swap').ArkadeSwapsCreateConfig} */
+      const swapsConfig = {
+        wallet,
+        swapProvider,
+        swapManager: { autoStart: true, pollInterval: 5_000 },
+      };
+      // Forward swapRepository from config if provided (e.g. a SQLite-
+      // backed repo passed by the RN-side initArkadeWallet).
+      if (cfg.swapRepository) {
+        swapsConfig.swapRepository = cfg.swapRepository;
       }
+      const swaps = await ArkadeSwaps.create(swapsConfig);
 
       return { wallet, keyPair, swaps };
     })();

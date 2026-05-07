@@ -12,13 +12,14 @@ import { WalletAccountReadOnlyArkade } from '../wallet-account-read-only-arkade.
 import { WalletAccountArkade } from '../wallet-account-arkade.js';
 import { WalletAccountReadOnly } from '@tetherto/wdk-wallet';
 import { Wallet } from '@arkade-os/sdk';
+import { ArkadeSwaps } from '@arkade-os/boltz-swap';
 
 const validSeedPhrase =
   'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
 // Stub arkProvider so constructing WalletManagerArkade never fires a real fetch
 const stubArkProvider = {
-  getInfo: () => Promise.resolve({ network: 'testnet', fees: { txFeeRate: '1' } }),
+  getInfo: () => Promise.resolve({ network: 'regtest', fees: { txFeeRate: '1' } }),
 };
 
 describe('WDK Integration', () => {
@@ -349,6 +350,7 @@ describe('toReadOnlyAccount isolation', () => {
 
 describe('Per-account wallet isolation', () => {
   let walletCreateMock;
+  let swapsCreateMock;
 
   /** Creates a mock wallet whose address is derived from the identity's public key. */
   function makeMockWallet() {
@@ -365,10 +367,12 @@ describe('Per-account wallet isolation', () => {
         _callIndex: callCount,
       };
     });
+    swapsCreateMock = mock.method(ArkadeSwaps, 'create', async () => ({ dispose: mock.fn() }));
   }
 
   afterEach(() => {
     walletCreateMock?.mock.restore();
+    swapsCreateMock?.mock.restore();
   });
 
   it('different account indices produce distinct wallets', async () => {

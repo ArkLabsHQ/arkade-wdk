@@ -1,6 +1,6 @@
 # @arkade-os/wdk
 
-WDK-compatible Bitcoin wallet manager/account implementation built on top of `@arkade-os/sdk`, with optional Lightning support through `@arkade-os/boltz-swap`.
+WDK-compatible Bitcoin wallet manager/account implementation built on top of `@arkade-os/sdk`, with Lightning support through `@arkade-os/boltz-swap`.
 
 ## Current Status
 
@@ -84,7 +84,6 @@ const wdk = new WdkManager(seedPhrase)
 
 wdk.registerWallet('bitcoin', WalletManagerArkade, {
   arkServerUrl: 'https://arkade.computer',
-  swapProviderUrl: 'https://api.ark.boltz.exchange', // optional: enables Lightning methods
 })
 
 const account = await wdk.getAccount('bitcoin', 0)
@@ -107,7 +106,7 @@ console.log({ balance, quoteFee: quote.fee, txid: tx.hash })
 
 ## Lightning and LNURL
 
-Create Lightning invoice (enabled only when `swapProviderUrl` is configured):
+Create Lightning invoice:
 
 ```typescript
 const { invoice, paymentHash } = await account.createLightningInvoice(50_000, 'Payment for coffee')
@@ -183,7 +182,7 @@ class WalletAccountReadOnlyArkade {
 ```typescript
 class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   readonly keyPair: { publicKey: Uint8Array; privateKey: Uint8Array | null }
-  readonly arkadeSwaps: ArkadeSwaps | null
+  readonly arkadeSwaps: ArkadeSwaps
 
   sendTransaction(tx: Transaction): Promise<{ hash: string; fee: bigint }>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
@@ -253,11 +252,10 @@ import type { ArkadeWalletConfig } from '@arkade-os/wdk'
 
 const config: ArkadeWalletConfig = {
   arkServerUrl: 'https://arkade.computer',
-  swapProviderUrl: 'https://api.ark.boltz.exchange',
 }
 ```
 
-`ArkadeWalletConfig` includes `@arkade-os/sdk` wallet config fields (except `identity`) plus `swapProviderUrl`.
+`ArkadeWalletConfig` includes `@arkade-os/sdk` wallet config fields (except `identity`).
 Minimum Arkade configuration is `arkServerUrl` or `arkProvider`.
 
 ## Temporary Workarounds
@@ -317,9 +315,9 @@ Submodule working trees are kept dirty: the patches in `./patches/` are applied 
 2. From the parent repo, regenerate the patch:
    ```bash
    cd ../..
-   node scripts/generate-patches.js --base HEAD
+   node scripts/generate-patches.js
    ```
-   Pass `--base HEAD` so the diff is taken against the currently-pinned commit. The script defaults to `origin/main`, which is only correct when the submodule is checked out at the tip of main (true for `examples/wdk-starter-react-native`, but not for the two `packages/` submodules which are pinned at older tags).
+   The script defaults to the SHA the parent repo has pinned for each submodule, so the patch only captures your local changes — not divergence from upstream.
 
 3. Commit the updated patch in the parent repo:
    ```bash
