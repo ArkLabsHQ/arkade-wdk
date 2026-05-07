@@ -127,6 +127,30 @@ describe('Asset Support', () => {
     assert.equal(result.fee, 300n); // 150 vB * 2 sat/vB
   });
 
+  it('subscribeToIncomingFunds delegates to wallet notifyIncomingFunds', async () => {
+    const unsubscribe = mock.fn();
+    const notifyIncomingFunds = mock.fn((_callback) => Promise.resolve(unsubscribe));
+    const mockWallet = {
+      notifyIncomingFunds,
+    };
+    const account = new WalletAccountArkade(
+      'ark1testaddress',
+      "m/86'/0'/0'/0/0",
+      mockWallet,
+      { publicKey: new Uint8Array(33), privateKey: new Uint8Array(32) },
+      {},
+      Promise.resolve({}),
+      null
+    );
+    const callback = mock.fn();
+
+    const result = await account.subscribeToIncomingFunds(callback);
+
+    assert.equal(notifyIncomingFunds.mock.callCount(), 1);
+    assert.equal(notifyIncomingFunds.mock.calls[0].arguments[0], callback);
+    assert.equal(result, unsubscribe);
+  });
+
   it('quoteTransfer returns offchain fee estimate', async () => {
     const mockArkInfo = Promise.resolve({ fees: { txFeeRate: '2' } });
 

@@ -14,7 +14,7 @@ Implemented:
 - Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
 - Lightning send via auto-detection of BOLT11 invoices in `sendTransaction()`
 - Transaction history for arkade networks via `getTransactionHistory()` (HRPC → SDK)
-- Arkade balance fetching via direct REST calls to Ark indexer and Esplora
+- Arkade balance fetching via the RN-side Arkade wallet using `getBalance()`
 
 `TODO` (known gaps in current implementation):
 - Transaction routing enum includes `EMAIL`, but email payments are not implemented
@@ -125,13 +125,19 @@ if (isLightningAddress('user@wallet.com')) {
 }
 ```
 
-## Accessing Arkade SDK Directly
+## Arkade-Specific Account Methods
 
-`WalletAccountArkade` exposes the underlying SDK wallet as `account.wallet` for operations not covered by the WDK interface:
+The adapter does not expose the underlying `@arkade-os/sdk` wallet instance.
+Use the account methods instead:
 
 ```typescript
-const detailedBalance = await account.wallet.getBalance() // { total, offchain, onchain }
+const balance = await account.getBalance()
+const unsubscribe = await account.subscribeToIncomingFunds(() => {
+  console.log('New Arkade funds detected')
+})
 const history = await account.getTransactionHistory()
+
+unsubscribe()
 ```
 
 ## API Reference (Current)
@@ -177,13 +183,13 @@ class WalletAccountReadOnlyArkade {
 ```typescript
 class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   readonly keyPair: { publicKey: Uint8Array; privateKey: Uint8Array | null }
-  readonly wallet: IWallet
   readonly arkadeSwaps: ArkadeSwaps | null
 
   sendTransaction(tx: Transaction): Promise<{ hash: string; fee: bigint }>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
   transfer(options: TransferOptions): Promise<TransferResult>
   sign(message: string): Promise<string>
+  subscribeToIncomingFunds(callback: (coins: IncomingFunds) => void): Promise<() => void>
   toReadOnlyAccount(): Promise<WalletAccountReadOnlyArkade>
   dispose(): void
   createLightningInvoice(amount: number, description?: string): Promise<{ invoice: string; paymentHash: string }>
@@ -256,15 +262,16 @@ Minimum Arkade configuration is `arkServerUrl` or `arkProvider`.
 
 ## Temporary Workarounds
 
-### Arkade balance fetching bypasses the worklet
+### Arkade balances resolve on the RN side
 
-The normal WDK path for balances is: RN provider -> HRPC `getAddressBalance` -> worklet -> SDK `wallet.getBalance()`. For arkade networks, the SDK's internal Esplora URL defaults to `http://localhost:3000` (regtest), which is unreachable from an Android device. Non-arkade chains (BTC, EVM, TON, etc.) don't hit this problem because their balances are fetched via the WDK indexer at `wdk-api.tether.io` directly from RN's `fetch`, never through the worklet.
+The normal WDK path for balances is: RN provider -> HRPC `getAddressBalance` -> worklet. Arkade now takes a different route: the RN provider initializes an `@arkade-os/wdk` account locally with Expo adapters and asks that account for its total balance.
 
-The current workaround in `wdk-react-native-provider` calls the Ark indexer and Esplora REST APIs directly from the RN side:
-- **Offchain/Lightning balance**: `GET ${arkServerUrl}/v1/indexer/vtxos?scripts=${pkScript}&spendableOnly=true`
-- **Boarding balance**: `GET ${esploraUrl}/address/${addr}/utxo`
+Current Arkade balance path:
+- RN provider -> `WalletAccountArkade.getBalance()`
+- `getBalance()` -> SDK `wallet.getBalance().total`
+- provider may subtract current boarding UTXOs via `getBoardingAddress()` and `esploraUrl` before presenting spendable Arkade / Lightning balance
 
-This involves an inline bech32m decoder (`arkAddressToPkScript`) to extract the pkScript from the Ark address without adding a dependency. Once the SDK's Esplora URL is configurable or auto-detected correctly, these workarounds can be removed and the standard HRPC `getAddressBalance` path can be used for arkade too.
+This keeps the SDK wallet encapsulated inside the account classes and leaves Arkade-specific balance shaping in the provider layer instead of expanding the wallet API.
 
 ### Transaction history uses HRPC (not a workaround)
 

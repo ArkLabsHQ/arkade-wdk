@@ -87,6 +87,15 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
     return BIP322.sign(message, this._wallet.identity);
   }
 
+  /**
+   * Subscribe to incoming VTXO notifications.
+   * @param {(coins: import('@arkade-os/sdk').IncomingFunds) => void} callback
+   * @returns {Promise<() => void>}
+   */
+  async subscribeToIncomingFunds(callback) {
+    return this._wallet.notifyIncomingFunds(callback);
+  }
+
   /** @returns {Promise<WalletAccountReadOnlyArkade>} */
   async toReadOnlyAccount() {
     const publicKey = await this._wallet.identity.compressedPublicKey();
