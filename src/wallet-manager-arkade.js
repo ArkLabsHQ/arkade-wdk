@@ -150,6 +150,7 @@ class WalletManagerArkade extends WalletManager {
         const swapProvider = new BoltzSwapProvider({
           apiUrl: cfg.swapProviderUrl,
           network,
+          referralId: 'arkade-wdk-sdk',
         });
         /** @type {import('@arkade-os/boltz-swap').ArkadeSwapsCreateConfig} */
         const swapsConfig = {
