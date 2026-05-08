@@ -802,7 +802,7 @@ index 5ae8528..79942ff 100644
  }
  
 diff --git a/src/services/wdk-service/types.ts b/src/services/wdk-service/types.ts
-index 6663b0e..8fb7f41 100644
+index 6663b0e..67e3548 100644
 --- a/src/services/wdk-service/types.ts
 +++ b/src/services/wdk-service/types.ts
 @@ -7,6 +7,8 @@ export enum AssetTicker {
@@ -850,7 +850,7 @@ index 6663b0e..8fb7f41 100644
    },
    [AssetTicker.USDT]: {
      [NetworkType.ETHEREUM]: 'ethereum',
-@@ -113,6 +134,31 @@ export interface BitcoinChainConfig {
+@@ -113,6 +134,28 @@ export interface BitcoinChainConfig {
    port: number;
  }
  
@@ -858,9 +858,7 @@ index 6663b0e..8fb7f41 100644
 + * Configuration for the Arkade chain (Ark protocol).
 + *
 + * `arkServerUrl` is the only required field — it's the REST endpoint of the
-+ * Ark server the wallet talks to. `swapProviderUrl` enables Lightning send/
-+ * receive via a Boltz instance; without it, Lightning receive throws and
-+ * Lightning send falls back to "no swap provider configured".
++ * Ark server the wallet talks to.
 + *
 + * `esploraUrl` is the REST endpoint used by the RN-side balance workaround
 + * to read the on-chain BTC boarding balance. The SDK's bundled Esplora URL
@@ -875,14 +873,13 @@ index 6663b0e..8fb7f41 100644
 +   *  a separate domain (e.g. https://explorer.mutinynet.arkade.sh) this must
 +   *  be set explicitly. */
 +  indexerUrl?: string;
-+  swapProviderUrl?: string;
 +  esploraUrl?: string;
 +}
 +
  export interface TronChainConfig {
    chainId: number;
    provider: string;
-@@ -133,5 +179,6 @@ export interface ChainsConfig {
+@@ -133,5 +176,6 @@ export interface ChainsConfig {
    polygon?: EVMChainConfig;
    ton?: TONChainConfig;
    bitcoin?: BitcoinChainConfig;

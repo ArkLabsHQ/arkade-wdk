@@ -2129,7 +2129,7 @@ index 066f296..f61172f 100644
  // Save interface to disk
  HRPCBuilder.toDisk(builder)
 diff --git a/src/wdk-core/wdk-manager.js b/src/wdk-core/wdk-manager.js
-index ab55aea..99a6d1f 100644
+index ab55aea..0ba4248 100644
 --- a/src/wdk-core/wdk-manager.js
 +++ b/src/wdk-core/wdk-manager.js
 @@ -32,6 +32,8 @@
@@ -2165,7 +2165,7 @@ index ab55aea..99a6d1f 100644
    Solana: 'solana'
  }
  
-@@ -420,6 +425,111 @@ class WdkManager {
+@@ -420,6 +425,110 @@ class WdkManager {
      return await account.getTransactionReceipt(hash)
    }
  
@@ -2190,7 +2190,6 @@ index ab55aea..99a6d1f 100644
 +
 +  /**
 +   * Creates a Lightning invoice for an Arkade account via the Boltz swap provider.
-+   * Requires `swapProviderUrl` in the arkade config.
 +   * @param {number} accountIndex
 +   * @param {number} amount - sats
 +   * @param {string} [description]
@@ -2277,7 +2276,7 @@ index ab55aea..99a6d1f 100644
    /**
       * Returns an evm transaction to approve the interaction transaction.
       *
-@@ -484,6 +594,16 @@ class WdkManager {
+@@ -484,6 +593,16 @@ class WdkManager {
          const { default: WalletManagerBtc } = await import('@wdk/wallet-btc')
  
          this._wallets.bitcoin = new WalletManagerBtc(seed, config.bitcoin)

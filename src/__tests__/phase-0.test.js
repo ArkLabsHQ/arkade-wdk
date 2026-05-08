@@ -5,7 +5,7 @@
  *   0.1 / 0.2  Lightning lifecycle delegations + waitForLightningPayment
  *   0.3        Real getFeeRates from arkInfo
  *   0.4        BIP21 propagation in send/quoteSend
- *   0.6        swapProviderUrl wired through BoltzSwapProvider
+ *   0.6        ArkadeSwaps optional creation
  *   0.7        Lib helpers re-exported from src/index.js
  */
 import { describe, it, mock, afterEach } from 'node:test';
@@ -16,7 +16,7 @@ import { isArkAddress } from '../lib/address.js';
 import { WalletAccountArkade } from '../wallet-account-arkade.js';
 import WalletManagerArkade from '../wallet-manager-arkade.js';
 import { send, quoteSend, resolveDestination, detectTransactionType, TransactionType } from '../lib/send.js';
-import { ArkadeSwaps } from '@arkade-os/boltz-swap';
+import { ArkadeSwaps, BoltzSwapProvider } from '@arkade-os/boltz-swap';
 import { ArkAddress, Wallet } from '@arkade-os/sdk';
 
 const validSeedPhrase =
@@ -148,9 +148,12 @@ describe('0.1 — Lightning lifecycle delegations', () => {
     assert.equal(swaps.getFees.mock.callCount(), 1);
   });
 
-  it('throws a clear error when swapProviderUrl was not configured', async () => {
+  it('throws when arkadeSwaps is null', async () => {
     const account = makeAccount(null);
-    await assert.rejects(account.getPendingLightningReceives(), /Lightning support not configured/);
+    await assert.rejects(
+      account.getPendingLightningReceives(),
+      /Lightning support not configured/
+    );
     await assert.rejects(account.getPendingLightningSends(), /Lightning support not configured/);
     await assert.rejects(account.getSwapHistory(), /Lightning support not configured/);
     await assert.rejects(account.getLightningLimits(), /Lightning support not configured/);
@@ -363,10 +366,10 @@ describe('0.4 — BIP21 propagation in send / quoteSend', () => {
 });
 
 // ----------------------------------------------------------------------------
-// 0.6 — swapProviderUrl wired through BoltzSwapProvider
+// 0.6 — ArkadeSwaps optional creation
 // ----------------------------------------------------------------------------
 
-describe('0.6 — swapProviderUrl wired through BoltzSwapProvider', () => {
+describe('0.6 — ArkadeSwaps optional creation', () => {
   /** Mock @arkade-os/sdk Wallet.create so we don't try to talk to a real Ark server. */
   function mockWalletCreate() {
     return mock.method(Wallet, 'create', async (config) => {
@@ -380,58 +383,40 @@ describe('0.6 — swapProviderUrl wired through BoltzSwapProvider', () => {
     });
   }
 
-  // BoltzSwapProvider can't be mocked directly — it's an ESM module-namespace
-  // binding and `mock.method` rejects it as non-configurable. Instead we mock
-  // the static `ArkadeSwaps.create` method (which IS configurable) and inspect
-  // the `swapProvider` it received. The real BoltzSwapProvider is constructed
-  // by the manager and we read its public `getApiUrl()` to verify the URL was
-  // forwarded.
-
-  it('passes apiUrl + network to BoltzSwapProvider when swapProviderUrl is set', async () => {
+  it('does not create ArkadeSwaps when swapProviderUrl is omitted', async () => {
     mockWalletCreate();
-    const swapsCreate = mock.method(ArkadeSwaps, 'create', async () => ({
-      dispose: mock.fn(),
-    }));
-
-    const manager = new WalletManagerArkade(validSeedPhrase, {
-      arkProvider: {
-        getInfo: () => Promise.resolve({ network: 'mutinynet', fees: { txFeeRate: '1' } }),
-      },
-      swapProviderUrl: 'https://custom.boltz.example/api',
-    });
-
-    await manager.getAccount(0);
-
-    assert.equal(
-      swapsCreate.mock.callCount(),
-      1,
-      'ArkadeSwaps.create must be called when swapProviderUrl is set'
-    );
-    const createConfig = swapsCreate.mock.calls[0].arguments[0];
-    assert.ok(createConfig.swapProvider, 'must pass swapProvider into ArkadeSwaps.create');
-    assert.equal(
-      createConfig.swapProvider.getApiUrl(),
-      'https://custom.boltz.example/api',
-      'BoltzSwapProvider must be constructed with the configured apiUrl'
-    );
-  });
-
-  it('does NOT instantiate ArkadeSwaps when swapProviderUrl is unset', async () => {
-    mockWalletCreate();
-    const swapsCreate = mock.method(ArkadeSwaps, 'create', async () => ({}));
+    const swapsCreate = mock.method(ArkadeSwaps, 'create', async () => ({ dispose: mock.fn() }));
 
     const manager = new WalletManagerArkade(validSeedPhrase, {
       arkProvider: stubArkProvider,
-      // no swapProviderUrl
     });
 
     const account = await manager.getAccount(0);
 
-    assert.equal(
-      swapsCreate.mock.callCount(),
-      0,
-      'ArkadeSwaps.create must NOT be called without swapProviderUrl'
-    );
+    assert.equal(swapsCreate.mock.callCount(), 0);
     assert.equal(account.arkadeSwaps, null);
+  });
+
+  it('passes through swapProviderUrl when Lightning is configured', async () => {
+    mockWalletCreate();
+    const mockSwaps = { dispose: mock.fn() };
+    const swapsCreate = mock.method(ArkadeSwaps, 'create', async () => mockSwaps);
+    const swapProviderUrl = 'https://example.invalid/boltz';
+
+    const manager = new WalletManagerArkade(validSeedPhrase, {
+      arkProvider: stubArkProvider,
+      swapProviderUrl,
+    });
+
+    const account = await manager.getAccount(0);
+
+    assert.equal(swapsCreate.mock.callCount(), 1);
+    const createConfig = swapsCreate.mock.calls[0].arguments[0];
+    assert.ok(createConfig.swapProvider, 'must pass an explicit swapProvider (carries referralId)');
+    assert.equal(
+      createConfig.swapProvider.getApiUrl(),
+      new BoltzSwapProvider({ apiUrl: swapProviderUrl, network: 'regtest' }).getApiUrl()
+    );
+    assert.equal(account.arkadeSwaps, mockSwaps);
   });
 });

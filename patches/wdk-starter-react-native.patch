@@ -1,8 +1,8 @@
 diff --git a/.env.example b/.env.example
-index fe78808..ce4c020 100644
+index fe78808..688edb4 100644
 --- a/.env.example
 +++ b/.env.example
-@@ -1,4 +1,20 @@
+@@ -1,4 +1,16 @@
  EXPO_PUBLIC_WDK_INDEXER_BASE_URL=https://wdk-api.tether.io
  EXPO_PUBLIC_WDK_INDEXER_API_KEY=PUT_WDK_API_KEY_HERE
  EXPO_PUBLIC_TRON_API_KEY=PUT_HERE
@@ -18,14 +18,9 @@ index fe78808..ce4c020 100644
 +# domain (mutinynet: https://explorer.mutinynet.arkade.sh, mainnet:
 +# https://arkade.space).
 +# EXPO_PUBLIC_ARKADE_INDEXER_URL=
-+# Boltz swap provider. Required only if you want to use Lightning send /
-+# receive — without it the receive Lightning flow will throw and the send
-+# flow falls back to the no-swap-provider error path.
-+EXPO_PUBLIC_ARKADE_SWAP_PROVIDER_URL=https://api.ark.boltz.exchange
 +# Esplora REST endpoint used by the RN-side balance workaround for
 +# on-chain BTC boarding deposits. Override for regtest / mutinynet.
 +EXPO_PUBLIC_ESPLORA_URL=https://blockstream.info/api
-\ No newline at end of file
 diff --git a/app.json b/app.json
 index c2f76ee..91c1e4f 100644
 --- a/app.json
@@ -7290,21 +7285,18 @@ index 7a86eaf..4400f85 100644
    usdt: {
      name: 'USD₮',
 diff --git a/src/config/get-chains-config.ts b/src/config/get-chains-config.ts
-index 0a8e71a..2678e8d 100644
+index 0a8e71a..2b5fc03 100644
 --- a/src/config/get-chains-config.ts
 +++ b/src/config/get-chains-config.ts
-@@ -62,6 +62,16 @@ const getChainsConfig = () => {
+@@ -62,6 +62,13 @@ const getChainsConfig = () => {
        host: 'api.ordimint.com',
        port: 50001,
      },
 +    arkade: {
-+      // arkServerUrl is the only required field. The others unlock specific
-+      // features: indexerUrl = VTXO indexer / "virtual mempool" (defaults to
-+      // arkServerUrl if omitted), swapProviderUrl = Lightning send/receive
-+      // (Phase 4), esploraUrl = boarding-balance display (Phase 5).
++      // arkServerUrl is the only required field. indexerUrl defaults to
++      // arkServerUrl if omitted. esploraUrl enables boarding-balance display (Phase 5).
 +      arkServerUrl: process.env.EXPO_PUBLIC_ARKADE_SERVER_URL!,
 +      indexerUrl: process.env.EXPO_PUBLIC_ARKADE_INDEXER_URL,
-+      swapProviderUrl: process.env.EXPO_PUBLIC_ARKADE_SWAP_PROVIDER_URL,
 +      esploraUrl: process.env.EXPO_PUBLIC_ESPLORA_URL,
 +    },
      tron: {

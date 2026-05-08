@@ -143,8 +143,6 @@ class WalletManagerArkade extends WalletManager {
       /** @type {ArkadeSwaps | null} */
       let swaps = null;
       if (cfg.swapProviderUrl) {
-        // Resolve the network from the same arkInfo we cached at construction
-        // time so the swap provider speaks to the matching Boltz endpoint.
         const info = await this._info;
         const network = /** @type {import('@arkade-os/sdk').NetworkName} */ (info.network);
         const swapProvider = new BoltzSwapProvider({
@@ -152,6 +150,7 @@ class WalletManagerArkade extends WalletManager {
           network,
           referralId: 'arkade-wdk-sdk',
         });
+
         /** @type {import('@arkade-os/boltz-swap').ArkadeSwapsCreateConfig} */
         const swapsConfig = {
           wallet,

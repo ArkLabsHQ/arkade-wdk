@@ -144,7 +144,6 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
 
   /**
    * Create a Lightning invoice to receive payment.
-   * Requires Lightning support to be configured (swapProviderUrl).
    * @param {number} amount - Amount in satoshis to receive
    * @param {string} [description] - Optional description for the invoice
    * @returns {Promise<{ invoice: string; paymentHash: string }>}

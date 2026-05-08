@@ -11,8 +11,8 @@ Implemented:
 - LNURL/Lightning-address helpers (`fetchInvoice`, limits, callback resolution)
 - Utility exports for address detection, BIP21 parsing/encoding, fees, and formatting
 - Three account types via index: boarding (0), offchain (1), lightning (2)
-- Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
-- Lightning send via auto-detection of BOLT11 invoices in `sendTransaction()`
+- Optional Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
+- Optional Lightning send via auto-detection of BOLT11 invoices in `sendTransaction()`
 - Transaction history for arkade networks via `getTransactionHistory()` (HRPC → SDK)
 - Arkade balance fetching via the RN-side Arkade wallet using `getBalance()`
 
@@ -21,7 +21,7 @@ Implemented:
 
 ## Account Model
 
-The wallet manager exposes three account indices, all sharing the same underlying `@arkade-os/sdk` wallet instance:
+The wallet manager exposes three account indices, each derived from the seed at a distinct BIP-86 path:
 
 | Index | AddressType | Purpose |
 |-------|-------------|---------|
@@ -84,7 +84,6 @@ const wdk = new WdkManager(seedPhrase)
 
 wdk.registerWallet('bitcoin', WalletManagerArkade, {
   arkServerUrl: 'https://arkade.computer',
-  swapProviderUrl: 'https://api.ark.boltz.exchange', // optional: enables Lightning methods
 })
 
 const account = await wdk.getAccount('bitcoin', 0)
@@ -253,11 +252,12 @@ import type { ArkadeWalletConfig } from '@arkade-os/wdk'
 
 const config: ArkadeWalletConfig = {
   arkServerUrl: 'https://arkade.computer',
-  swapProviderUrl: 'https://api.ark.boltz.exchange',
+  // Optional: enables Lightning send/receive.
+  // swapProviderUrl: 'https://api.ark.boltz.exchange',
 }
 ```
 
-`ArkadeWalletConfig` includes `@arkade-os/sdk` wallet config fields (except `identity`) plus `swapProviderUrl`.
+`ArkadeWalletConfig` includes `@arkade-os/sdk` wallet config fields (except `identity`) plus optional `swapProviderUrl`.
 Minimum Arkade configuration is `arkServerUrl` or `arkProvider`.
 
 ## Temporary Workarounds
@@ -317,9 +317,9 @@ Submodule working trees are kept dirty: the patches in `./patches/` are applied 
 2. From the parent repo, regenerate the patch:
    ```bash
    cd ../..
-   node scripts/generate-patches.js --base HEAD
+   node scripts/generate-patches.js
    ```
-   Pass `--base HEAD` so the diff is taken against the currently-pinned commit. The script defaults to `origin/main`, which is only correct when the submodule is checked out at the tip of main (true for `examples/wdk-starter-react-native`, but not for the two `packages/` submodules which are pinned at older tags).
+   The script defaults to the SHA the parent repo has pinned for each submodule, so the patch only captures your local changes — not divergence from upstream.
 
 3. Commit the updated patch in the parent repo:
    ```bash
