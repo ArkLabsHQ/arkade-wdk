@@ -1,6 +1,6 @@
 # @arkade-os/wdk
 
-WDK-compatible Bitcoin wallet manager/account implementation built on top of `@arkade-os/sdk`, with Lightning support through `@arkade-os/boltz-swap`.
+WDK-compatible Bitcoin wallet manager/account implementation built on top of `@arkade-os/sdk`, with optional Lightning support through `@arkade-os/boltz-swap`.
 
 ## Current Status
 
@@ -11,8 +11,8 @@ Implemented:
 - LNURL/Lightning-address helpers (`fetchInvoice`, limits, callback resolution)
 - Utility exports for address detection, BIP21 parsing/encoding, fees, and formatting
 - Three account types via index: boarding (0), offchain (1), lightning (2)
-- Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
-- Lightning send via auto-detection of BOLT11 invoices in `sendTransaction()`
+- Optional Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
+- Optional Lightning send via auto-detection of BOLT11 invoices in `sendTransaction()`
 - Transaction history for arkade networks via `getTransactionHistory()` (HRPC → SDK)
 - Arkade balance fetching via the RN-side Arkade wallet using `getBalance()`
 
@@ -21,7 +21,7 @@ Implemented:
 
 ## Account Model
 
-The wallet manager exposes three account indices, all sharing the same underlying `@arkade-os/sdk` wallet instance:
+The wallet manager exposes three account indices, each derived from the seed at a distinct BIP-86 path:
 
 | Index | AddressType | Purpose |
 |-------|-------------|---------|
@@ -106,7 +106,7 @@ console.log({ balance, quoteFee: quote.fee, txid: tx.hash })
 
 ## Lightning and LNURL
 
-Create Lightning invoice:
+Create Lightning invoice (enabled only when `swapProviderUrl` is configured):
 
 ```typescript
 const { invoice, paymentHash } = await account.createLightningInvoice(50_000, 'Payment for coffee')
@@ -182,7 +182,7 @@ class WalletAccountReadOnlyArkade {
 ```typescript
 class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   readonly keyPair: { publicKey: Uint8Array; privateKey: Uint8Array | null }
-  readonly arkadeSwaps: ArkadeSwaps
+  readonly arkadeSwaps: ArkadeSwaps | null
 
   sendTransaction(tx: Transaction): Promise<{ hash: string; fee: bigint }>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
@@ -252,10 +252,12 @@ import type { ArkadeWalletConfig } from '@arkade-os/wdk'
 
 const config: ArkadeWalletConfig = {
   arkServerUrl: 'https://arkade.computer',
+  // Optional: enables Lightning send/receive.
+  // swapProviderUrl: 'https://api.ark.boltz.exchange',
 }
 ```
 
-`ArkadeWalletConfig` includes `@arkade-os/sdk` wallet config fields (except `identity`).
+`ArkadeWalletConfig` includes `@arkade-os/sdk` wallet config fields (except `identity`) plus optional `swapProviderUrl`.
 Minimum Arkade configuration is `arkServerUrl` or `arkProvider`.
 
 ## Temporary Workarounds

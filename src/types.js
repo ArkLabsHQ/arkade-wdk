@@ -8,7 +8,9 @@
 
 /**
  * @typedef {import('@tetherto/wdk-wallet').WalletConfig &
- *   Omit<import('@arkade-os/sdk').WalletConfig, 'identity'>} ArkadeWalletConfig
+ *   Omit<import('@arkade-os/sdk').WalletConfig, 'identity'> & {
+ *     swapProviderUrl?: string
+ *   }} ArkadeWalletConfig
  */
 
 export default {};

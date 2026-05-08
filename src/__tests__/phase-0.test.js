@@ -5,7 +5,7 @@
  *   0.1 / 0.2  Lightning lifecycle delegations + waitForLightningPayment
  *   0.3        Real getFeeRates from arkInfo
  *   0.4        BIP21 propagation in send/quoteSend
- *   0.6        ArkadeSwaps always created (Boltz URL defaults in the library)
+ *   0.6        ArkadeSwaps optional creation
  *   0.7        Lib helpers re-exported from src/index.js
  */
 import { describe, it, mock, afterEach } from 'node:test';
@@ -150,11 +150,14 @@ describe('0.1 — Lightning lifecycle delegations', () => {
 
   it('throws when arkadeSwaps is null', async () => {
     const account = makeAccount(null);
-    await assert.rejects(account.getPendingLightningReceives(), /Lightning support not available/);
-    await assert.rejects(account.getPendingLightningSends(), /Lightning support not available/);
-    await assert.rejects(account.getSwapHistory(), /Lightning support not available/);
-    await assert.rejects(account.getLightningLimits(), /Lightning support not available/);
-    await assert.rejects(account.getLightningFees(), /Lightning support not available/);
+    await assert.rejects(
+      account.getPendingLightningReceives(),
+      /Lightning support not configured/
+    );
+    await assert.rejects(account.getPendingLightningSends(), /Lightning support not configured/);
+    await assert.rejects(account.getSwapHistory(), /Lightning support not configured/);
+    await assert.rejects(account.getLightningLimits(), /Lightning support not configured/);
+    await assert.rejects(account.getLightningFees(), /Lightning support not configured/);
   });
 });
 
@@ -207,7 +210,7 @@ describe('0.2 — waitForLightningPayment', () => {
     const account = makeAccount(null);
     await assert.rejects(
       account.waitForLightningPayment('lnbc1xxx'),
-      /Lightning support not available/
+      /Lightning support not configured/
     );
   });
 });
@@ -363,10 +366,10 @@ describe('0.4 — BIP21 propagation in send / quoteSend', () => {
 });
 
 // ----------------------------------------------------------------------------
-// 0.6 — ArkadeSwaps always created (Boltz URL defaults in the library)
+// 0.6 — ArkadeSwaps optional creation
 // ----------------------------------------------------------------------------
 
-describe('0.6 — ArkadeSwaps always created', () => {
+describe('0.6 — ArkadeSwaps optional creation', () => {
   /** Mock @arkade-os/sdk Wallet.create so we don't try to talk to a real Ark server. */
   function mockWalletCreate() {
     return mock.method(Wallet, 'create', async (config) => {
@@ -380,10 +383,9 @@ describe('0.6 — ArkadeSwaps always created', () => {
     });
   }
 
-  it('always calls ArkadeSwaps.create regardless of config', async () => {
+  it('does not create ArkadeSwaps when swapProviderUrl is omitted', async () => {
     mockWalletCreate();
-    const mockSwaps = { dispose: mock.fn() };
-    const swapsCreate = mock.method(ArkadeSwaps, 'create', async () => mockSwaps);
+    const swapsCreate = mock.method(ArkadeSwaps, 'create', async () => ({ dispose: mock.fn() }));
 
     const manager = new WalletManagerArkade(validSeedPhrase, {
       arkProvider: stubArkProvider,
@@ -391,14 +393,30 @@ describe('0.6 — ArkadeSwaps always created', () => {
 
     const account = await manager.getAccount(0);
 
-    assert.equal(
-      swapsCreate.mock.callCount(),
-      1,
-      'ArkadeSwaps.create must always be called'
-    );
+    assert.equal(swapsCreate.mock.callCount(), 0);
+    assert.equal(account.arkadeSwaps, null);
+  });
+
+  it('passes through swapProviderUrl when Lightning is configured', async () => {
+    mockWalletCreate();
+    const mockSwaps = { dispose: mock.fn() };
+    const swapsCreate = mock.method(ArkadeSwaps, 'create', async () => mockSwaps);
+    const swapProviderUrl = 'https://example.invalid/boltz';
+
+    const manager = new WalletManagerArkade(validSeedPhrase, {
+      arkProvider: stubArkProvider,
+      swapProviderUrl,
+    });
+
+    const account = await manager.getAccount(0);
+
+    assert.equal(swapsCreate.mock.callCount(), 1);
     const createConfig = swapsCreate.mock.calls[0].arguments[0];
     assert.ok(createConfig.swapProvider, 'must pass an explicit swapProvider (carries referralId)');
-    assert.equal(createConfig.swapProvider.getApiUrl(), new BoltzSwapProvider({ network: 'regtest' }).getApiUrl(), 'must use the library default URL');
+    assert.equal(
+      createConfig.swapProvider.getApiUrl(),
+      new BoltzSwapProvider({ apiUrl: swapProviderUrl, network: 'regtest' }).getApiUrl()
+    );
     assert.equal(account.arkadeSwaps, mockSwaps);
   });
 });
