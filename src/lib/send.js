@@ -6,6 +6,7 @@ import { isArkAddress, isBTCAddress, isLightningInvoice } from './address.js';
 import { isBip21, decodeBip21 } from './bip21.js';
 import { decodeInvoice } from './bolt11.js';
 import { calculateOffchainFee, calculateOnchainFee, calculateLightningFee } from './fees.js';
+import { isLightningAddress, isLnUrl, fetchInvoice, fetchArkAddress } from './lnurl.js';
 
 /** @enum {string} */
 export const TransactionType = /** @type {const} */ ({
@@ -46,7 +47,7 @@ export function resolveDestination(destination) {
     return { resolved: destination };
   }
   const decoded = decodeBip21(destination);
-  const resolved = decoded.invoice ?? decoded.arkAddress ?? decoded.address;
+  const resolved = decoded.invoice ?? decoded.lnurl ?? decoded.arkAddress ?? decoded.address;
   if (!resolved) {
     throw new Error(`BIP21 URI has no usable destination: ${destination}`);
   }
@@ -73,6 +74,9 @@ export function detectTransactionType(destination) {
   if (isLightningInvoice(resolved)) {
     return TransactionType.LIGHTNING;
   }
+  if (isLightningAddress(resolved) || isLnUrl(resolved)) {
+    return TransactionType.EMAIL;
+  }
   return TransactionType.UNKNOWN;
 }
 
@@ -95,6 +99,26 @@ function reconcileAmount(optionsAmount, bip21Sats) {
     );
   }
   return optionsAmount;
+}
+
+/**
+ * @param {string} destination
+ * @returns {Promise<string | null>}
+ */
+async function fetchArkAddressIfAvailable(destination) {
+  try {
+    const response = await fetchArkAddress(destination);
+    return response.address && isArkAddress(response.address) ? response.address : null;
+  } catch {
+    return null;
+  }
+}
+
+/** @param {bigint} amount */
+function assertPositiveAmount(amount) {
+  if (amount <= 0n) {
+    throw new Error('Amount required for LNURL payment');
+  }
 }
 
 /**
@@ -132,7 +156,17 @@ export async function quoteSend(options) {
     }
 
     case TransactionType.EMAIL: {
-      throw new Error('Email payments not yet supported');
+      if (!lightning) {
+        throw new Error('Lightning support not configured');
+      }
+      assertPositiveAmount(effectiveAmount);
+
+      const arkAddress = await fetchArkAddressIfAvailable(resolved);
+      if (arkAddress) {
+        return calculateOffchainFee(arkInfo);
+      }
+
+      return calculateLightningFee(effectiveAmount, lightning);
     }
 
     default: {
@@ -195,7 +229,36 @@ export async function send(options) {
     }
 
     case TransactionType.EMAIL: {
-      throw new Error('Email payments not yet supported');
+      if (!lightning) {
+        throw new Error('Lightning support not configured');
+      }
+      assertPositiveAmount(effectiveAmount);
+
+      const arkAddress = await fetchArkAddressIfAvailable(resolved);
+      if (arkAddress) {
+        const txid = await wallet.sendBitcoin({
+          address: arkAddress,
+          amount: Number(effectiveAmount),
+        });
+        const feeEstimate = await calculateOffchainFee(arkInfo);
+        return { txid, type: TransactionType.ARK_OFFCHAIN, fee: feeEstimate.fee };
+      }
+
+      const invoice = await fetchInvoice(resolved, Number(effectiveAmount));
+      const decoded = decodeInvoice(invoice);
+      const invoiceAmount = BigInt(decoded.amountSats);
+
+      if (invoiceAmount !== effectiveAmount) {
+        throw new Error('Amount mismatch with LNURL invoice');
+      }
+
+      const result = await lightning.sendLightningPayment({ invoice });
+      const feeEstimate = await calculateLightningFee(invoiceAmount, lightning);
+      return {
+        txid: result.preimage || decoded.paymentHash,
+        type: TransactionType.LIGHTNING,
+        fee: feeEstimate.fee,
+      };
     }
 
     default: {
