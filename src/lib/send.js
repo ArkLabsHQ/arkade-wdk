@@ -36,8 +36,8 @@ export const TransactionType = /** @type {const} */ ({
  * actually consumed by the wallet, plus any amount carried in the URI.
  *
  * BIP21 wraps a Bitcoin address with optional `?ark=`, `?lightning=`, and
- * `?amount=` parameters; the inner destination ordering matches the type
- * priority used by `detectTransactionType`: lightning > ark > bitcoin.
+ * `?amount=` parameters. Explicit Ark parameters take priority over LNURL
+ * fallback routes.
  *
  * @param {string} destination
  * @returns {{ resolved: string; bip21Sats?: number }}
@@ -47,7 +47,7 @@ export function resolveDestination(destination) {
     return { resolved: destination };
   }
   const decoded = decodeBip21(destination);
-  const resolved = decoded.invoice ?? decoded.lnurl ?? decoded.arkAddress ?? decoded.address;
+  const resolved = decoded.invoice ?? decoded.arkAddress ?? decoded.lnurl ?? decoded.address;
   if (!resolved) {
     throw new Error(`BIP21 URI has no usable destination: ${destination}`);
   }

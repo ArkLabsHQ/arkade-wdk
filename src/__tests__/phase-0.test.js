@@ -280,6 +280,37 @@ describe('0.4 — BIP21 propagation in send / quoteSend', () => {
     assert.equal(detectTransactionType(uri), TransactionType.ARK_OFFCHAIN);
   });
 
+  it('BIP21 ?ark= takes priority over ?lightning=LNURL', async () => {
+    mock.method(globalThis, 'fetch', async () => {
+      throw new Error('LNURL endpoint must not be queried when ?ark= is present');
+    });
+    const wallet = makeWallet();
+    const lightning = {
+      sendLightningPayment: mock.fn(),
+      getFees: mock.fn(),
+    };
+    const uri = `bitcoin:${BTC_ADDR}?ark=${ARK_ADDR}&lightning=${LNURL}`;
+
+    assert.equal(resolveDestination(uri).resolved, ARK_ADDR);
+    assert.equal(detectTransactionType(uri), TransactionType.ARK_OFFCHAIN);
+
+    const result = await send({
+      to: uri,
+      amount: 1234n,
+      wallet,
+      arkInfo,
+      lightning,
+    });
+
+    assert.equal(wallet.sendBitcoin.mock.callCount(), 1);
+    assert.deepEqual(wallet.sendBitcoin.mock.calls[0].arguments[0], {
+      address: ARK_ADDR,
+      amount: 1234,
+    });
+    assert.equal(lightning.sendLightningPayment.mock.callCount(), 0);
+    assert.equal(result.type, TransactionType.ARK_OFFCHAIN);
+  });
+
   it('detectTransactionType resolves BIP21 wrapping a BOLT11 invoice (?lightning=)', () => {
     const uri = `bitcoin:${BTC_ADDR}?lightning=${BOLT11}`;
     assert.equal(detectTransactionType(uri), TransactionType.LIGHTNING);
