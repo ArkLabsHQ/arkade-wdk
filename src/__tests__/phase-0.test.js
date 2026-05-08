@@ -5,11 +5,13 @@
  *   0.1 / 0.2  Lightning lifecycle delegations + waitForLightningPayment
  *   0.3        Real getFeeRates from arkInfo
  *   0.4        BIP21 propagation in send/quoteSend
+ *   0.5        LNURL / Lightning-address routing
  *   0.6        ArkadeSwaps optional creation
  *   0.7        Lib helpers re-exported from src/index.js
  */
 import { describe, it, mock, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { bech32, utf8 } from '@scure/base';
 
 import * as wdkExports from '../index.js';
 import { isArkAddress } from '../lib/address.js';
@@ -45,6 +47,10 @@ if (!isArkAddress(ARK_ADDR)) {
 // valid; the parser only fails on structural errors.
 const BOLT11 =
   'lnbc15u1p3xnhl2pp5jptserfk3zk4qy42tlucycrfwxhydvlemu9pqr93tuzlv9cc7g3sdqsvfhkcap3xyhx7un8cqzpgxqzjcsp5f8c52y2stc300gl6s4xswtjpc37hrnnr3c9wvtgjfuvqmpm35evq9qyyssqy4lgd8tj637qcjp05rdpxxykjenthxftej7a2zzmwrmrl70fyj9hvj0rewhzj7jfyuwkwcg9g2jpwtk3wkjtwnkdks84hsnu8xps5vsq4gj5hs';
+const LNURL = bech32.encodeFromBytes(
+  'lnurl',
+  utf8.decode('https://domain.com/.well-known/lnurlp/user')
+);
 
 afterEach(() => {
   mock.restoreAll();
@@ -274,6 +280,37 @@ describe('0.4 — BIP21 propagation in send / quoteSend', () => {
     assert.equal(detectTransactionType(uri), TransactionType.ARK_OFFCHAIN);
   });
 
+  it('BIP21 ?ark= takes priority over ?lightning=LNURL', async () => {
+    mock.method(globalThis, 'fetch', async () => {
+      throw new Error('LNURL endpoint must not be queried when ?ark= is present');
+    });
+    const wallet = makeWallet();
+    const lightning = {
+      sendLightningPayment: mock.fn(),
+      getFees: mock.fn(),
+    };
+    const uri = `bitcoin:${BTC_ADDR}?ark=${ARK_ADDR}&lightning=${LNURL}`;
+
+    assert.equal(resolveDestination(uri).resolved, ARK_ADDR);
+    assert.equal(detectTransactionType(uri), TransactionType.ARK_OFFCHAIN);
+
+    const result = await send({
+      to: uri,
+      amount: 1234n,
+      wallet,
+      arkInfo,
+      lightning,
+    });
+
+    assert.equal(wallet.sendBitcoin.mock.callCount(), 1);
+    assert.deepEqual(wallet.sendBitcoin.mock.calls[0].arguments[0], {
+      address: ARK_ADDR,
+      amount: 1234,
+    });
+    assert.equal(lightning.sendLightningPayment.mock.callCount(), 0);
+    assert.equal(result.type, TransactionType.ARK_OFFCHAIN);
+  });
+
   it('detectTransactionType resolves BIP21 wrapping a BOLT11 invoice (?lightning=)', () => {
     const uri = `bitcoin:${BTC_ADDR}?lightning=${BOLT11}`;
     assert.equal(detectTransactionType(uri), TransactionType.LIGHTNING);
@@ -362,6 +399,164 @@ describe('0.4 — BIP21 propagation in send / quoteSend', () => {
     });
     // calculateOffchainFee uses 150 vB * 2 sat/vB = 300 sats
     assert.equal(result.fee, 300n);
+  });
+});
+
+// ----------------------------------------------------------------------------
+// 0.5 — LNURL routing
+// ----------------------------------------------------------------------------
+
+describe('0.5 — LNURL routing', () => {
+  const arkInfo = Promise.resolve({ fees: { txFeeRate: '2' } });
+
+  function makeWallet() {
+    return {
+      sendBitcoin: mock.fn(() => Promise.resolve('txid-lnurl')),
+    };
+  }
+
+  function makeLightning() {
+    return {
+      sendLightningPayment: mock.fn(() => Promise.resolve({ preimage: 'preimage-lnurl' })),
+      getFees: mock.fn(() =>
+        Promise.resolve({ submarine: { percentage: 0.5, minerFees: 200 } })
+      ),
+    };
+  }
+
+  function jsonResponse(data, ok = true, status = 200) {
+    return {
+      ok,
+      status,
+      json: () => Promise.resolve(data),
+    };
+  }
+
+  it('detectTransactionType classifies Lightning addresses and LNURL as EMAIL', () => {
+    assert.equal(detectTransactionType('user@domain.com'), TransactionType.EMAIL);
+    assert.equal(detectTransactionType(LNURL), TransactionType.EMAIL);
+  });
+
+  it('detectTransactionType resolves BIP21 ?lightning=LNURL as EMAIL', () => {
+    const uri = `bitcoin:${BTC_ADDR}?lightning=${LNURL}`;
+    assert.equal(detectTransactionType(uri), TransactionType.EMAIL);
+  });
+
+  it('send and quoteSend require Lightning support for Lightning addresses', async () => {
+    await assert.rejects(
+      send({
+        to: 'user@domain.com',
+        amount: 1000n,
+        wallet: makeWallet(),
+        arkInfo,
+        lightning: null,
+      }),
+      /Lightning support not configured/
+    );
+
+    await assert.rejects(
+      quoteSend({
+        to: 'user@domain.com',
+        amount: 1000n,
+        wallet: makeWallet(),
+        arkInfo,
+        lightning: null,
+      }),
+      /Lightning support not configured/
+    );
+  });
+
+  it('send routes to Ark when the LNURL endpoint advertises an Ark address', async () => {
+    mock.method(globalThis, 'fetch', async () =>
+      jsonResponse({ address: ARK_ADDR, expiryDate: '', hint: '' })
+    );
+    const wallet = makeWallet();
+    const lightning = makeLightning();
+
+    const result = await send({
+      to: 'user@domain.com',
+      amount: 1234n,
+      wallet,
+      arkInfo,
+      lightning,
+    });
+
+    assert.equal(wallet.sendBitcoin.mock.callCount(), 1);
+    assert.deepEqual(wallet.sendBitcoin.mock.calls[0].arguments[0], {
+      address: ARK_ADDR,
+      amount: 1234,
+    });
+    assert.equal(lightning.sendLightningPayment.mock.callCount(), 0);
+    assert.equal(result.type, TransactionType.ARK_OFFCHAIN);
+    assert.equal(result.fee, 300n);
+  });
+
+  it('quoteSend returns the Ark fee when the LNURL endpoint advertises an Ark address', async () => {
+    mock.method(globalThis, 'fetch', async () =>
+      jsonResponse({ address: ARK_ADDR, expiryDate: '', hint: '' })
+    );
+
+    const result = await quoteSend({
+      to: 'user@domain.com',
+      amount: 1234n,
+      wallet: makeWallet(),
+      arkInfo,
+      lightning: makeLightning(),
+    });
+
+    assert.equal(result.fee, 300n);
+  });
+
+  it('send falls back to a fetched BOLT11 invoice when Ark lookup fails', async () => {
+    mock.method(globalThis, 'fetch', async (url) => {
+      const href = String(url);
+      if (href.endsWith('?method=ark')) return jsonResponse({}, false, 404);
+      if (href.endsWith('/.well-known/lnurlp/user')) {
+        return jsonResponse({
+          minSendable: 1000,
+          maxSendable: 2_000_000,
+          callback: 'https://domain.com/lnurl-callback',
+          metadata: '[]',
+        });
+      }
+      if (href === 'https://domain.com/lnurl-callback?amount=1500000') {
+        return jsonResponse({ pr: BOLT11 });
+      }
+      throw new Error(`Unexpected fetch URL: ${href}`);
+    });
+    const wallet = makeWallet();
+    const lightning = makeLightning();
+
+    const result = await send({
+      to: 'user@domain.com',
+      amount: 1500n,
+      wallet,
+      arkInfo,
+      lightning,
+    });
+
+    assert.equal(wallet.sendBitcoin.mock.callCount(), 0);
+    assert.equal(lightning.sendLightningPayment.mock.callCount(), 1);
+    assert.deepEqual(lightning.sendLightningPayment.mock.calls[0].arguments[0], {
+      invoice: BOLT11,
+    });
+    assert.equal(result.type, TransactionType.LIGHTNING);
+    assert.equal(result.txid, 'preimage-lnurl');
+    assert.equal(result.fee, 207n);
+  });
+
+  it('quoteSend falls back to Lightning fees when Ark lookup fails', async () => {
+    mock.method(globalThis, 'fetch', async () => jsonResponse({}, false, 404));
+
+    const result = await quoteSend({
+      to: 'user@domain.com',
+      amount: 1500n,
+      wallet: makeWallet(),
+      arkInfo,
+      lightning: makeLightning(),
+    });
+
+    assert.equal(result.fee, 207n);
   });
 });
 

@@ -7,17 +7,14 @@ WDK-compatible Bitcoin wallet manager/account implementation built on top of `@a
 Implemented:
 - WDK `WalletManager` integration (`getAccount`, `getAccountByPath`, `dispose`)
 - WDK account methods for send/sign/verify/quote and read-only conversion
-- Destination auto-detection for Ark address, BTC address, and BOLT11 invoices
+- Destination auto-detection for Ark address, BTC address, BOLT11 invoices, Lightning addresses, and LNURL
 - LNURL/Lightning-address helpers (`fetchInvoice`, limits, callback resolution)
 - Utility exports for address detection, BIP21 parsing/encoding, fees, and formatting
 - Three account types via index: boarding (0), offchain (1), lightning (2)
 - Optional Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
-- Optional Lightning send via auto-detection of BOLT11 invoices in `sendTransaction()`
+- Optional Lightning send via auto-detection of BOLT11 invoices, Lightning addresses, and LNURL in `sendTransaction()`
 - Transaction history for arkade networks via `getTransactionHistory()` (HRPC → SDK)
 - Arkade balance fetching via the RN-side Arkade wallet using `getBalance()`
-
-`TODO` (known gaps in current implementation):
-- Transaction routing enum includes `EMAIL`, but email payments are not implemented
 
 ## Account Model
 
@@ -29,7 +26,7 @@ The wallet manager exposes three account indices, each derived from the seed at 
 | 1 | `offchain` | Ark protocol address (VTXO-to-VTXO transfers) |
 | 2 | `lightning` | Lightning via Boltz swaps (no static address; uses invoice generation) |
 
-`getAddress()` returns an empty string for Lightning (index 2). The UI should detect this and present an amount-input + invoice-generation flow instead of a static QR code.
+`getAddress()` returns the Ark address for all indices including Lightning (index 2). To receive over Lightning, use `createLightningInvoice()` instead of displaying the address as a QR code.
 
 ## Repository Structure
 
@@ -116,12 +113,7 @@ console.log(invoice) // BOLT11 invoice string
 Pay to Lightning address / LNURL:
 
 ```typescript
-import { fetchInvoice, isLightningAddress } from '@arkade-os/wdk/src/lib/lnurl.js'
-
-if (isLightningAddress('user@wallet.com')) {
-  const invoice = await fetchInvoice('user@wallet.com', 1000, 'tip')
-  await account.sendTransaction({ to: invoice, value: 1000n })
-}
+await account.sendTransaction({ to: 'user@wallet.com', value: 1000n })
 ```
 
 ## Arkade-Specific Account Methods
@@ -153,7 +145,7 @@ class WalletManagerArkade extends WalletManager {
   getAccount(index?: number): Promise<WalletAccountArkade>
   getAccountByPath(path: string): Promise<WalletAccountArkade>
   getFeeRates(): Promise<{ normal: bigint; fast: bigint }>
-  dispose(): void
+  dispose(): Promise<void>
 }
 ```
 
@@ -161,11 +153,7 @@ class WalletManagerArkade extends WalletManager {
 
 ```typescript
 class WalletAccountReadOnlyArkade {
-  readonly index: number
-  readonly path: string
-  readonly keyPair: { publicKey: Uint8Array }
-
-  getAddress(): Promise<string> // returns '' for lightning accounts
+  getAddress(): Promise<string>
   getBoardingAddress(): Promise<string>
   getBalance(): Promise<bigint>
   getTransactionHistory(): Promise<ArkTransaction[]>
@@ -211,9 +199,10 @@ Address:
 
 Transaction routing:
 - `detectTransactionType`
+- `resolveDestination`
 - `quoteSend`
 - `send`
-- `TransactionType`
+- `TransactionType` (`EMAIL` handles Lightning addresses and LNURL)
 
 BIP21:
 - `isBip21`
@@ -285,7 +274,7 @@ The `packages/` and `examples/` directories are git submodules pointing at upstr
 
 | Path | Pinned at |
 |------|-----------|
-| `packages/pear-wrk-wdk` | `1.0.0-beta.4` (commit `ef7a951`) |
+| `packages/pear-wrk-wdk` | one commit past `v1.0.0-beta.2` (commit `ef7a951`) |
 | `packages/wdk-react-native-provider` | `1.0.0-beta.3` (tag `v1.0.0-beta.3`) |
 | `examples/wdk-starter-react-native` | `main` |
 
