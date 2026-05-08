@@ -338,6 +338,36 @@ npm run prepare   # runs bob build + gen:secret-manager-bundle + gen:worker-bund
 
 This re-bundles the worklet (picking up any HRPC schema changes from `pear-wrk-wdk`) and type-checks with the stricter `bob build` settings.
 
+## Releasing to npm
+
+The package is published manually. There is no automated release pipeline.
+
+### Prerequisites
+
+- npm account with access to the `@arkade-os` org
+- Logged in: `npm login`
+
+### Steps
+
+1. Bump the version:
+   ```bash
+   npm version patch   # or minor / major
+   ```
+   This updates `package.json`, creates a git tag, and makes a commit.
+
+2. Push the version commit and tag:
+   ```bash
+   git push && git push --tags
+   ```
+
+3. Publish:
+   ```bash
+   npm publish
+   ```
+   The `prepublishOnly` hook runs `npm run build:types` automatically before publishing, so TypeScript declarations in `types/` are always up to date.
+
+Only `src/` and `types/` are included in the tarball (per the `files` field in `package.json`).
+
 ## Development
 
 ```bash
