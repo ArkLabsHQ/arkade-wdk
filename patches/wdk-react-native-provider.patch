@@ -802,7 +802,7 @@ index 5ae8528..79942ff 100644
  }
  
 diff --git a/src/services/wdk-service/types.ts b/src/services/wdk-service/types.ts
-index 6663b0e..67e3548 100644
+index 6663b0e..445be08 100644
 --- a/src/services/wdk-service/types.ts
 +++ b/src/services/wdk-service/types.ts
 @@ -7,6 +7,8 @@ export enum AssetTicker {
@@ -850,7 +850,7 @@ index 6663b0e..67e3548 100644
    },
    [AssetTicker.USDT]: {
      [NetworkType.ETHEREUM]: 'ethereum',
-@@ -113,6 +134,28 @@ export interface BitcoinChainConfig {
+@@ -113,6 +134,31 @@ export interface BitcoinChainConfig {
    port: number;
  }
  
@@ -874,12 +874,15 @@ index 6663b0e..67e3548 100644
 +   *  be set explicitly. */
 +  indexerUrl?: string;
 +  esploraUrl?: string;
++  /** Boltz swap provider URL. Required for Lightning send/receive support.
++   *  When omitted, Lightning transactions will throw "Lightning support not configured". */
++  swapProviderUrl?: string;
 +}
 +
  export interface TronChainConfig {
    chainId: number;
    provider: string;
-@@ -133,5 +176,6 @@ export interface ChainsConfig {
+@@ -133,5 +179,6 @@ export interface ChainsConfig {
    polygon?: EVMChainConfig;
    ton?: TONChainConfig;
    bitcoin?: BitcoinChainConfig;

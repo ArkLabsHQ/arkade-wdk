@@ -1,8 +1,8 @@
 diff --git a/.env.example b/.env.example
-index fe78808..688edb4 100644
+index fe78808..c0f74a1 100644
 --- a/.env.example
 +++ b/.env.example
-@@ -1,4 +1,16 @@
+@@ -1,4 +1,19 @@
  EXPO_PUBLIC_WDK_INDEXER_BASE_URL=https://wdk-api.tether.io
  EXPO_PUBLIC_WDK_INDEXER_API_KEY=PUT_WDK_API_KEY_HERE
  EXPO_PUBLIC_TRON_API_KEY=PUT_HERE
@@ -21,6 +21,9 @@ index fe78808..688edb4 100644
 +# Esplora REST endpoint used by the RN-side balance workaround for
 +# on-chain BTC boarding deposits. Override for regtest / mutinynet.
 +EXPO_PUBLIC_ESPLORA_URL=https://blockstream.info/api
++# Boltz swap provider URL. Required for Lightning send/receive.
++# Use https://api.boltz.exchange for mainnet or https://api.testnet.boltz.exchange for testnet.
++EXPO_PUBLIC_BOLTZ_SWAP_URL=https://api.boltz.exchange
 diff --git a/app.json b/app.json
 index c2f76ee..91c1e4f 100644
 --- a/app.json
@@ -7285,19 +7288,21 @@ index 7a86eaf..4400f85 100644
    usdt: {
      name: 'USD₮',
 diff --git a/src/config/get-chains-config.ts b/src/config/get-chains-config.ts
-index 0a8e71a..2b5fc03 100644
+index 0a8e71a..3fa33df 100644
 --- a/src/config/get-chains-config.ts
 +++ b/src/config/get-chains-config.ts
-@@ -62,6 +62,13 @@ const getChainsConfig = () => {
+@@ -62,6 +62,15 @@ const getChainsConfig = () => {
        host: 'api.ordimint.com',
        port: 50001,
      },
 +    arkade: {
 +      // arkServerUrl is the only required field. indexerUrl defaults to
 +      // arkServerUrl if omitted. esploraUrl enables boarding-balance display (Phase 5).
++      // swapProviderUrl is required for Lightning send/receive.
 +      arkServerUrl: process.env.EXPO_PUBLIC_ARKADE_SERVER_URL!,
 +      indexerUrl: process.env.EXPO_PUBLIC_ARKADE_INDEXER_URL,
 +      esploraUrl: process.env.EXPO_PUBLIC_ESPLORA_URL,
++      swapProviderUrl: process.env.EXPO_PUBLIC_BOLTZ_SWAP_URL,
 +    },
      tron: {
        chainId: 3448148188,
@@ -7486,107 +7491,3 @@ index 3a08372..06db018 100644
  
      if (
        isBitcoinNetwork &&
-diff --git a/src/utils/parse-payment-uri.ts b/src/utils/parse-payment-uri.ts
-new file mode 100644
-index 0000000..cc1f946
---- /dev/null
-+++ b/src/utils/parse-payment-uri.ts
-@@ -0,0 +1,98 @@
-+/**
-+ * Parse a payment URI from a QR scan or paste into the inner destination that
-+ * `WDKService.sendByNetwork` actually consumes, plus any amount carried with it.
-+ *
-+ * Supports:
-+ *  - BIP21 URIs (`bitcoin:<address>?amount=&ark=&lightning=`), resolving to the
-+ *    inner destination in priority order lightning > ark > bitcoin — matching
-+ *    the SDK's `detectTransactionType`. The `amount=` query param is in BTC.
-+ *  - Raw BOLT11 invoices (`ln[bc|tb|bcrt|sb]<amount><mult>1...`), with the
-+ *    amount decoded from the HRP.
-+ *  - Raw on-chain/Ark addresses — passed through unchanged with no amount.
-+ */
-+export interface ParsedPaymentURI {
-+  address: string;
-+  amountBTC?: number;
-+}
-+
-+export const parsePaymentUri = (data: string): ParsedPaymentURI => {
-+  const trimmed = (data ?? '').trim();
-+  if (!trimmed) return { address: '' };
-+
-+  if (trimmed.toLowerCase().startsWith('bitcoin:')) {
-+    return parseBip21(trimmed);
-+  }
-+
-+  if (isBolt11Invoice(trimmed)) {
-+    return { address: trimmed, amountBTC: decodeBolt11AmountBTC(trimmed) };
-+  }
-+
-+  return { address: trimmed };
-+};
-+
-+/**
-+ * Render a BTC amount as a fixed-point string suitable for the amount input,
-+ * trimming insignificant trailing zeros and avoiding exponential notation for
-+ * small values (e.g. 1e-7 → "0.0000001").
-+ */
-+export const formatBtcAmount = (n: number): string => {
-+  if (!Number.isFinite(n) || n <= 0) return '';
-+  const fixed = n.toFixed(8);
-+  return fixed.replace(/\.?0+$/, '') || '0';
-+};
-+
-+const parseBip21 = (uri: string): ParsedPaymentURI => {
-+  const withoutScheme = uri.slice('bitcoin:'.length);
-+  const [rawAddress, queryString] = withoutScheme.split('?');
-+  const params = new URLSearchParams(queryString ?? '');
-+
-+  const lightning = params.get('lightning') ?? '';
-+  const ark = params.get('ark') ?? '';
-+  const inner =
-+    (lightning && lightning.toLowerCase().startsWith('ln') ? lightning : '') || ark || rawAddress;
-+
-+  const amountParam = params.get('amount');
-+  let amountBTC: number | undefined;
-+  if (amountParam !== null) {
-+    const parsed = Number(amountParam);
-+    if (Number.isFinite(parsed) && parsed >= 0) amountBTC = parsed;
-+  }
-+
-+  // BOLT11 invoices embed their own amount; prefer it when the resolved inner
-+  // destination is an invoice since it's the authoritative payment amount.
-+  if (inner && isBolt11Invoice(inner)) {
-+    const invoiceAmount = decodeBolt11AmountBTC(inner);
-+    if (invoiceAmount !== undefined) amountBTC = invoiceAmount;
-+  }
-+
-+  return { address: inner, amountBTC };
-+};
-+
-+const BOLT11_HRP_RE = /^ln(?:bc|tb|bcrt|sb)(\d+)([munp])?$/;
-+
-+const isBolt11Invoice = (data: string): boolean => {
-+  const sep = data.lastIndexOf('1');
-+  if (sep < 4) return false;
-+  return /^ln(?:bc|tb|bcrt|sb)/i.test(data) && /^[\x21-\x7e]+$/.test(data);
-+};
-+
-+const decodeBolt11AmountBTC = (invoice: string): number | undefined => {
-+  const sep = invoice.lastIndexOf('1');
-+  if (sep < 0) return undefined;
-+  const hrp = invoice.slice(0, sep).toLowerCase();
-+  const match = BOLT11_HRP_RE.exec(hrp);
-+  if (!match) return undefined;
-+  const amount = Number(match[1]);
-+  switch (match[2]) {
-+    case 'm':
-+      return amount * 1e-3;
-+    case 'u':
-+      return amount * 1e-6;
-+    case 'n':
-+      return amount * 1e-9;
-+    case 'p':
-+      return amount * 1e-12;
-+    default:
-+      return amount;
-+  }
-+};
