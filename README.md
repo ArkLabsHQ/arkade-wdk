@@ -242,7 +242,7 @@ import type { ArkadeWalletConfig } from '@arkade-os/wdk'
 const config: ArkadeWalletConfig = {
   arkServerUrl: 'https://arkade.computer',
   // Optional: enables Lightning send/receive.
-  // swapProviderUrl: 'https://api.ark.boltz.exchange',
+  // swapProviderUrl: 'https://api.boltz.exchange',
 }
 ```
 
