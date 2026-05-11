@@ -158,7 +158,6 @@ class WalletAccountReadOnlyArkade {
   getTransactionHistory(): Promise<ArkTransaction[]>
   verify(message: string, signature: string): Promise<boolean>
   getTransactionReceipt(hash: string): Promise<unknown | null>
-  getTransactionHistory(): Promise<ArkTransaction[]>
   getTokenBalance(tokenAddress: string): Promise<bigint>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
   quoteTransfer(options: TransferOptions): Promise<{ fee: bigint }>
