@@ -59,9 +59,9 @@ arkade-wdk/
 npm install @arkade-os/wdk @tetherto/wdk
 ```
 
-`@arkade-os/sdk` is not required as a direct install for normal usage of this adapter.
-It is pulled transitively by `@arkade-os/wdk`.
-If your app imports `@arkade-os/sdk` directly, add it explicitly to your app dependencies.
+`@arkade-os/sdk` and `@arkade-os/boltz-swap` are not required as a direct install for normal usage of this adapter.
+They are pulled transitively by `@arkade-os/wdk`.
+If your app imports `@arkade-os/sdk` or `@arkade-os/boltz-swap` directly, add them explicitly to your app dependencies.
 
 For local monorepo development with submodules and links:
 
@@ -158,6 +158,7 @@ class WalletAccountReadOnlyArkade {
   getTransactionHistory(): Promise<ArkTransaction[]>
   verify(message: string, signature: string): Promise<boolean>
   getTransactionReceipt(hash: string): Promise<unknown | null>
+  getTransactionHistory(): Promise<ArkTransaction[]>
   getTokenBalance(tokenAddress: string): Promise<bigint>
   quoteSendTransaction(tx: Transaction): Promise<{ fee: bigint }>
   quoteTransfer(options: TransferOptions): Promise<{ fee: bigint }>
@@ -216,13 +217,13 @@ const config: ArkadeWalletConfig = {
 
 Common fields:
 
-| Field | Required | Purpose |
-|-------|----------|---------|
-| `arkServerUrl` | one of these two | URL used to construct a `RestArkProvider`. |
-| `arkProvider` | one of these two | A pre-built `ArkProvider` instance — useful for tests or custom transports. |
-| `swapProviderUrl` | optional | Boltz API URL. Enables `createLightningInvoice`, Lightning send via `sendTransaction`, and the swap query methods. |
-| `storage` | optional | `{ walletRepository, contractRepository }`. Defaults to in-memory repositories; pass persistent ones (e.g. SQLite-backed) to keep VTXO state across restarts. |
-| `swapRepository` | optional | Boltz swap state storage. Forwarded into `ArkadeSwaps` when `swapProviderUrl` is set. |
+| Field | Required                      | Purpose |
+|-------|-------------------------------|---------|
+| `arkServerUrl` | either this or `arkProvider`  | URL used to construct a `RestArkProvider`. |
+| `arkProvider` | either this or `arkServerUrl` | A pre-built `ArkProvider` instance — useful for tests or custom transports. |
+| `swapProviderUrl` | optional                      | Boltz API URL. Enables `createLightningInvoice`, Lightning send via `sendTransaction`, and the swap query methods. |
+| `storage` | optional                      | `{ walletRepository, contractRepository }`. Defaults to in-memory repositories; pass persistent ones (e.g. SQLite-backed) to keep VTXO state across restarts. |
+| `swapRepository` | optional                      | Boltz swap state storage. Forwarded into `ArkadeSwaps` when `swapProviderUrl` is set. |
 
 The manager fetches `arkProvider.getInfo()` once at construction time (with a single retry on failure) and reuses the result for fee rates, network detection, and wallet initialization. `Wallet.create` is wrapped in a 30-second timeout; the rejection mentions the unreachable Ark server so misconfigurations surface quickly.
 
@@ -264,6 +265,9 @@ Use the setup script — it initializes submodules, applies all patches, install
 ```bash
 npm run setup:dev
 ```
+
+> [!TIP]
+> To run the example app: `cd examples/wdk-starter-react-native && npm run android # or ios`
 
 If you only need to (re-)apply patches without running the rest of the setup:
 
