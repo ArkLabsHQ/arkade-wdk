@@ -5,28 +5,27 @@ WDK-compatible Bitcoin wallet manager/account implementation built on top of `@a
 ## Current Status
 
 Implemented:
-- WDK `WalletManager` integration (`getAccount`, `getAccountByPath`, `dispose`)
-- WDK account methods for send/sign/verify/quote and read-only conversion
-- Destination auto-detection for Ark address, BTC address, BOLT11 invoices, Lightning addresses, and LNURL
-- LNURL/Lightning-address helpers (`fetchInvoice`, limits, callback resolution)
-- Utility exports for address detection, BIP21 parsing/encoding, fees, and formatting
-- Three account types via index: boarding (0), offchain (1), lightning (2)
-- Optional Lightning receive via `createLightningInvoice()` (HRPC → Boltz swap)
-- Optional Lightning send via auto-detection of BOLT11 invoices, Lightning addresses, and LNURL in `sendTransaction()`
-- Transaction history for arkade networks via `getTransactionHistory()` (HRPC → SDK)
-- Arkade balance fetching via the RN-side Arkade wallet using `getBalance()`
+- WDK `WalletManager` integration (`getAccount`, `getAccountByPath`, `getFeeRates`, `dispose`)
+- WDK account methods for send/sign/verify/quote, BIP-322 message signing, and read-only conversion
+- Destination auto-detection in `sendTransaction()` for Ark addresses, BTC addresses, BOLT11 invoices, Lightning addresses, LNURL, and BIP21 URIs
+- Optional Lightning receive via `createLightningInvoice()` (Boltz reverse swap)
+- Optional Lightning send via `sendTransaction()` (Boltz submarine swap)
+- Transaction history via `getTransactionHistory()` (delegates to the SDK)
+- Subscription to incoming VTXOs via `subscribeToIncomingFunds()`
 
 ## Account Model
 
-The wallet manager exposes three account indices, each derived from the seed at a distinct BIP-86 path:
+Each call to `getAccount(index)` returns one account derived at BIP-86 path `m/86'/<coin>/0'/0/<index>` (`coin = 0` for bitcoin, `1` for any other network). The index is just a key-derivation leaf — there is no per-index role.
 
-| Index | AddressType | Purpose |
-|-------|-------------|---------|
-| 0 | `boarding` | On-chain BTC deposit address (funds enter the Ark) |
-| 1 | `offchain` | Ark protocol address (VTXO-to-VTXO transfers) |
-| 2 | `lightning` | Lightning via Boltz swaps (no static address; uses invoice generation) |
+Every account exposes three receive surfaces from the same underlying wallet:
 
-`getAddress()` returns the Ark address for all indices including Lightning (index 2). To receive over Lightning, use `createLightningInvoice()` instead of displaying the address as a QR code.
+| Surface | API | Used when |
+|---------|-----|-----------|
+| Ark address (offchain) | `getAddress()` | Receiving VTXO transfers from other Ark users |
+| Boarding address (on-chain) | `getBoardingAddress()` | Funding the wallet by depositing on-chain BTC |
+| Lightning invoice | `createLightningInvoice(amount, description?)` | Receiving Lightning payments via Boltz reverse swap |
+
+Lightning is only available when `swapProviderUrl` is set in the wallet config; otherwise `createLightningInvoice` throws. `getAddress()` always returns the Ark address — do not use it as a QR code for Lightning receives.
 
 ## Repository Structure
 
@@ -169,6 +168,8 @@ class WalletAccountReadOnlyArkade {
 
 ```typescript
 class WalletAccountArkade extends WalletAccountReadOnlyArkade {
+  readonly path: string             // full BIP-86 derivation path
+  readonly index: number            // path leaf (last segment)
   readonly keyPair: { publicKey: Uint8Array; privateKey: Uint8Array | null }
   readonly arkadeSwaps: ArkadeSwaps | null
 
@@ -189,50 +190,15 @@ class WalletAccountArkade extends WalletAccountReadOnlyArkade {
 }
 ```
 
-### Utility Exports
+### Package Exports
 
-Address:
-- `decodeArkAddress`
-- `isArkAddress`
-- `isBTCAddress`
-- `isLightningInvoice`
+`@arkade-os/wdk` exports three values:
 
-Transaction routing:
-- `detectTransactionType`
-- `resolveDestination`
-- `quoteSend`
-- `send`
-- `TransactionType` (`EMAIL` handles Lightning addresses and LNURL)
+- `default` — `WalletManagerArkade`
+- `WalletAccountArkade`
+- `WalletAccountReadOnlyArkade`
 
-BIP21:
-- `isBip21`
-- `decodeBip21`
-- `encodeBip21`
-
-BOLT11:
-- `decodeInvoice`
-- `isValidInvoice`
-
-LNURL / Lightning address:
-- `isLnUrl`
-- `isLightningAddress`
-- `isValidLnUrl`
-- `getCallbackUrl`
-- `checkLnUrlConditions`
-- `fetchInvoice`
-- `fetchArkAddress`
-- `getLnUrlLimits`
-- `extractRecipientFromMetadata`
-
-Fees and formatting:
-- `calculateOffchainFee`
-- `calculateOnchainFee`
-- `calculateLightningFee`
-- `fromSatoshis`
-- `toSatoshis`
-- `formatSats`
-- `formatSatsWithCommas`
-- `prettyNumber`
+The modules under `src/lib/` (address detection, BIP21, BOLT11, LNURL, fees, formatting, send routing) back the destination auto-detection that `sendTransaction()` performs and are not part of the package's public API.
 
 ## Configuration
 
@@ -246,8 +212,19 @@ const config: ArkadeWalletConfig = {
 }
 ```
 
-`ArkadeWalletConfig` includes `@arkade-os/sdk` wallet config fields (except `identity`) plus optional `swapProviderUrl`.
-Minimum Arkade configuration is `arkServerUrl` or `arkProvider`.
+`ArkadeWalletConfig` extends the WDK `WalletConfig` and the `@arkade-os/sdk` `WalletConfig` (minus `identity`, which the manager fills in from the derived HD key) plus an optional `swapProviderUrl`.
+
+Common fields:
+
+| Field | Required | Purpose |
+|-------|----------|---------|
+| `arkServerUrl` | one of these two | URL used to construct a `RestArkProvider`. |
+| `arkProvider` | one of these two | A pre-built `ArkProvider` instance — useful for tests or custom transports. |
+| `swapProviderUrl` | optional | Boltz API URL. Enables `createLightningInvoice`, Lightning send via `sendTransaction`, and the swap query methods. |
+| `storage` | optional | `{ walletRepository, contractRepository }`. Defaults to in-memory repositories; pass persistent ones (e.g. SQLite-backed) to keep VTXO state across restarts. |
+| `swapRepository` | optional | Boltz swap state storage. Forwarded into `ArkadeSwaps` when `swapProviderUrl` is set. |
+
+The manager fetches `arkProvider.getInfo()` once at construction time (with a single retry on failure) and reuses the result for fee rates, network detection, and wallet initialization. `Wallet.create` is wrapped in a 30-second timeout; the rejection mentions the unreachable Ark server so misconfigurations surface quickly.
 
 ## Temporary Workarounds
 
@@ -274,9 +251,11 @@ The `packages/` and `examples/` directories are git submodules pointing at upstr
 
 | Path | Pinned at |
 |------|-----------|
-| `packages/pear-wrk-wdk` | one commit past `v1.0.0-beta.2` (commit `ef7a951`) |
-| `packages/wdk-react-native-provider` | `1.0.0-beta.3` (tag `v1.0.0-beta.3`) |
-| `examples/wdk-starter-react-native` | `main` |
+| `packages/pear-wrk-wdk` | one commit before `v2.0.0-beta.1` (commit `ed8cd00`) |
+| `packages/wdk-react-native-provider` | one commit past `v1.0.0-beta.3` (commit `79462d4`) |
+| `examples/wdk-starter-react-native` | `develop` (commit `f010fda`) |
+
+Run `git submodule status` to confirm the pinned commit hashes in the parent repo.
 
 ### After cloning
 
@@ -329,33 +308,42 @@ This re-bundles the worklet (picking up any HRPC schema changes from `pear-wrk-w
 
 ## Releasing to npm
 
-The package is published manually. There is no automated release pipeline.
+Releases are driven from a local workstation by `scripts/release.js` (invoked through `npm run release`). There is no automated release pipeline.
 
 ### Prerequisites
 
 - npm account with access to the `@arkade-os` org
 - Logged in: `npm login`
+- Working tree on the commit you want to publish (the release script does not bump the version itself)
 
 ### Steps
 
-1. Bump the version:
+1. Bump the version with `--no-git-tag-version` (the release script creates the tag itself; using plain `npm version` would create the tag twice and the script would refuse to run):
    ```bash
-   npm version patch   # or minor / major
-   ```
-   This updates `package.json`, creates a git tag, and makes a commit.
-
-2. Push the version commit and tag:
-   ```bash
-   git push && git push --tags
+   npm version --no-git-tag-version patch   # or minor / major
+   git commit -am "Bump version"
+   git push
    ```
 
-3. Publish:
+2. Run the release script:
    ```bash
-   npm publish
+   npm run release
    ```
-   The `prepublishOnly` hook runs `npm run build:types` automatically before publishing, so TypeScript declarations in `types/` are always up to date.
+   It reads the version from `package.json`, creates the `vX.Y.Z` tag locally, runs `npm publish` (which fires the `prepublishOnly` hook that regenerates type declarations in `types/`), and pushes the tag to `origin`. If publish fails the tag is removed so a retry can re-tag the same commit.
 
 Only `src/` and `types/` are included in the tarball (per the `files` field in `package.json`).
+
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request targeting `master`. The job uses Node.js 22 and runs:
+
+```bash
+npm ci
+npm run lint    # eslint + tsc --noEmit via jsconfig.json
+npm test        # node --test src/__tests__/*.test.js
+```
+
+Tests use Node's built-in test runner — no extra framework or runtime dependency is required.
 
 ## Development
 
