@@ -36,7 +36,7 @@ export const TransactionType = /** @type {const} */ ({
  * actually consumed by the wallet, plus any amount carried in the URI.
  *
  * BIP21 wraps a Bitcoin address with optional `?ark=`, `?lightning=`, and
- * `?amount=` parameters. Explicit Ark parameters take priority over LNURL
+ * `?amount=` parameters. Explicit `?ark=` parameters take priority over LNURL
  * fallback routes.
  *
  * @param {string} destination

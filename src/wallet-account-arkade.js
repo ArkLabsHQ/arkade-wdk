@@ -5,7 +5,7 @@ import { quoteSend, send } from './lib/send.js';
 import { WalletAccountReadOnlyArkade } from './wallet-account-read-only-arkade.js';
 
 /**
- * Full Bitcoin wallet account with Arkade Ark protocol support.
+ * Full Bitcoin wallet account with Arkade support.
  * Extends the read-only account with signing, sending, and Lightning capabilities.
  */
 export class WalletAccountArkade extends WalletAccountReadOnlyArkade {

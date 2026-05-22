@@ -15,7 +15,7 @@ import { WalletAccountArkade } from './wallet-account-arkade.js';
 const WALLET_CREATE_TIMEOUT_MS = 30_000;
 
 /**
- * Bitcoin wallet manager using Arkade SDK with Ark protocol support.
+ * Bitcoin wallet manager using the Arkade SDK.
  * Caches accounts in the inherited `_accounts` map and delegates disposal to the base class.
  */
 class WalletManagerArkade extends WalletManager {
@@ -125,8 +125,8 @@ class WalletManagerArkade extends WalletManager {
             () =>
               reject(
                 new Error(
-                  `Ark wallet creation timed out after ${WALLET_CREATE_TIMEOUT_MS}ms — ` +
-                    `is the Ark server at ${cfg.arkServerUrl} reachable?`
+                  `Arkade wallet creation timed out after ${WALLET_CREATE_TIMEOUT_MS}ms — ` +
+                    `is the Arkade operator at ${cfg.arkServerUrl} reachable?`
                 )
               ),
             WALLET_CREATE_TIMEOUT_MS
@@ -217,10 +217,10 @@ class WalletManagerArkade extends WalletManager {
   }
 
   /**
-   * Returns the current Ark fee rate in sat/vB.
+   * Returns the current Arkade fee rate in sat/vB.
    *
-   * Ark has no mempool fee tiers — `txFeeRate` from `arkInfo.fees` is the
-   * single rate negotiated with the Ark server, so `normal` and `fast` are
+   * Arkade has no mempool fee tiers — `txFeeRate` from `arkInfo.fees` is the
+   * single rate from the Arkade operator, so `normal` and `fast` are
    * always equal. The split is preserved to match the WDK `FeeRates` shape.
    *
    * @returns {Promise<import('@tetherto/wdk').FeeRates>}

@@ -5,7 +5,7 @@ Guidance for coding agents working in this repository.
 ## 1) Purpose and Current Scope
 
 - This repo's primary package is `@arkade-os/wdk`, a WDK-compatible Bitcoin wallet adapter on top of `@arkade-os/sdk`.
-- It supports Ark + optional Lightning (`@arkade-os/boltz-swap`) and exports utility helpers (`src/lib/*`).
+- It supports Arkade + optional Lightning (`@arkade-os/boltz-swap`) and exports utility helpers (`src/lib/*`).
 - Submodules under `packages/` and `examples/` are local development surfaces for RN integration and validation.
 - Current state: the RN example is the integration playground, but it does not yet route Bitcoin through `@arkade-os/wdk` by default.
 

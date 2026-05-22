@@ -5,7 +5,7 @@ import { ArkAddress } from '@arkade-os/sdk';
 import { arkAddressToPkScript, bech32mDecode, bech32mFromWords } from '../lib/bech32m.js';
 
 /**
- * Build a deterministic Ark address using the SDK's encoder so the test can
+ * Build a deterministic Arkade address using the SDK's encoder so the test can
  * cross-check our standalone decoder against the canonical implementation.
  */
 function makeArkAddress(seed = 0x42) {
@@ -19,7 +19,7 @@ function makeArkAddress(seed = 0x42) {
 }
 
 describe('bech32m', () => {
-  it('decodes an Ark address and matches the SDK pkScript', () => {
+  it('decodes an Arkade address and matches the SDK pkScript', () => {
     const { encoded, vtxoTaprootKey } = makeArkAddress();
     const expectedPkScript = `5120${hex.encode(vtxoTaprootKey)}`;
 

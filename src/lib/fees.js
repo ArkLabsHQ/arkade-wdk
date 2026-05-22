@@ -7,7 +7,7 @@
  */
 
 /**
- * Parse and validate the ASP-supplied fee rate. The ASP is trusted but not
+ * Parse and validate the Arkade operator supplied fee rate. The operator is trusted but not
  * infallible — a malformed `txFeeRate` would otherwise propagate to
  * `BigInt(Math.ceil(NaN))` and throw deep inside the wallet stack.
  * @param {unknown} raw
@@ -16,14 +16,14 @@
 export function parseFeeRate(raw) {
   const rate = parseFloat(/** @type {string} */ (raw));
   if (!Number.isFinite(rate) || rate < 0) {
-    throw new Error(`Invalid Ark fee rate from server: ${String(raw)}`);
+    throw new Error(`Invalid Arkade fee rate from operator: ${String(raw)}`);
   }
   return rate;
 }
 
 /**
- * Calculate fees for an off-chain Ark VTXO transaction.
- * Uses Bitcoin-style fee rate model from the Ark Service Provider (ASP).
+ * Calculate fees for an off-chain Arkade VTXO transaction.
+ * Uses the Bitcoin-style fee rate model from the Arkade operator.
  * @param {Promise<import('@arkade-os/sdk').ArkInfo>} arkInfo
  * @returns {Promise<FeeEstimate>}
  */
@@ -38,7 +38,7 @@ export async function calculateOffchainFee(arkInfo) {
 
 /**
  * Calculate fees for an on-chain Bitcoin transaction.
- * Uses Bitcoin-style fee rate model from the Ark Service Provider (ASP).
+ * Uses the Bitcoin-style fee rate model from the Arkade operator.
  * @param {Promise<import('@arkade-os/sdk').ArkInfo>} arkInfo
  * @returns {Promise<FeeEstimate>}
  */

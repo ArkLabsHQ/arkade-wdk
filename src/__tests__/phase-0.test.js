@@ -29,7 +29,7 @@ const stubArkProvider = {
     Promise.resolve({ network: 'regtest', fees: { txFeeRate: '3' } }),
 };
 
-// Generate a valid Ark address from raw key bytes — `ArkAddress.encode()` is
+// Generate a valid Arkade address from raw key bytes — `ArkAddress.encode()` is
 // strict about lengths, so this gives us something `isArkAddress` accepts
 // without depending on a hand-pasted bech32m fixture that might rot.
 const ARK_ADDR = new ArkAddress(
@@ -41,7 +41,7 @@ const BTC_ADDR = 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9';
 // Sanity-check the fixture before any tests run. If this throws, the SDK
 // changed its address format and the rest of this file would be misleading.
 if (!isArkAddress(ARK_ADDR)) {
-  throw new Error(`Test bootstrap: ARK_ADDR fixture is not a valid Ark address: ${ARK_ADDR}`);
+  throw new Error(`Test bootstrap: ARK_ADDR fixture is not a valid Arkade address: ${ARK_ADDR}`);
 }
 // A reasonable BOLT11 invoice for tests. We don't need it to be currently
 // valid; the parser only fails on structural errors.
@@ -226,7 +226,7 @@ describe('0.2 — waitForLightningPayment', () => {
 // ----------------------------------------------------------------------------
 
 describe('0.3 — getFeeRates from arkInfo', () => {
-  it('returns the txFeeRate as a bigint, with normal === fast (no Ark tiers)', async () => {
+  it('returns the txFeeRate as a bigint, with normal === fast (no tiers on Arkade)', async () => {
     const provider = {
       getInfo: () => Promise.resolve({ network: 'regtest', fees: { txFeeRate: '7' } }),
     };
@@ -275,7 +275,7 @@ describe('0.4 — BIP21 propagation in send / quoteSend', () => {
     assert.equal(detectTransactionType(uri), TransactionType.BITCOIN_ONCHAIN);
   });
 
-  it('detectTransactionType resolves BIP21 wrapping an Ark address (?ark=)', () => {
+  it('detectTransactionType resolves BIP21 wrapping an Arkade address (?ark=)', () => {
     const uri = `bitcoin:${BTC_ADDR}?ark=${ARK_ADDR}`;
     assert.equal(detectTransactionType(uri), TransactionType.ARK_OFFCHAIN);
   });
@@ -348,7 +348,7 @@ describe('0.4 — BIP21 propagation in send / quoteSend', () => {
     assert.equal(result.type, TransactionType.BITCOIN_ONCHAIN);
   });
 
-  it('send (Ark) routes BIP21 ?ark= to the inner ark address', async () => {
+  it('send (Arkade) routes BIP21 ?ark= to the inner Arkade address', async () => {
     const wallet = makeWallet();
     const uri = `bitcoin:${BTC_ADDR}?ark=${ARK_ADDR}`;
 
@@ -389,7 +389,7 @@ describe('0.4 — BIP21 propagation in send / quoteSend', () => {
     assert.equal(result.fee, 330n);
   });
 
-  it('quoteSend on a BIP21 Ark URI returns the off-chain fee', async () => {
+  it('quoteSend on a BIP21 Arkade URI returns the off-chain fee', async () => {
     const result = await quoteSend({
       to: `bitcoin:${BTC_ADDR}?ark=${ARK_ADDR}`,
       amount: 0n,
@@ -466,7 +466,7 @@ describe('0.5 — LNURL routing', () => {
     );
   });
 
-  it('send routes to Ark when the LNURL endpoint advertises an Ark address', async () => {
+  it('send routes to Arkade when the LNURL endpoint advertises an Arkade address', async () => {
     mock.method(globalThis, 'fetch', async () =>
       jsonResponse({ address: ARK_ADDR, expiryDate: '', hint: '' })
     );
@@ -491,7 +491,7 @@ describe('0.5 — LNURL routing', () => {
     assert.equal(result.fee, 300n);
   });
 
-  it('quoteSend returns the Ark fee when the LNURL endpoint advertises an Ark address', async () => {
+  it('quoteSend returns the Arkade fee when the LNURL endpoint advertises an Arkade address', async () => {
     mock.method(globalThis, 'fetch', async () =>
       jsonResponse({ address: ARK_ADDR, expiryDate: '', hint: '' })
     );
@@ -507,7 +507,7 @@ describe('0.5 — LNURL routing', () => {
     assert.equal(result.fee, 300n);
   });
 
-  it('send falls back to a fetched BOLT11 invoice when Ark lookup fails', async () => {
+  it('send falls back to a fetched BOLT11 invoice when Arkade lookup fails', async () => {
     mock.method(globalThis, 'fetch', async (url) => {
       const href = String(url);
       if (href.endsWith('?method=ark')) return jsonResponse({}, false, 404);
@@ -545,7 +545,7 @@ describe('0.5 — LNURL routing', () => {
     assert.equal(result.fee, 207n);
   });
 
-  it('quoteSend falls back to Lightning fees when Ark lookup fails', async () => {
+  it('quoteSend falls back to Lightning fees when Arkade lookup fails', async () => {
     mock.method(globalThis, 'fetch', async () => jsonResponse({}, false, 404));
 
     const result = await quoteSend({
@@ -565,7 +565,7 @@ describe('0.5 — LNURL routing', () => {
 // ----------------------------------------------------------------------------
 
 describe('0.6 — ArkadeSwaps optional creation', () => {
-  /** Mock @arkade-os/sdk Wallet.create so we don't try to talk to a real Ark server. */
+  /** Mock @arkade-os/sdk Wallet.create so we don't try to talk to the real Arkade operator. */
   function mockWalletCreate() {
     return mock.method(Wallet, 'create', async (config) => {
       const pubkey = await config.identity.xOnlyPublicKey();

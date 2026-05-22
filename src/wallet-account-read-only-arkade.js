@@ -4,7 +4,7 @@ import { quoteSend } from './lib/send.js';
 import { calculateOffchainFee } from './lib/fees.js';
 
 /**
- * Read-only Bitcoin wallet account with Arkade Ark protocol support.
+ * Read-only Bitcoin wallet account with Arkade support.
  * Extends the WDK base class to inherit standard address handling
  * and provide query-only access to balances, history, and fee quotes.
  */
