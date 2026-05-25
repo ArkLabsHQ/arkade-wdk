@@ -7,7 +7,7 @@ WDK-compatible Bitcoin wallet manager/account implementation built on top of `@a
 Implemented:
 - WDK `WalletManager` integration (`getAccount`, `getAccountByPath`, `getFeeRates`, `dispose`)
 - WDK account methods for send/sign/verify/quote, BIP-322 message signing, and read-only conversion
-- Destination auto-detection in `sendTransaction()` for Ark addresses, BTC addresses, BOLT11 invoices, Lightning addresses, LNURL, and BIP21 URIs
+- Destination auto-detection in `sendTransaction()` for Arkade addresses, BTC addresses, BOLT11 invoices, Lightning addresses, LNURL, and BIP21 URIs
 - Optional Lightning receive via `createLightningInvoice()` (Boltz reverse swap)
 - Optional Lightning send via `sendTransaction()` (Boltz submarine swap)
 - Transaction history via `getTransactionHistory()` (delegates to the SDK)
@@ -21,11 +21,11 @@ Every account exposes three receive surfaces from the same underlying wallet:
 
 | Surface | API | Used when |
 |---------|-----|-----------|
-| Ark address (offchain) | `getAddress()` | Receiving VTXO transfers from other Ark users |
+| Arkade address (offchain) | `getAddress()` | Receiving VTXO transfers from other Arkade users |
 | Boarding address (on-chain) | `getBoardingAddress()` | Funding the wallet by depositing on-chain BTC |
 | Lightning invoice | `createLightningInvoice(amount, description?)` | Receiving Lightning payments via Boltz reverse swap |
 
-Lightning is only available when `swapProviderUrl` is set in the wallet config; otherwise `createLightningInvoice` throws. `getAddress()` always returns the Ark address — do not use it as a QR code for Lightning receives.
+Lightning is only available when `swapProviderUrl` is set in the wallet config; otherwise `createLightningInvoice` throws. `getAddress()` always returns the Arkade address — do not use it as a QR code for Lightning receives.
 
 ## Repository Structure
 
@@ -224,7 +224,7 @@ Common fields:
 | `storage` | optional                      | `{ walletRepository, contractRepository }`. Defaults to in-memory repositories; pass persistent ones (e.g. SQLite-backed) to keep VTXO state across restarts. |
 | `swapRepository` | optional                      | Boltz swap state storage. Forwarded into `ArkadeSwaps` when `swapProviderUrl` is set. |
 
-The manager fetches `arkProvider.getInfo()` once at construction time (with a single retry on failure) and reuses the result for fee rates, network detection, and wallet initialization. `Wallet.create` is wrapped in a 30-second timeout; the rejection mentions the unreachable Ark server so misconfigurations surface quickly.
+The manager fetches `arkProvider.getInfo()` once at construction time (with a single retry on failure) and reuses the result for fee rates, network detection, and wallet initialization. `Wallet.create` is wrapped in a 30-second timeout; the rejection mentions the unreachable Arkade server so misconfigurations surface quickly.
 
 ## Temporary Workarounds
 
@@ -370,5 +370,5 @@ MIT
 
 - [WDK Documentation](https://docs.wallet.tether.io/sdk)
 - [Arkade SDK](https://github.com/arkade-os/ts-sdk)
-- [Ark Protocol](https://ark-protocol.org)
+- [Arkade Documentation](https://docs.arkadeos.com)
 - [Boltz Exchange](https://boltz.exchange)

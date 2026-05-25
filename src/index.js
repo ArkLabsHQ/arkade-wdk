@@ -1,6 +1,6 @@
 /**
  * @arkade-os/wdk
- * WDK (Wallet Development Kit) implementation using Arkade Bitcoin SDK with Ark protocol support
+ * WDK (Wallet Development Kit) implementation using the Arkade Bitcoin SDK
  */
 
 export { default } from './wallet-manager-arkade.js';

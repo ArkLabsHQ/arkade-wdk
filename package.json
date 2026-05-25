@@ -1,7 +1,7 @@
 {
   "name": "@arkade-os/wdk",
   "version": "0.1.2",
-  "description": "WDK (Wallet Development Kit) implementation using Arkade Bitcoin SDK with Ark protocol support",
+  "description": "WDK (Wallet Development Kit) implementation using the Arkade Bitcoin SDK",
   "main": "src/index.js",
   "type": "module",
   "types": "./types/index.d.ts",

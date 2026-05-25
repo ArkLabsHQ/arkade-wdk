@@ -144,8 +144,8 @@ export const fetchInvoice = async (lnurl, sats, note = '') => {
 };
 
 /**
- * Fetch Ark address from LNURL (if supported).
- * Some LNURL servers support Ark protocol directly.
+ * Fetch an Arkade address from LNURL (if supported).
+ * Some LNURL servers support Arkade directly.
  * @param {string} lnurl - LNURL or Lightning address
  * @returns {Promise<ArkMethodResponse>}
  */
