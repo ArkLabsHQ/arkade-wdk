@@ -1557,7 +1557,7 @@ index ab55aea..0ba4248 100644
   * @property {Seed} ton - The ton's wallet seed phrase.
   * @property {Seed} tron - The tron's wallet seed phrase.
   * @property {Seed} bitcoin - The bitcoin's wallet seed phrase.
-+ * @property {Seed} arkade - The arkade (Ark protocol) wallet seed phrase.
++ * @property {Seed} arkade - The arkade wallet's seed phrase.
   * @property {Seed} solana - The solana's wallet seed phrase.
   */
  
@@ -1565,7 +1565,7 @@ index ab55aea..0ba4248 100644
   * @property {TonWalletConfig | TonGaslessWalletConfig} ton - The ton blockchain configuration.
   * @property {TronWalletConfig | TronGasfreeWalletConfig} tron - The tron blockchain configuration.
   * @property {BtcWalletConfig} bitcoin - The bitcoin blockchain configuration.
-+ * @property {ArkadeWalletConfig} arkade - The arkade (Ark protocol) blockchain configuration.
++ * @property {ArkadeWalletConfig} arkade - The arkade 'blockchain' configuration.
   * @property {SolanaWalletConfig} solana - The solana blockchain configuration.
   */
  
@@ -1695,7 +1695,7 @@ index ab55aea..0ba4248 100644
 +      } else if (blockchain === 'arkade') {
 +        if (!config.arkade || !config.arkade.arkServerUrl) {
 +          throw new Error(
-+            'Arkade chain config missing or arkServerUrl not set. ' +
++            'Arkade \'chain\' config missing or arkServerUrl not set. ' +
 +            'Set EXPO_PUBLIC_ARKADE_SERVER_URL in your .env file.'
 +          )
 +        }

@@ -104,7 +104,7 @@ index 4c3dff5..dd8018d 100644
  
    return (
 diff --git a/src/services/wdk-service/index.ts b/src/services/wdk-service/index.ts
-index 5ae8528..79942ff 100644
+index 5ae8528..4f2b542 100644
 --- a/src/services/wdk-service/index.ts
 +++ b/src/services/wdk-service/index.ts
 @@ -13,6 +13,7 @@ import {
@@ -120,7 +120,7 @@ index 5ae8528..79942ff 100644
  } from './wdk-secret-manager-storage';
  
 +// ============================================================================
-+// Inline bech32m decoder for Ark addresses (Phase 2b)
++// Inline bech32m decoder for Arkade addresses (Phase 2b)
 +//
 +// The provider's RN-side code can't import @arkade-os/sdk's ArkAddress.decode
 +// because pulling in the SDK on the React Native JS thread brings sodium-
@@ -129,9 +129,9 @@ index 5ae8528..79942ff 100644
 +// decoder so the balance workaround stays self-contained until the SDK's
 +// Esplora URL becomes configurable. ~80 lines, no deps.
 +//
-+// Reference: BIP-350. Ark addresses encode 65 bytes:
-+//   1 byte version || 32 bytes serverPubKey || 32 bytes vtxoTaprootKey
-+// The pkScript queried by the Ark indexer is `OP_1 OP_PUSHBYTES_32 <vtxo>`
++// Reference: BIP-350. Arkade addresses encode 65 bytes:
++//   1 byte version || 32 bytes operatorPubKey || 32 bytes vtxoTaprootKey
++// The pkScript queried by the Arkade indexer is `OP_1 OP_PUSHBYTES_32 <vtxo>`
 +// = `5120 || hex(vtxoTaprootKey)`.
 +// ============================================================================
 +/* eslint-disable no-bitwise -- bech32m is bit-packed by definition */
@@ -161,20 +161,20 @@ index 5ae8528..79942ff 100644
 +
 +function bech32mDecode(addr: string): { hrp: string; words: number[] } {
 +  const lower = addr.toLowerCase();
-+  if (lower.length > 1023) throw new Error('Ark address too long');
++  if (lower.length > 1023) throw new Error('Arkade address too long');
 +  const sep = lower.lastIndexOf('1');
 +  if (sep < 1 || sep + 7 > lower.length) {
-+    throw new Error('Ark address: invalid bech32m structure');
++    throw new Error('Arkade address: invalid bech32m structure');
 +  }
 +  const hrp = lower.substring(0, sep);
 +  const data: number[] = [];
 +  for (let i = sep + 1; i < lower.length; i++) {
 +    const idx = BECH32M_CHARSET.indexOf(lower.charAt(i));
-+    if (idx === -1) throw new Error('Ark address: invalid bech32m character');
++    if (idx === -1) throw new Error('Arkade address: invalid bech32m character');
 +    data.push(idx);
 +  }
 +  if (bech32mPolymod([...bech32mHrpExpand(hrp), ...data]) !== BECH32M_CONST) {
-+    throw new Error('Ark address: bech32m checksum mismatch');
++    throw new Error('Arkade address: bech32m checksum mismatch');
 +  }
 +  return { hrp, words: data.slice(0, data.length - 6) };
 +}
@@ -184,7 +184,7 @@ index 5ae8528..79942ff 100644
 +  let bits = 0;
 +  const out: number[] = [];
 +  for (const v of words) {
-+    if (v < 0 || v > 31) throw new Error('Ark address: invalid 5-bit value');
++    if (v < 0 || v > 31) throw new Error('Arkade address: invalid 5-bit value');
 +    acc = (acc << 5) | v;
 +    bits += 5;
 +    while (bits >= 8) {
@@ -193,13 +193,13 @@ index 5ae8528..79942ff 100644
 +    }
 +  }
 +  if (bits >= 5 || (acc << (8 - bits)) & 0xff) {
-+    throw new Error('Ark address: invalid bech32m padding');
++    throw new Error('Arkade address: invalid bech32m padding');
 +  }
 +  return out;
 +}
 +
 +/**
-+ * Decode an Ark address (bech32m) into the BTC pkScript that the Ark indexer
++ * Decode an Arkade address (bech32m) into the BTC pkScript that the Arkade indexer
 + * expects in its `scripts=` query parameter.
 + *
 + * @internal — exported only for tests.
@@ -209,7 +209,7 @@ index 5ae8528..79942ff 100644
 +  const data = bech32mFromWords(words);
 +  if (data.length !== 65) {
 +    throw new Error(
-+      `Ark address: expected 65-byte payload (1+32+32), got ${data.length}`
++      `Arkade address: expected 65-byte payload (1+32+32), got ${data.length}`
 +    );
 +  }
 +  const vtxoTaprootKey = data.slice(33, 65);
@@ -802,7 +802,7 @@ index 5ae8528..79942ff 100644
  }
  
 diff --git a/src/services/wdk-service/types.ts b/src/services/wdk-service/types.ts
-index 6663b0e..445be08 100644
+index 6663b0e..6e96528 100644
 --- a/src/services/wdk-service/types.ts
 +++ b/src/services/wdk-service/types.ts
 @@ -7,6 +7,8 @@ export enum AssetTicker {
@@ -819,7 +819,7 @@ index 6663b0e..445be08 100644
  }
  
 +// Arkade variants — each maps a single BTC asset to a different "mode" on the
-+// same underlying Arkade account: ARKADE = offchain Ark address, ARKADE_BOARDING
++// same underlying Arkade account: ARKADE = offchain Arkade address, ARKADE_BOARDING
 +// = on-chain BTC boarding deposit, LIGHTNING = swap-backed Lightning invoice.
 +// All three resolve to the same worklet chain key ('arkade').
 +export const ARKADE_NETWORK_TYPES = [
@@ -855,10 +855,10 @@ index 6663b0e..445be08 100644
  }
  
 +/**
-+ * Configuration for the Arkade chain (Ark protocol).
++ * Configuration for the Arkade 'chain'.
 + *
 + * `arkServerUrl` is the only required field — it's the REST endpoint of the
-+ * Ark server the wallet talks to.
++ * Arkade operator the wallet talks to.
 + *
 + * `esploraUrl` is the REST endpoint used by the RN-side balance workaround
 + * to read the on-chain BTC boarding balance. The SDK's bundled Esplora URL
@@ -868,7 +868,7 @@ index 6663b0e..445be08 100644
 +export interface ArkadeChainConfig {
 +  arkServerUrl: string;
 +  /** VTXO indexer / "virtual mempool" URL. If omitted the SDK defaults to the
-+   *  arkServerUrl's built-in indexer, which works when the Ark server bundles
++   *  arkServerUrl's built-in indexer, which works when the Arkade operator bundles
 +   *  its own indexer. For mutinynet / mainnet setups where the indexer lives at
 +   *  a separate domain (e.g. https://explorer.mutinynet.arkade.sh) this must
 +   *  be set explicitly. */

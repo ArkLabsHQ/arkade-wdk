@@ -1,5 +1,5 @@
 diff --git a/.env.example b/.env.example
-index fe78808..c0f74a1 100644
+index fe78808..eedde75 100644
 --- a/.env.example
 +++ b/.env.example
 @@ -1,4 +1,19 @@
@@ -10,11 +10,11 @@ index fe78808..c0f74a1 100644
 \ No newline at end of file
 +EXPO_PUBLIC_TRON_API_SECRET=PUT_HERE
 +# --- Arkade ---
-+# REST endpoint of the Ark server the wallet talks to. Override locally for
++# REST endpoint of the Arkade operator the wallet talks to. Override locally for
 +# regtest / mutinynet (e.g. http://192.168.1.10:7070).
 +EXPO_PUBLIC_ARKADE_SERVER_URL=https://arkade.computer
 +# VTXO indexer / "virtual mempool" URL. If omitted, the SDK defaults to the
-+# Ark server's built-in indexer. Set this when the indexer lives at a separate
++# Arkade operator's built-in indexer. Set this when the indexer lives at a separate
 +# domain (mutinynet: https://explorer.mutinynet.arkade.sh, mainnet:
 +# https://arkade.space).
 +# EXPO_PUBLIC_ARKADE_INDEXER_URL=
@@ -6576,7 +6576,7 @@ index 8025f1b..5ced777 100644
  
      // Sort transactions by timestamp (newest first) and calculate fiat values
 diff --git a/src/app/receive/details.tsx b/src/app/receive/details.tsx
-index 0ac6e1c..a60abc0 100644
+index 0ac6e1c..72b53ad 100644
 --- a/src/app/receive/details.tsx
 +++ b/src/app/receive/details.tsx
 @@ -1,25 +1,90 @@
@@ -6780,7 +6780,7 @@ index 0ac6e1c..a60abc0 100644
 +              {networkName === 'Bitcoin (Boarding)' && (
 +                <Text style={styles.boardingHint}>
 +                  Send on-chain BTC to this address. It will become available as
-+                  Arkade balance after the next server round (usually within a few
++                  Arkade balance after the next batch swap (usually within a few
 +                  minutes).
 +                </Text>
 +              )}
@@ -6908,14 +6908,14 @@ index 0ac6e1c..a60abc0 100644
      marginBottom: 40,
    },
 diff --git a/src/app/receive/select-network.tsx b/src/app/receive/select-network.tsx
-index ac8d02c..2126d40 100644
+index ac8d02c..c1d7469 100644
 --- a/src/app/receive/select-network.tsx
 +++ b/src/app/receive/select-network.tsx
 @@ -24,6 +24,8 @@ const NETWORK_DESCRIPTIONS = {
    [NetworkType.TRON]: 'Tron Network',
    [NetworkType.SOLANA]: 'Solana Network',
    [NetworkType.SEGWIT]: 'Native Bitcoin Network',
-+  [NetworkType.ARKADE]: 'Arkade (Ark protocol — instant, low-fee BTC)',
++  [NetworkType.ARKADE]: 'Arkade (instant, low-fee BTC)',
 +  [NetworkType.ARKADE_BOARDING]: 'Bitcoin on-chain → Arkade (boarding)',
    [NetworkType.LIGHTNING]: 'Lightning Network',
  };
@@ -7124,7 +7124,7 @@ index fb7b837..0fd86c9 100644
                  onQRScan={handleQRScan}
                />
 diff --git a/src/app/send/select-network.tsx b/src/app/send/select-network.tsx
-index ae693d1..3a586a5 100644
+index ae693d1..7abb0c0 100644
 --- a/src/app/send/select-network.tsx
 +++ b/src/app/send/select-network.tsx
 @@ -2,7 +2,7 @@ import { Network, NetworkSelector } from '@/components/NetworkSelector';
@@ -7155,7 +7155,7 @@ index ae693d1..3a586a5 100644
        }
  
 +      // Filter out ARKADE_BOARDING — boarding is receive-only (deposit
-+      // on-chain BTC into Ark). You can't send FROM a boarding address.
++      // on-chain BTC into Arkade). You can't send FROM a boarding address.
 +      const sendableNetworks = tokenConfig.supportedNetworks.filter(
 +        (n) => n !== NetworkType.ARKADE_BOARDING
 +      );
@@ -7271,7 +7271,7 @@ index 1a8cf06..6702a05 100644
        map.set(balance.denomination, {
          totalBalance: current.totalBalance + parseFloat(balance.value),
 diff --git a/src/config/assets.ts b/src/config/assets.ts
-index 7a86eaf..4400f85 100644
+index 7a86eaf..401926e 100644
 --- a/src/config/assets.ts
 +++ b/src/config/assets.ts
 @@ -26,7 +26,11 @@ export const assetConfig: Record<string, AssetConfig> = {
@@ -7279,9 +7279,9 @@ index 7a86eaf..4400f85 100644
      icon: require('../../assets/images/tokens/bitcoin-btc-logo.png'),
      color: '#ffffff',
 -    supportedNetworks: [NetworkType.SEGWIT],
-+    // Phase 3 adds ARKADE (offchain Ark address). Phase 4 adds LIGHTNING
++    // Phase 3 adds ARKADE (offchain Arkade address). Phase 4 adds LIGHTNING
 +    // (swap-backed invoices). Phase 5 adds ARKADE_BOARDING (on-chain BTC
-+    // deposits into Ark). Each appears as its own row in the receive /
++    // deposits into Arkade). Each appears as its own row in the receive /
 +    // send network selectors.
 +    supportedNetworks: [NetworkType.SEGWIT, NetworkType.ARKADE, NetworkType.ARKADE_BOARDING, NetworkType.LIGHTNING],
    },
@@ -7308,7 +7308,7 @@ index 0a8e71a..3fa33df 100644
        chainId: 3448148188,
        provider: 'https://trongrid.io',
 diff --git a/src/config/networks.ts b/src/config/networks.ts
-index 1ae6c16..2fb1043 100644
+index 1ae6c16..5ba3201 100644
 --- a/src/config/networks.ts
 +++ b/src/config/networks.ts
 @@ -7,6 +7,12 @@ export interface Network {
@@ -7334,7 +7334,7 @@ index 1ae6c16..2fb1043 100644
 +    gasLevel: 'Low',
 +    gasColor: '#34C759',
 +    // Reuse the bitcoin logo until a dedicated Arkade asset lands —
-+    // Ark is a Bitcoin-protocol layer, so the icon mismatch is cosmetic.
++    // Arkade is a Bitcoin-protocol layer, so the icon mismatch is cosmetic.
 +    icon: require('../../assets/images/chains/bitcoin-btc-logo.png'),
 +    color: '#F7931A',
 +  },
@@ -7384,7 +7384,7 @@ index 34120d4..a5d146d 100644
    const formattedAmount = formatAmount(amount, {
      minimumFractionDigits: 0,
 diff --git a/src/utils/gas-fee-calculator.ts b/src/utils/gas-fee-calculator.ts
-index 3a08372..06db018 100644
+index 3a08372..cac5c87 100644
 --- a/src/utils/gas-fee-calculator.ts
 +++ b/src/utils/gas-fee-calculator.ts
 @@ -9,6 +9,14 @@ const QUOTE_RECIPIENTS = {
@@ -7393,9 +7393,9 @@ index 3a08372..06db018 100644
        [NetworkType.SEGWIT]: 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9',
 +      // Same SegWit address — Arkade quotes route through the library's
 +      // send.js auto-detect, which falls back to the on-chain BTC fee
-+      // calculator when the destination isn't an Ark address. The actual
++      // calculator when the destination isn't an Arkade address. The actual
 +      // recipient never matters for a quote (no transaction is broadcast),
-+      // and we don't ship a sentinel Ark address until Phase 4 when the
++      // and we don't ship a sentinel Arkade address until Phase 4 when the
 +      // user can paste real ones.
 +      [NetworkType.ARKADE]: 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9',
 +      [NetworkType.ARKADE_BOARDING]: 'bc1qh96eg54ddu4q2cmn0n6g8uymuqlw402jndphu9',
@@ -7439,7 +7439,7 @@ index 3a08372..06db018 100644
 + *
 + * When the user has supplied a real recipient (typed, pasted, or scanned), we
 + * prefer it over the hardcoded `QUOTE_RECIPIENTS` placeholder — otherwise the
-+ * SDK's destination-based routing (Ark vs on-chain vs Lightning) runs against
++ * SDK's destination-based routing (Arkade vs on-chain vs Lightning) runs against
 + * the wrong address type and either yields the wrong fee or, for Lightning,
 + * fails with "Unknown destination type: undefined" since there's no sensible
 + * placeholder invoice.
