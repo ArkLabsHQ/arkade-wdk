@@ -62,7 +62,11 @@ console.log('=== Arkade WDK Development Setup ===\n');
 
 // Initialize and update submodules
 console.log('1. Initializing git submodules...');
-run('git submodule update --init --recursive');
+// --force resets each submodule's working tree to the recorded commit even
+// when it's already initialized. Without it, a submodule whose working tree
+// was wiped or left dirty (but whose HEAD already matches) is treated as
+// up-to-date and never restored, which then breaks the patch step below.
+run('git submodule update --init --recursive --force');
 
 // Apply patches to submodules
 console.log('\n2. Applying patches to submodules...');

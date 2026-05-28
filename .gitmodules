@@ -6,4 +6,4 @@
 	url = https://github.com/tetherto/wdk-react-native-provider.git
 [submodule "packages/pear-wrk-wdk"]
 	path = packages/pear-wrk-wdk
-	url = https://github.com/tetherto/pear-wrk-wdk
+	url = https://github.com/ArkLabsHQ/pear-wrk-wdk
