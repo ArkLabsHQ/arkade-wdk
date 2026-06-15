@@ -32,6 +32,19 @@ export const TransactionType = /** @type {const} */ ({
  */
 
 /**
+ * Options for {@link quoteSend}. Fee quoting only reads — it never spends — so
+ * a read-only wallet is sufficient. Accepting `IReadonlyWallet` lets both full
+ * and read-only accounts request quotes.
+ * @typedef {{
+ *   to: string;
+ *   amount: bigint;
+ *   wallet: import('@arkade-os/sdk').IReadonlyWallet;
+ *   arkInfo: Promise<import('@arkade-os/sdk').ArkInfo>;
+ *   lightning?: import('@arkade-os/boltz-swap').ArkadeSwaps | null;
+ * }} QuoteOptions
+ */
+
+/**
  * Resolve a possibly-BIP21 destination string into the inner address/invoice
  * actually consumed by the wallet, plus any amount carried in the URI.
  *
@@ -123,7 +136,7 @@ function assertPositiveAmount(amount) {
 
 /**
  * Quote a transaction fee without sending
- * @param {SendOptions} options
+ * @param {QuoteOptions} options
  * @returns {Promise<import('./fees.js').FeeEstimate>}
  */
 export async function quoteSend(options) {

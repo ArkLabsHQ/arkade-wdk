@@ -31,6 +31,17 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   }
 
   /**
+   * The base class types `_wallet` as read-only. A full account is always
+   * constructed with a signing wallet, so expose it as `IWallet` for the
+   * send/sign/settle paths below.
+   * @protected
+   * @returns {import('@arkade-os/sdk').IWallet}
+   */
+  get _signingWallet() {
+    return /** @type {import('@arkade-os/sdk').IWallet} */ (this._wallet);
+  }
+
+  /**
    * @param {import('@tetherto/wdk-wallet').Transaction} tx
    * @returns {Promise<import('@tetherto/wdk-wallet').TransactionResult>}
    */
@@ -38,7 +49,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
     const result = await send({
       to: tx.to,
       amount: BigInt(tx.value),
-      wallet: this._wallet,
+      wallet: this._signingWallet,
       arkInfo: this._arkInfo,
       lightning: this.arkadeSwaps,
     });
@@ -70,9 +81,9 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<import('@tetherto/wdk-wallet').TransferResult>}
    */
   async transfer(options) {
-    const txid = await this._wallet.send({
+    const txid = await this._signingWallet.send({
       address: options.recipient,
-      assets: [{ assetId: options.token, amount: Number(options.amount) }],
+      assets: [{ assetId: options.token, amount: BigInt(options.amount) }],
     });
 
     const feeEstimate = await calculateOffchainFee(this._arkInfo);
@@ -84,7 +95,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<string>}
    */
   async sign(message) {
-    return BIP322.sign(message, this._wallet.identity);
+    return BIP322.sign(message, this._signingWallet.identity);
   }
 
   /**
@@ -93,7 +104,14 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<() => void>}
    */
   async subscribeToIncomingFunds(callback) {
-    return this._wallet.notifyIncomingFunds(callback);
+    // `notifyIncomingFunds` still exists at runtime but was dropped from the
+    // public IWallet/IReadonlyWallet types in @arkade-os/sdk 0.4.x. Reach it
+    // via a cast until the SDK re-exposes a typed subscription API.
+    const wallet =
+      /** @type {{ notifyIncomingFunds: (cb: (coins: import('@arkade-os/sdk').IncomingFunds) => void) => Promise<() => void> }} */ (
+        /** @type {unknown} */ (this._wallet)
+      );
+    return wallet.notifyIncomingFunds(callback);
   }
 
   /** @returns {Promise<WalletAccountReadOnlyArkade>} */
