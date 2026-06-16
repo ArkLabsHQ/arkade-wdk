@@ -68,9 +68,7 @@ export class WalletAccountReadOnlyArkade extends WalletAccountReadOnly {
    */
   async getTokenBalance(tokenAddress) {
     const balance = await this._wallet.getBalance();
-    const asset = balance.assets.find(
-      (/** @type {{ assetId: string; amount: number }} */ a) => a.assetId === tokenAddress
-    );
+    const asset = balance.assets.find((a) => a.assetId === tokenAddress);
     return asset ? BigInt(asset.amount) : 0n;
   }
 

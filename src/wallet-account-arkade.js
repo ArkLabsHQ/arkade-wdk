@@ -31,6 +31,19 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   }
 
   /**
+   * The underlying SDK wallet with full signing capabilities. The base class
+   * types `_wallet` as IReadonlyWallet, but the manager always constructs this
+   * subclass with a concrete `Wallet` (via `Wallet.create`), so we expose the
+   * concrete type — it carries `notifyIncomingFunds`, which the `IWallet`
+   * interface omits.
+   * @private
+   * @returns {import('@arkade-os/sdk').Wallet}
+   */
+  get _signingWallet() {
+    return /** @type {import('@arkade-os/sdk').Wallet} */ (this._wallet);
+  }
+
+  /**
    * @param {import('@tetherto/wdk-wallet').Transaction} tx
    * @returns {Promise<import('@tetherto/wdk-wallet').TransactionResult>}
    */
@@ -38,7 +51,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
     const result = await send({
       to: tx.to,
       amount: BigInt(tx.value),
-      wallet: this._wallet,
+      wallet: this._signingWallet,
       arkInfo: this._arkInfo,
       lightning: this.arkadeSwaps,
     });
@@ -70,9 +83,9 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<import('@tetherto/wdk-wallet').TransferResult>}
    */
   async transfer(options) {
-    const txid = await this._wallet.send({
+    const txid = await this._signingWallet.send({
       address: options.recipient,
-      assets: [{ assetId: options.token, amount: Number(options.amount) }],
+      assets: [{ assetId: options.token, amount: BigInt(options.amount) }],
     });
 
     const feeEstimate = await calculateOffchainFee(this._arkInfo);
@@ -84,7 +97,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<string>}
    */
   async sign(message) {
-    return BIP322.sign(message, this._wallet.identity);
+    return BIP322.sign(message, this._signingWallet.identity);
   }
 
   /**
@@ -93,7 +106,7 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
    * @returns {Promise<() => void>}
    */
   async subscribeToIncomingFunds(callback) {
-    return this._wallet.notifyIncomingFunds(callback);
+    return this._signingWallet.notifyIncomingFunds(callback);
   }
 
   /** @returns {Promise<WalletAccountReadOnlyArkade>} */

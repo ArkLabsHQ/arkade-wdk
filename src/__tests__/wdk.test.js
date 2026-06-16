@@ -121,7 +121,7 @@ describe('Asset Support', () => {
 
     assert.deepEqual(mockSend.mock.calls[0].arguments[0], {
       address: 'ark1recipient',
-      assets: [{ assetId: 'asset-aaa', amount: 100 }],
+      assets: [{ assetId: 'asset-aaa', amount: 100n }],
     });
     assert.equal(result.hash, 'txid-abc123');
     assert.equal(result.fee, 300n); // 150 vB * 2 sat/vB

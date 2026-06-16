@@ -10,6 +10,7 @@
  * @typedef {import('@tetherto/wdk-wallet').WalletConfig &
  *   Omit<import('@arkade-os/sdk').WalletConfig, 'identity'> & {
  *     swapProviderUrl?: string
+ *     swapRepository?: import('@arkade-os/boltz-swap').ArkadeSwapsCreateConfig['swapRepository']
  *   }} ArkadeWalletConfig
  */
 
