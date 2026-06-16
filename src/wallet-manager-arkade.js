@@ -5,6 +5,7 @@ import {
   Wallet,
   InMemoryWalletRepository,
   InMemoryContractRepository,
+  maybeArkError,
 } from '@arkade-os/sdk';
 import { HDKey } from '@scure/bip32';
 import { ArkadeSwaps, BoltzSwapProvider } from '@arkade-os/boltz-swap';
@@ -13,6 +14,13 @@ import { parseFeeRate } from './lib/fees.js';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
 
 const WALLET_CREATE_TIMEOUT_MS = 30_000;
+
+// arkd's structured error name when the client's X-Build-Version is below the
+// operator's configured minimum. The new ts-sdk (signer-rotation support) sends
+// an X-Build-Version header and the operator's version guard rejects clients
+// that are too old to understand rotation — it fails even getInfo, so without
+// this the wallet would just see a generic network failure and retry uselessly.
+const BUILD_VERSION_TOO_OLD = 'BUILD_VERSION_TOO_OLD';
 
 /**
  * Bitcoin wallet manager using the Arkade SDK.
@@ -39,6 +47,20 @@ class WalletManagerArkade extends WalletManager {
     // no orphaned rejections. If BOTH attempts fail, the promise rejects and
     // callers (getAccount, getFeeRates) surface the error normally.
     this._info = this._arkProvider.getInfo().catch((/** @type {unknown} */ reason) => {
+      // A too-old client is rejected deterministically with a structured
+      // BUILD_VERSION_TOO_OLD ArkError (even on getInfo). Retrying can't fix it,
+      // so skip the retry and surface an actionable "update the SDK" error
+      // instead of an opaque network failure. Other failures fall through to
+      // the single transient-error retry below.
+      const arkErr = maybeArkError(reason);
+      if (arkErr?.name === BUILD_VERSION_TOO_OLD) {
+        const minVersion = arkErr.metadata?.min_version ?? arkErr.metadata?.minVersion;
+        throw new Error(
+          `Arkade operator at ${this._cfg().arkServerUrl} requires a newer client build` +
+            `${minVersion ? ` (minimum ${minVersion})` : ''}. ` +
+            'Update @arkade-os/sdk to a version compatible with this operator.'
+        );
+      }
       console.warn(`Arkade network info fetch failed, retrying: ${String(reason)}`);
       return this._arkProvider.getInfo();
     });

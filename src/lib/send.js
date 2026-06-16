@@ -32,6 +32,14 @@ export const TransactionType = /** @type {const} */ ({
  */
 
 /**
+ * Like {@link SendOptions} but only requires read access — quoting a fee
+ * never signs, so a read-only wallet is sufficient.
+ * @typedef {Omit<SendOptions, 'wallet'> & {
+ *   wallet: import('@arkade-os/sdk').IReadonlyWallet;
+ * }} QuoteOptions
+ */
+
+/**
  * Resolve a possibly-BIP21 destination string into the inner address/invoice
  * actually consumed by the wallet, plus any amount carried in the URI.
  *
@@ -123,7 +131,7 @@ function assertPositiveAmount(amount) {
 
 /**
  * Quote a transaction fee without sending
- * @param {SendOptions} options
+ * @param {QuoteOptions} options
  * @returns {Promise<import('./fees.js').FeeEstimate>}
  */
 export async function quoteSend(options) {
