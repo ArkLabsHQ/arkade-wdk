@@ -35,8 +35,8 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@arkade-os/boltz-swap": "0.3.40",
-    "@arkade-os/sdk": "0.4.35",
+    "@arkade-os/boltz-swap": "0.3.60",
+    "@arkade-os/sdk": "0.4.55",
     "@scure/base": "^2.0.0",
     "@scure/bip32": "^2.0.1",
     "@tetherto/wdk-wallet": "^1.0.0-beta.5",
