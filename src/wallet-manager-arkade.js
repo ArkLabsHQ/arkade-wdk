@@ -10,6 +10,7 @@ import {
 import { HDKey } from '@scure/bip32';
 import { ArkadeSwaps, BoltzSwapProvider } from '@arkade-os/boltz-swap';
 import { sodium_memzero } from 'sodium-universal';
+import { UnsupportedOperationError } from '@tetherto/wdk-wallet';
 import { parseFeeRate } from './lib/fees.js';
 import { WalletAccountArkade } from './wallet-account-arkade.js';
 
@@ -106,7 +107,11 @@ class WalletManagerArkade extends WalletManager {
       // and is zeroed via sodium_memzero in the account dispose path.
       // The try/finally ensures the master's private data is wiped even if
       // `derive(path)` throws on a malformed path supplied by the consumer.
-      const master = HDKey.fromMasterSeed(this.seed);
+      const seed = this.seed;
+      if (!seed) {
+        throw new Error('WalletManagerArkade seed has been cleared');
+      }
+      const master = HDKey.fromMasterSeed(seed);
       let hdKey;
       try {
         hdKey = master.derive(path);
@@ -198,25 +203,44 @@ class WalletManagerArkade extends WalletManager {
   }
 
   /**
+   * @overload
    * @param {number} [index]
+   * @param {{ signerName?: string }} [options]
    * @returns {Promise<WalletAccountArkade>}
    */
-  async getAccount(index = 0) {
+  /**
+   * @overload
+   * @param {string} signerName
+   * @returns {Promise<WalletAccountArkade>}
+   */
+  /**
+   * @param {number | string} [indexOrSignerName]
+   * @param {{ signerName?: string }} [_options]
+   * @returns {Promise<WalletAccountArkade>}
+   */
+  async getAccount(indexOrSignerName = 0, _options = {}) {
     this._disposeCheck();
+    if (typeof indexOrSignerName === 'string' || _options.signerName) {
+      throw new UnsupportedOperationError('named signers');
+    }
 
     const info = await this._info;
     const network = ['bitcoin', 'mainnet'].includes(String(info.network)) ? '0' : '1';
-    const path = `m/86'/${network}/0'/0/${index}`;
+    const path = `m/86'/${network}/0'/0/${indexOrSignerName}`;
 
     return this.getAccountByPath(path);
   }
 
   /**
    * @param {string} path
+   * @param {{ signerName?: string }} [_options]
    * @returns {Promise<WalletAccountArkade>}
    */
-  async getAccountByPath(path) {
+  async getAccountByPath(path, _options = {}) {
     this._disposeCheck();
+    if (_options.signerName) {
+      throw new UnsupportedOperationError('named signers');
+    }
 
     const cached = /** @type {WalletAccountArkade | undefined} */ (this._accounts[path]);
     if (cached) return cached;
@@ -273,7 +297,8 @@ class WalletManagerArkade extends WalletManager {
       }
     }
 
-    sodium_memzero(this.seed);
+    const seed = this.seed;
+    if (seed) sodium_memzero(seed);
   }
 }
 

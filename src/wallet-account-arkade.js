@@ -1,4 +1,5 @@
 import { BIP322, ReadonlySingleKey } from '@arkade-os/sdk';
+import { UnsupportedOperationError } from '@tetherto/wdk-wallet';
 import { sodium_memzero } from 'sodium-universal';
 import { calculateOffchainFee } from './lib/fees.js';
 import { quoteSend, send } from './lib/send.js';
@@ -101,6 +102,16 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
   }
 
   /**
+   * Arkade constructs, signs, and submits transactions atomically through
+   * sendTransaction(), so it cannot provide a detached signed transaction.
+   * @param {import('@tetherto/wdk-wallet').Transaction} _tx
+   * @returns {Promise<never>}
+   */
+  async signTransaction(_tx) {
+    throw new UnsupportedOperationError('signTransaction');
+  }
+
+  /**
    * Subscribe to incoming VTXO notifications.
    * @param {(coins: import('@arkade-os/sdk').IncomingFunds) => void} callback
    * @returns {Promise<() => void>}
@@ -129,8 +140,11 @@ export class WalletAccountArkade extends WalletAccountReadOnlyArkade {
       getVtxos: (/** @type {import('@arkade-os/sdk').GetVtxosFilter} */ filter) => this._wallet.getVtxos(filter),
       getBoardingUtxos: () => this._wallet.getBoardingUtxos(),
       getTransactionHistory: () => this._wallet.getTransactionHistory(),
+      activity: this._wallet.activity,
+      getActivityHistory: () => this._wallet.getActivityHistory(),
       getContractManager: () => this._wallet.getContractManager(),
       assetManager: readonlyAssetManager,
+      clear: () => this._wallet.clear(),
     };
     return new WalletAccountReadOnlyArkade(
       /** @type {string} */ (this._address),
